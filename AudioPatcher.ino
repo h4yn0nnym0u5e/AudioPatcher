@@ -23,11 +23,11 @@ std::vector<AudioObjStatic_t> objVec = {objList[1],objList[2],objList[5],objList
  
 /********************************************************************************************************/
 void setup() {
-  displayInit();
-  displaySplash();
+  display.Init();
+  display.Splash();
   while (!Serial)
     ;
-  displayClear();   
+  display.Clear();   
 
   Serial.println("Setup");
   Serial.printf("%d audio objects available\n",AUDIO_MAX_ID - 1);
@@ -37,19 +37,22 @@ void setup() {
   {
     Serial.printf("%32.32s: ID=%d, %d inputs, %d outputs\n",
                   objList[i].name, i, objList[i].inputs, objList[i].outputs);
-                  
-    displayDrawAudioObject(objList[i],xp,yp);
+
+/*                  
+    display.DrawAudioObject(objList[i],xp,yp);
     xp += 48;
     if (xp > 320 - 48)
     {
       xp = 0;
       yp += 48;
     }
+*/
   }
 
-  drawConnection(objList[3], 2+2*48, 2+0*48, 0,false,ILI9341_ORANGE);
-  drawConnection(objList[3], 2+2*48, 2+0*48, 4,true,0xFC02);
-
+/*
+  display.DrawConnection(objList[3], 2+2*48, 2+0*48, 0,false,ILI9341_ORANGE);
+  display.DrawConnection(objList[3], 2+2*48, 2+0*48, 4,true,0xFC02);
+*/
   ctrl.begin();
   Serial.printf("8Angle says %d\n",ctrl?1:0);
   Serial.printf("8Angle at address 0x%02X; version %d\n",ctrl.getAddress(),ctrl.getVersion());
@@ -115,12 +118,23 @@ void xloop()
 }
 
 /********************************************************************************************************/
-LimitedEncoder enc0{encr,0,1,COUNT_OF_objList};
+LimitedEncoder enc0{encr,0,0,31}; // x position in steps of 10
+LimitedEncoder enc1{encr,1,0,23}; // y position in steps of 10
+LimitedEncoder enc2{encr,2,1,COUNT_OF_objList}; // object selector
 void loop() 
 {
-  if (enc0.available())
+  if (enc2.available())
   {
-    Serial.println(enc0.getValue());
+    int v = enc2.getValue();
+    Serial.printf("%d : %s\n",v,objList[v].name);
+    display.ShowSelection(objList[v].name,objList[v].category);
+  }
+
+  if (enc0.available() || enc1.available())
+  {
+    int16_t x = enc0.getValue() * 10;
+    int16_t y = enc1.getValue() * 10;
+    display.CursorTo(x,y);
   }
 
   if (encr.getButton(0))

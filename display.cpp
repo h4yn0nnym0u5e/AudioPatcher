@@ -2,22 +2,24 @@
 
 // Use hardware SPI (on Uno, #13, #12, #11) and the above for CS/DC
 ILI9341_t3 tft = ILI9341_t3(TFT_CS, TFT_DC);
+AudioPatcherDisplay display;
+uint16_t behindCursor[100];
 
-void displayInit(void)
+void AudioPatcherDisplay::Init(void)
 {
   tft.begin();
   tft.setRotation(TFT_ROTATION);
   tft.setScroll(0);
-  displayClear();
+  Clear();
 }
 
-void displayClear(void)
+void AudioPatcherDisplay::Clear(void)
 {
   tft.fillScreen(ILI9341_BLACK);
 }
 
 
-void displaySplash(void)
+void AudioPatcherDisplay::Splash(void)
 {
   tft.setTextColor(ILI9341_YELLOW);
   tft.setTextSize(2);
@@ -78,10 +80,8 @@ void getOutputPositions(AudioObjStatic_t& o, int16_t x, int16_t y,
   *pys = cs;
 }
 
-void displayDrawAudioObject(AudioObjStatic_t& o, int16_t x, int16_t y)
+void AudioPatcherDisplay::DrawAudioObject(AudioObjStatic_t& o, int16_t x, int16_t y)
 { 
-  const char* label = o.label;
-  
   tft.fillRoundRect(x,y,osize.ow,osize.oh,osize.cc,AudioObjectColours[o.category].body);
   tft.drawRoundRect(x,y,osize.ow,osize.oh,osize.cc,AudioObjectColours[o.category].border);
   
@@ -116,7 +116,7 @@ void displayDrawAudioObject(AudioObjStatic_t& o, int16_t x, int16_t y)
   }
 }
 
-void drawConnection(AudioObjStatic_t& o, int16_t x, int16_t y, int8_t n , bool op, uint16_t colour)
+void AudioPatcherDisplay::DrawConnection(AudioObjStatic_t& o, int16_t x, int16_t y, int8_t n , bool op, uint16_t colour)
 {
 #define BAD -999  
   int16_t cx = BAD,cb,cs;
@@ -139,4 +139,88 @@ void drawConnection(AudioObjStatic_t& o, int16_t x, int16_t y, int8_t n , bool o
   }
   else
     Serial.println("Bad connection!");
+}
+
+void AudioPatcherDisplay::ShowSelection(const char* txt, AudioCategory_e cat)
+{
+  static int16_t eraseTo = -1;
+  bool fixCursor;
+  
+  tft.setFontAdafruit();
+  tft.setTextSize(2);
+  int16_t tw = tft.measureTextWidth(txt),
+          th = tft.fontLineSpace(); // assume it's going to fit on one line!
+  fixCursor = cursor_y > 240-th;
+  tft.setTextColor(AudioObjectColours[cat].border,ILI9341_BLACK);
+  tft.setCursor(0,240 - th);
+  if (fixCursor)
+    CursorClear();
+  tft.print(txt);
+  if (tw < eraseTo)
+    tft.fillRect(tw,240 - th,eraseTo - tw, th,ILI9341_BLACK);
+  eraseTo = tw;
+  if (fixCursor)
+    CursorRestore();
+}
+
+void AudioPatcherDisplay::GetCursorSaveParams(const int16_t x, const int16_t y, int16_t& cxr, int16_t& cyr, int16_t& cw, int16_t& ch)
+{
+  cxr = x - CURSOR_SIZE/2; cyr = y - CURSOR_SIZE/2;
+  cw = ch = CURSOR_SIZE;
+
+  if (cxr < 0)
+  {
+    cw += cxr;
+    cxr = 0;
+  }
+  if (cyr < 0)
+  {
+    ch += cyr;
+    cyr = 0;
+  }
+}
+
+
+void AudioPatcherDisplay::GetCursor(int16_t& x, int16_t& y)
+{
+  x = cursor_x;
+  y = cursor_y;
+}
+
+void AudioPatcherDisplay::CursorTo(int16_t x, int16_t y)
+{
+  int16_t cxr,cyr,cw,ch;
+
+  if (nullptr != cbuf)
+  {    
+    GetCursorSaveParams(cursor_x,cursor_y,cxr,cyr,cw,ch);
+    tft.writeRect(cxr,cyr,cw,ch,cbuf); // restore contents at old position
+  }
+
+  cursor_x = x;
+  cursor_y = y;
+  GetCursorSaveParams(cursor_x,cursor_y,cxr,cyr,cw,ch);
+  tft.readRect(cxr,cyr,cw,ch,behindCursor); // stash content at new position
+  cbuf = behindCursor;
+
+  tft.drawRect(x-CURSOR_SIZE/2,y-1,CURSOR_SIZE,2,ILI9341_WHITE);
+  tft.drawRect(x-1,y-CURSOR_SIZE/2,2,CURSOR_SIZE,ILI9341_WHITE);
+}
+
+
+void AudioPatcherDisplay::CursorClear(void)
+{
+  int16_t cxr,cyr,cw,ch;
+
+  if (nullptr != cbuf)
+  {    
+    GetCursorSaveParams(cursor_x,cursor_y,cxr,cyr,cw,ch);
+    tft.writeRect(cxr,cyr,cw,ch,cbuf); // restore contents at old position
+    cbuf = nullptr; // invalidate
+  }  
+}
+
+void AudioPatcherDisplay::CursorRestore(void)
+{
+  CursorTo(cursor_x,cursor_y);  
 }
