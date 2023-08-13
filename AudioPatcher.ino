@@ -37,22 +37,8 @@ void setup() {
   {
     Serial.printf("%32.32s: ID=%d, %d inputs, %d outputs\n",
                   objList[i].name, i, objList[i].inputs, objList[i].outputs);
-
-/*                  
-    display.DrawAudioObject(objList[i],xp,yp);
-    xp += 48;
-    if (xp > 320 - 48)
-    {
-      xp = 0;
-      yp += 48;
-    }
-*/
   }
 
-/*
-  display.DrawConnection(objList[3], 2+2*48, 2+0*48, 0,false,ILI9341_ORANGE);
-  display.DrawConnection(objList[3], 2+2*48, 2+0*48, 4,true,0xFC02);
-*/
   ctrl.begin();
   Serial.printf("8Angle says %d\n",ctrl?1:0);
   Serial.printf("8Angle at address 0x%02X; version %d\n",ctrl.getAddress(),ctrl.getVersion());
@@ -121,6 +107,7 @@ void xloop()
 LimitedEncoder enc0{encr,0,0,31}; // x position in steps of 10
 LimitedEncoder enc1{encr,1,0,23}; // y position in steps of 10
 LimitedEncoder enc2{encr,2,1,COUNT_OF_objList}; // object selector
+int state = 0;
 void loop() 
 {
   if (enc2.available())
@@ -128,6 +115,22 @@ void loop()
     int v = enc2.getValue();
     Serial.printf("%d : %s\n",v,objList[v].name);
     display.ShowSelection(objList[v].name,objList[v].category);
+  }
+
+  if (enc2.getButton())
+    state = 1;
+  else
+  {
+    if (1 == state) // enc2 released
+    {
+      int16_t x,y;
+      
+      state = 0;
+      display.GetCursor(x,y);
+      display.CursorClear();
+      display.DrawAudioObject(objList[enc2.getValue()],x-24,y-24);
+      display.CursorRestore();
+    }
   }
 
   if (enc0.available() || enc1.available())
