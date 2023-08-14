@@ -7,3 +7,32 @@ AudioObjStatic_t objList[] =
   AUDIO_ENTRIES
 };
 #undef AUDIO_ENTRY
+
+AudioObjInstance::AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y) 
+  : objP(&o), x(_x),y(_y) 
+{
+  switch (objP->id)
+  {
+#define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,cons) case id##_ID: streamP.shrt = new typ(cons); break;
+    AUDIO_ENTRIES
+#undef AUDIO_ENTRY 
+    default:
+      streamP.Bitcrusher = nullptr; // pick any type, really
+      break;     
+  }
+}
+
+
+AudioObjInstance::~AudioObjInstance() 
+{
+  switch (objP->id)
+  {
+#define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,cons) case id##_ID: delete streamP.shrt; break;
+    AUDIO_ENTRIES
+#undef AUDIO_ENTRY 
+    default:
+      break;     
+  }
+}
+
+  

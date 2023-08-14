@@ -10,6 +10,8 @@
 #include <iterator>
 #include <vector>
 
+//#include "TeensyDebug.h"
+
 //#define COUNT_OF(a) (sizeof a / sizeof a[0])
 
 /********************************************************************************************************/
@@ -19,14 +21,18 @@ uint32_t next;
 
 extern AudioObjStatic_t objList[];
 #define COUNT_OF_objList ((int) (AUDIO_MAX_ID - 1))
-std::vector<AudioObjInstance> objVec = {
-  {objList[AUDIO_EFFECT_BITCRUSHER_ID],5,5},
-  {objList[AUDIO_EFFECT_CHORUS_ID],55,5},
-  {objList[AUDIO_MIXER4_ID],55,55},
-  {objList[AUDIO_FILTER_LADDER_ID],110,55}};
+std::vector<AudioObjInstance*> objVec = {
+  new AudioObjInstance{objList[AUDIO_EFFECT_BITCRUSHER_ID],5,5},
+  new AudioObjInstance{objList[AUDIO_EFFECT_CHORUS_ID],55,5},
+  new AudioObjInstance{objList[AUDIO_MIXER4_ID],55,55},
+  new AudioObjInstance{objList[AUDIO_FILTER_LADDER_ID],110,55}
+  };
  
 /********************************************************************************************************/
-void setup() {
+void setup() 
+{
+  AudioMemory(50);
+  
   display.Init();
   display.Splash();
   while (!Serial)
@@ -36,7 +42,6 @@ void setup() {
   Serial.println("Setup");
   Serial.printf("%d audio objects available\n",AUDIO_MAX_ID - 1);
 
-  int xp = 2,yp = 2;
   for (int i=1;i<COUNT_OF_objList;i++)
   {
     Serial.printf("%32.32s: ID=%d, %d inputs, %d outputs\n",
@@ -60,13 +65,16 @@ void setup() {
   Serial.printf("8Encoder says %d\n",encr?1:0);
   Serial.printf("8Encoder at address 0x%02X; version %d\n",encr.getAddress(),encr.getVersion());
 
-  //auto it = objVec.begin();
-  //objVec.insert(std::next(it,2),objList[20]);
-  objVec.insert(std::next(objVec.begin(),2),{objList[AUDIO_SYNTH_SIMPLE_DRUM_ID],110,110});
+  //halt_cpu();
+  
+  AudioObjInstance* aoi = new AudioObjInstance(objList[AUDIO_SYNTH_SIMPLE_DRUM_ID],110,110);
+  AudioObjInstance* aoi2 = new AudioObjInstance(objList[AUDIO_SYNTH_NOISE_WHITE_ID],165,55);
+  objVec.insert(std::next(objVec.begin(),0),aoi);
+  objVec.insert(std::next(objVec.begin(),2),aoi2);
   for (auto obj : objVec)
   {
-    Serial.printf("%s\n",obj.objP->name);
-    display.DrawAudioObject(*obj.objP,obj.x,obj.y);
+    Serial.printf("%s\n",obj->objP->name);
+    display.DrawAudioObject(*obj->objP,obj->x,obj->y);
   }
 
   delay(5);
@@ -112,18 +120,21 @@ void xloop()
 
 /********************************************************************************************************/
 const char* modes = "OPED"; // objects, patchcords, editing, deleting
-LimitedEncoder encM{encr,0,0,strlen(modes)-1}; // mode
+LimitedEncoder encM{encr,0,0,(int32_t) strlen(modes)-1}; // mode
 LimitedEncoder enc0{encr,1,0,31}; // x position in steps of 10
 LimitedEncoder enc1{encr,2,0,23}; // y position in steps of 10
 LimitedEncoder enc2{encr,3,1,COUNT_OF_objList}; // object selector
 int state = 0;
 void loop() 
 {
+  // Change mode of operation
   if (encM.available())
   {
     display.ShowMode(modes+encM.getValue());
   }
-  
+
+  // Scroll through available object types
+  // TODO: only valid in object-placement mode
   if (enc2.available())
   {
     int v = enc2.getValue();
@@ -131,6 +142,7 @@ void loop()
     display.ShowSelection(objList[v].name,objList[v].category);
   }
 
+  // Place an instance of the currently-selected object type
   if (enc2.getButton())
     state = 1;
   else
@@ -141,12 +153,17 @@ void loop()
       
       state = 0;
       display.GetCursor(x,y);
+      auto itr = objVec.insert(objVec.end(),
+                               new AudioObjInstance(objList[enc2.getValue()],x-24,y-24));
+      AudioObjInstance* ao = *itr;
       display.CursorClear();
-      display.DrawAudioObject(objList[enc2.getValue()],x-24,y-24);
+      display.DrawAudioObject(*ao->objP,ao->x,ao->y);
       display.CursorRestore();
     }
   }
 
+
+  // Move the cross-hair cursor
   if (enc0.available() || enc1.available())
   {
     int16_t x = enc0.getValue() * 10;
@@ -157,6 +174,8 @@ void loop()
   if (encr.getButton(0))
     enc0.setValue(0);
 
+
+  // Test highlighting
   if (encr.getButton(6))
   {
       int16_t x,y;
@@ -175,7 +194,7 @@ void loop()
 
 /********************************************************************************************************/
 extern "C" {
-  void startup_late_hookX(void)
+  void startup_late_hook(void)
   {
     while (!Serial)
       ;
