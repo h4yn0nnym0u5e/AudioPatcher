@@ -11,6 +11,7 @@
 #define TFT_ROTATION 3
 
 #define CONNECTION_COLOUR 0x9492 //ILI9341_DARKGREY
+#define PATCHCORD_COLOUR  0xFC02 // orange
 
 class AudioPatcherDisplay
 {
@@ -26,6 +27,7 @@ class AudioPatcherDisplay
     void DrawAudioObject(AudioObjStatic_t& o, int16_t x, int16_t y);
     void HighlightAudioObject(int16_t x, int16_t y, bool on = true);
     void DrawConnection(AudioObjStatic_t& o, int16_t x, int16_t y, int8_t n = 0, bool op = false, uint16_t colour = CONNECTION_COLOUR);
+    void DrawPatchcord(AudioObjInstance& src, int8_t sp, AudioObjInstance& dst, int8_t dp);
     void ShowMode(const char* txt);
     void ShowSelection(const char* txt, AudioCategory_e cat);
     void CursorSave(void);

@@ -86,6 +86,7 @@ class AudioObjInstance
     AudioObjPtr_u streamP;
     int16_t x;
     int16_t y;
+    uint16_t inputUsedFlags;
 };
 
 #endif // !defined(_OBJECTS_H_)

@@ -159,7 +159,7 @@ void AudioPatcherDisplay::ShowMode(const char* txt)
       break;
 
     case 'P':
-      colour = 0xFC02; // orange
+      colour = PATCHCORD_COLOUR; // orange
       break;
 
     case 'E':
@@ -265,4 +265,29 @@ void AudioPatcherDisplay::CursorClear(void)
 void AudioPatcherDisplay::CursorRestore(void)
 {
   CursorTo(cursor_x,cursor_y);  
+}
+
+
+void AudioPatcherDisplay::DrawPatchcord(AudioObjInstance& src, int8_t sp, AudioObjInstance& dst, int8_t dp)
+{
+  if (sp < src.objP->outputs && dp < dst.objP->inputs) // port numbers are valid
+  {
+    int16_t sx,sy,ss,dx,dy;
+
+    // find positions of input and output connector blobs
+    // these are at the top left
+    getOutputPositions(*src.objP,src.x,src.y,&sx,&sy,&ss);
+    sy += sp*ss;
+    getInputPositions(*dst.objP,dst.x,dst.y,&dx,&dy,&ss);
+    dy += dp*ss;
+
+    // patchcords start outside the box
+    sx += osize.cw + 1;
+    dx -= 1;
+
+    sy += osize.ch / 2;
+    dy += osize.ch / 2;
+
+    tft.drawLine(sx,sy,dx,dy,PATCHCORD_COLOUR);
+  }
 }

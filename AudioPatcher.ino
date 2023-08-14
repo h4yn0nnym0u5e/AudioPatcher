@@ -22,10 +22,10 @@ uint32_t next;
 extern AudioObjStatic_t objList[];
 #define COUNT_OF_objList ((int) (AUDIO_MAX_ID - 1))
 std::vector<AudioObjInstance*> objVec = {
-  new AudioObjInstance{objList[AUDIO_EFFECT_BITCRUSHER_ID],5,5},
-  new AudioObjInstance{objList[AUDIO_EFFECT_CHORUS_ID],55,5},
-  new AudioObjInstance{objList[AUDIO_MIXER4_ID],55,55},
-  new AudioObjInstance{objList[AUDIO_FILTER_LADDER_ID],110,55}
+  new AudioObjInstance{objList[AUDIO_EFFECT_DELAY_ID],5,5},
+  new AudioObjInstance{objList[AUDIO_MIXER4_ID],110,5},
+  new AudioObjInstance{objList[AUDIO_FILTER_LADDER_ID],110,55},
+  new AudioObjInstance{objList[AUDIO_EFFECT_CHORUS_ID],55,55},
   };
  
 /********************************************************************************************************/
@@ -69,13 +69,16 @@ void setup()
   
   AudioObjInstance* aoi = new AudioObjInstance(objList[AUDIO_SYNTH_SIMPLE_DRUM_ID],110,110);
   AudioObjInstance* aoi2 = new AudioObjInstance(objList[AUDIO_SYNTH_NOISE_WHITE_ID],165,55);
-  objVec.insert(std::next(objVec.begin(),0),aoi);
-  objVec.insert(std::next(objVec.begin(),2),aoi2);
+  objVec.insert(std::next(objVec.begin(),2),aoi);
+  objVec.insert(std::next(objVec.begin(),3),aoi2);
   for (auto obj : objVec)
   {
     Serial.printf("%s\n",obj->objP->name);
     display.DrawAudioObject(*obj->objP,obj->x,obj->y);
   }
+
+  for (int i=0;i<4;i++)
+    display.DrawPatchcord(*objVec.at(0),i,*objVec.at(1),i);
 
   delay(5);
 
