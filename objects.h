@@ -70,10 +70,19 @@ struct AudioObjStatic_t
 {
   const char* name;
   const char* label;
-  AudioCategory_e category;
-  int8_t inputs,outputs;
+  const AudioCategory_e category;
+  const int8_t inputs,outputs;
 };
 
 #define INIT_OBJ_STATIC_DATA(a,b,c,d,e,f,g) {.name = #b, .label = #g, .category = AudioCategory_##f, .inputs = d, .outputs = e},
+
+class AudioObjInstance
+{
+  public:
+    AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y) : objP(&o), x(_x),y(_y) {}
+    AudioObjStatic_t* objP;
+    int16_t x;
+    int16_t y;
+};
 
 #endif // !defined(_OBJECTS_H_)

@@ -24,7 +24,9 @@ class AudioPatcherDisplay
     void Clear(void);
     void Splash(void);
     void DrawAudioObject(AudioObjStatic_t& o, int16_t x, int16_t y);
+    void HighlightAudioObject(int16_t x, int16_t y, bool on = true);
     void DrawConnection(AudioObjStatic_t& o, int16_t x, int16_t y, int8_t n = 0, bool op = false, uint16_t colour = CONNECTION_COLOUR);
+    void ShowMode(const char* txt);
     void ShowSelection(const char* txt, AudioCategory_e cat);
     void CursorSave(void);
     void CursorClear(void);

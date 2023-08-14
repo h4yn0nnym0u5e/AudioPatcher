@@ -116,6 +116,12 @@ void AudioPatcherDisplay::DrawAudioObject(AudioObjStatic_t& o, int16_t x, int16_
   }
 }
 
+
+void AudioPatcherDisplay::HighlightAudioObject(int16_t x, int16_t y, bool on)
+{
+  tft.drawRoundRect(x-1,y-1,osize.ow+2,osize.oh+2,osize.cc+1,on?ILI9341_WHITE:ILI9341_BLACK);  
+}
+
 void AudioPatcherDisplay::DrawConnection(AudioObjStatic_t& o, int16_t x, int16_t y, int8_t n , bool op, uint16_t colour)
 {
 #define BAD -999  
@@ -141,6 +147,42 @@ void AudioPatcherDisplay::DrawConnection(AudioObjStatic_t& o, int16_t x, int16_t
     Serial.println("Bad connection!");
 }
 
+
+void AudioPatcherDisplay::ShowMode(const char* txt)
+{
+  uint16_t colour;
+
+  switch (*txt)
+  {
+    case 'O':
+      colour = ILI9341_LIGHTGREY;
+      break;
+
+    case 'P':
+      colour = 0xFC02; // orange
+      break;
+
+    case 'E':
+      colour = ILI9341_GREEN;
+      break;
+
+    case 'D':
+      colour = 0x821F;
+      break;
+
+  }
+  tft.setFontAdafruit();
+  tft.setTextSize(2);
+  int16_t th = tft.fontLineSpace(); // assume it's going to fit on one line!
+  tft.setTextColor(ILI9341_BLACK);
+  tft.setCursor(1,240 - th);
+
+  tft.fillRect(0,239-th,tft.measureTextWidth(txt,1)+1,th+1,colour);
+  tft.print(*txt);
+  
+}
+
+
 void AudioPatcherDisplay::ShowSelection(const char* txt, AudioCategory_e cat)
 {
   static int16_t eraseTo = -1;
@@ -152,12 +194,12 @@ void AudioPatcherDisplay::ShowSelection(const char* txt, AudioCategory_e cat)
           th = tft.fontLineSpace(); // assume it's going to fit on one line!
   fixCursor = cursor_y > 240-th;
   tft.setTextColor(AudioObjectColours[cat].border,ILI9341_BLACK);
-  tft.setCursor(0,240 - th);
+  tft.setCursor(20,240 - th);
   if (fixCursor)
     CursorClear();
   tft.print(txt);
   if (tw < eraseTo)
-    tft.fillRect(tw,240 - th,eraseTo - tw, th,ILI9341_BLACK);
+    tft.fillRect(20+tw,240 - th,eraseTo - tw, th,ILI9341_BLACK);
   eraseTo = tw;
   if (fixCursor)
     CursorRestore();

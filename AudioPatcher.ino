@@ -19,7 +19,11 @@ uint32_t next;
 
 extern AudioObjStatic_t objList[];
 #define COUNT_OF_objList ((int) (AUDIO_MAX_ID - 1))
-std::vector<AudioObjStatic_t> objVec = {objList[1],objList[2],objList[5],objList[10]};
+std::vector<AudioObjInstance> objVec = {
+  {objList[AUDIO_EFFECT_BITCRUSHER_ID],5,5},
+  {objList[AUDIO_EFFECT_CHORUS_ID],55,5},
+  {objList[AUDIO_MIXER4_ID],55,55},
+  {objList[AUDIO_FILTER_LADDER_ID],110,55}};
  
 /********************************************************************************************************/
 void setup() {
@@ -58,9 +62,12 @@ void setup() {
 
   //auto it = objVec.begin();
   //objVec.insert(std::next(it,2),objList[20]);
-  objVec.insert(std::next(objVec.begin(),2),objList[20]);
+  objVec.insert(std::next(objVec.begin(),2),{objList[AUDIO_SYNTH_SIMPLE_DRUM_ID],110,110});
   for (auto obj : objVec)
-    Serial.printf("%s\n",obj.name);
+  {
+    Serial.printf("%s\n",obj.objP->name);
+    display.DrawAudioObject(*obj.objP,obj.x,obj.y);
+  }
 
   delay(5);
 
@@ -104,12 +111,19 @@ void xloop()
 }
 
 /********************************************************************************************************/
-LimitedEncoder enc0{encr,0,0,31}; // x position in steps of 10
-LimitedEncoder enc1{encr,1,0,23}; // y position in steps of 10
-LimitedEncoder enc2{encr,2,1,COUNT_OF_objList}; // object selector
+const char* modes = "OPED"; // objects, patchcords, editing, deleting
+LimitedEncoder encM{encr,0,0,strlen(modes)-1}; // mode
+LimitedEncoder enc0{encr,1,0,31}; // x position in steps of 10
+LimitedEncoder enc1{encr,2,0,23}; // y position in steps of 10
+LimitedEncoder enc2{encr,3,1,COUNT_OF_objList}; // object selector
 int state = 0;
 void loop() 
 {
+  if (encM.available())
+  {
+    display.ShowMode(modes+encM.getValue());
+  }
+  
   if (enc2.available())
   {
     int v = enc2.getValue();
@@ -142,6 +156,21 @@ void loop()
 
   if (encr.getButton(0))
     enc0.setValue(0);
+
+  if (encr.getButton(6))
+  {
+      int16_t x,y;
+      
+      display.GetCursor(x,y);
+      display.HighlightAudioObject(x-24,y-24);
+  }   
+  if (encr.getButton(7))
+  {
+      int16_t x,y;
+      
+      display.GetCursor(x,y);
+      display.HighlightAudioObject(x-24,y-24,false);
+  }   
 }
 
 /********************************************************************************************************/
