@@ -46,7 +46,7 @@
 
 
 
-enum AudioCategory_e { AudioCategory_none, AudioCategory_effect, AudioCategory_filter, AudioCategory_mixer, AudioCategory_synth };
+enum AudioCategory_e { AudioCategory_none, AudioCategory_patchcord, AudioCategory_effect, AudioCategory_filter, AudioCategory_mixer, AudioCategory_synth };
 
 
 #define xAUDIO_ENTRY(x) AUDIO_ENTRY(x)
@@ -75,7 +75,9 @@ struct AudioObjStatic_t
   const AudioID id;
 };
 
+
 #define INIT_OBJ_STATIC_DATA(a,b,c,d,e,f,g) {.name = #b, .label = #g, .category = AudioCategory_##f, .inputs = d, .outputs = e, .id = c##_ID},
+
 
 class AudioObjInstance
 {
@@ -88,5 +90,27 @@ class AudioObjInstance
     int16_t y;
     uint16_t inputUsedFlags;
 };
+
+struct AudioObjInstancePtr {AudioObjInstance* p; };
+
+
+class PatchcordInstance_t
+{
+  public:
+    PatchcordInstance_t(AudioObjInstance* s, int8_t sp, AudioObjInstance* d, int8_t dp) 
+      : conn(new AudioConnection), src(s), dst(d), src_port(sp), dst_port(dp)
+      {
+        //conn.connect(
+      }
+    PatchcordInstance_t() : PatchcordInstance_t(nullptr, -1, nullptr, -1) {}
+    AudioConnection* conn; // the actual connection
+    // duplicate of inaccessible information
+    AudioObjInstance* src;
+    AudioObjInstance* dst;
+    int8_t src_port;
+    int8_t dst_port;
+};
+
+bool operator<(const AudioObjInstancePtr& lhs, const AudioObjInstancePtr& rhs);
 
 #endif // !defined(_OBJECTS_H_)

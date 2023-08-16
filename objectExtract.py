@@ -108,5 +108,5 @@ for id in sorted(opd):
 
 print("\n\n")
 acats = sorted(list(map(lambda x:'AudioCategory_'+x,cats)))
-acats = ["AudioCategory_none"] + acats
+acats = ["AudioCategory_none","AudioCategory_patchcord"] + acats
 print(f'enum AudioCategory_e {{ {", ".join(acats)} }};')

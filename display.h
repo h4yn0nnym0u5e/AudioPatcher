@@ -26,8 +26,10 @@ class AudioPatcherDisplay
     void Splash(void);
     void DrawAudioObject(AudioObjStatic_t& o, int16_t x, int16_t y);
     void HighlightAudioObject(int16_t x, int16_t y, bool on = true);
+    void HighlightAudioObject(int16_t x, int16_t y, uint16_t colour);
     void DrawConnection(AudioObjStatic_t& o, int16_t x, int16_t y, int8_t n = 0, bool op = false, uint16_t colour = CONNECTION_COLOUR);
     void DrawPatchcord(AudioObjInstance& src, int8_t sp, AudioObjInstance& dst, int8_t dp);
+    void DrawPatchcord(PatchcordInstance_t* cord) { DrawPatchcord(*cord->src,cord->src_port,*cord->dst,cord->dst_port); }
     void ShowMode(const char* txt);
     void ShowSelection(const char* txt, AudioCategory_e cat);
     void CursorSave(void);

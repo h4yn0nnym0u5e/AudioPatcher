@@ -35,4 +35,7 @@ AudioObjInstance::~AudioObjInstance()
   }
 }
 
-  
+bool operator<(const AudioObjInstancePtr& lhs, const AudioObjInstancePtr& rhs)
+{
+  return lhs.p->x*10000 + lhs.p->y < rhs.p->x*10000 + rhs.p->y;
+}

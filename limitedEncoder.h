@@ -11,6 +11,7 @@ class LimitedEncoder
       {}
     bool available(void);
     int32_t getValue(void) { return value; }
-    void setValue(int32_t v) { value = v; valuex2 = v*2; }
+    void setValue(int32_t v);
     uint8_t getButton(void) { return enc.getButton(channel); }
+    void setLimits(int32_t l,int32_t u);
 };

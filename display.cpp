@@ -47,7 +47,8 @@ void AudioPatcherDisplay::Splash(void)
 }
 
 struct AudioObjectColours_s {uint16_t body,border,text; }
-  AudioObjectColours[] = {{ILI9341_BLACK, ILI9341_WHITE, ILI9341_YELLOW},
+  AudioObjectColours[] = {{ILI9341_BLACK, ILI9341_WHITE, ILI9341_YELLOW}, // none
+                          {CONNECTION_COLOUR, PATCHCORD_COLOUR, ILI9341_WHITE},
                           {ILI9341_NAVY, 0x03FF, ILI9341_WHITE},
                           {0x0280, ILI9341_GREEN, ILI9341_WHITE},
                           {ILI9341_MAROON, ILI9341_RED, ILI9341_WHITE},
@@ -56,6 +57,8 @@ struct AudioObjectSizes_t {
   const int ow,oh,cc,cw,ch,ff;                          
 } osize = {.ow = 46,.oh = 46, .cc = 4, .cw = 3, .ch = 3, .ff = 6};
 
+
+//=================================================================================================
 void getInputPositions(AudioObjStatic_t& o, int16_t x, int16_t y, 
                        int16_t* ppx, int16_t* ppy, int16_t* pys)
 {
@@ -67,6 +70,7 @@ void getInputPositions(AudioObjStatic_t& o, int16_t x, int16_t y,
   *ppy = cb;
   *pys = cs;
 }
+
 
 void getOutputPositions(AudioObjStatic_t& o, int16_t x, int16_t y, 
                        int16_t* ppx, int16_t* ppy, int16_t* pys)
@@ -80,6 +84,8 @@ void getOutputPositions(AudioObjStatic_t& o, int16_t x, int16_t y,
   *pys = cs;
 }
 
+
+//=================================================================================================
 void AudioPatcherDisplay::DrawAudioObject(AudioObjStatic_t& o, int16_t x, int16_t y)
 { 
   tft.fillRoundRect(x,y,osize.ow,osize.oh,osize.cc,AudioObjectColours[o.category].body);
@@ -117,11 +123,20 @@ void AudioPatcherDisplay::DrawAudioObject(AudioObjStatic_t& o, int16_t x, int16_
 }
 
 
-void AudioPatcherDisplay::HighlightAudioObject(int16_t x, int16_t y, bool on)
+//=================================================================================================
+void AudioPatcherDisplay::HighlightAudioObject(int16_t x, int16_t y, uint16_t colour)
 {
-  tft.drawRoundRect(x-1,y-1,osize.ow+2,osize.oh+2,osize.cc+1,on?ILI9341_WHITE:ILI9341_BLACK);  
+  tft.drawRoundRect(x-1,y-1,osize.ow+2,osize.oh+2,osize.cc+1,colour);  
 }
 
+
+void AudioPatcherDisplay::HighlightAudioObject(int16_t x, int16_t y, bool on)
+{
+  HighlightAudioObject(x,y,(uint16_t)(on?ILI9341_WHITE:ILI9341_BLACK));  
+}
+
+
+//=================================================================================================
 void AudioPatcherDisplay::DrawConnection(AudioObjStatic_t& o, int16_t x, int16_t y, int8_t n , bool op, uint16_t colour)
 {
 #define BAD -999  
@@ -148,6 +163,7 @@ void AudioPatcherDisplay::DrawConnection(AudioObjStatic_t& o, int16_t x, int16_t
 }
 
 
+//=================================================================================================
 void AudioPatcherDisplay::ShowMode(const char* txt)
 {
   uint16_t colour;
@@ -170,6 +186,9 @@ void AudioPatcherDisplay::ShowMode(const char* txt)
       colour = 0x821F;
       break;
 
+    default: // ...oops
+      colour = ILI9341_PINK;
+      break;
   }
   tft.setFontAdafruit();
   tft.setTextSize(2);
@@ -183,6 +202,7 @@ void AudioPatcherDisplay::ShowMode(const char* txt)
 }
 
 
+//=================================================================================================
 void AudioPatcherDisplay::ShowSelection(const char* txt, AudioCategory_e cat)
 {
   static int16_t eraseTo = -1;
@@ -205,7 +225,10 @@ void AudioPatcherDisplay::ShowSelection(const char* txt, AudioCategory_e cat)
     CursorRestore();
 }
 
-void AudioPatcherDisplay::GetCursorSaveParams(const int16_t x, const int16_t y, int16_t& cxr, int16_t& cyr, int16_t& cw, int16_t& ch)
+
+//=================================================================================================
+void AudioPatcherDisplay::GetCursorSaveParams(const int16_t x, const int16_t y, 
+                                              int16_t& cxr, int16_t& cyr, int16_t& cw, int16_t& ch)
 {
   cxr = x - CURSOR_SIZE/2; cyr = y - CURSOR_SIZE/2;
   cw = ch = CURSOR_SIZE;
@@ -228,6 +251,7 @@ void AudioPatcherDisplay::GetCursor(int16_t& x, int16_t& y)
   x = cursor_x;
   y = cursor_y;
 }
+
 
 void AudioPatcherDisplay::CursorTo(int16_t x, int16_t y)
 {
@@ -262,12 +286,14 @@ void AudioPatcherDisplay::CursorClear(void)
   }  
 }
 
+
 void AudioPatcherDisplay::CursorRestore(void)
 {
   CursorTo(cursor_x,cursor_y);  
 }
 
 
+//=================================================================================================
 void AudioPatcherDisplay::DrawPatchcord(AudioObjInstance& src, int8_t sp, AudioObjInstance& dst, int8_t dp)
 {
   if (sp < src.objP->outputs && dp < dst.objP->inputs) // port numbers are valid

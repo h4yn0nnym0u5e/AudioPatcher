@@ -30,3 +30,23 @@ bool LimitedEncoder::available(void)
   }
   return result;
 }
+
+void LimitedEncoder::setValue(int32_t v) 
+{ 
+  value = v; 
+  
+  if (value < lower)
+    value = lower;
+  if (value > upper)
+    value = upper;
+    
+  valuex2 = value*2; 
+}
+
+void LimitedEncoder::setLimits(int32_t l,int32_t u)
+{
+  lower = l;
+  upper = u;
+
+  setValue(value); // ensure value is in limits
+}
