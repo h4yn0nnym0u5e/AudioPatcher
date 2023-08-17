@@ -29,6 +29,12 @@ std::vector<AudioObjInstancePtr> objVec = {
   {new AudioObjInstance{objList[AUDIO_EFFECT_CHORUS_ID],55,55}},
   };
 std::vector<PatchcordInstance_t*> cordVec; 
+
+#define AUDIO_ENTRY(typ,shrt,id, ...) AudioObjInstance the##shrt{objList[id##_ID],-1,-1};
+MY_AUDIO_IO
+#undef AUDIO_ENTRY
+
+AudioSynthWaveformModulated* pWav;
 /********************************************************************************************************/
 void setup() 
 {
@@ -41,7 +47,7 @@ void setup()
   display.Clear();   
 
   Serial.println("Setup");
-  Serial.printf("%d audio objects available\n",AUDIO_MAX_ID - 1);
+  Serial.printf("%d audio objects available\n",AUDIO_MAX_ID - 2);
 
   for (int i=1;i<COUNT_OF_objList;i++)
   {
@@ -68,7 +74,7 @@ void setup()
 
   //halt_cpu();
   
-  AudioObjInstancePtr aoi = {new AudioObjInstance(objList[AUDIO_SYNTH_SIMPLE_DRUM_ID],110,110)};
+  AudioObjInstancePtr aoi = {new AudioObjInstance(objList[AUDIO_SYNTH_WAVEFORM_MODULATED_ID],110,110)};
   AudioObjInstancePtr aoi2 = {new AudioObjInstance(objList[AUDIO_SYNTH_NOISE_WHITE_ID],165,55)};
   objVec.insert(std::next(objVec.begin(),2),aoi);
   objVec.insert(std::next(objVec.begin(),3),aoi2);
@@ -87,10 +93,36 @@ void setup()
     cordVec.push_back(pci);
   }
 
+  // make some real connections  
+  cordVec.push_back(new PatchcordInstance_t{objVec.at(2).p,0,&theOutputI2S,0}); //cordVec.back()->connect();
+  cordVec.push_back(new PatchcordInstance_t(objVec.at(2).p,0,&theOutputI2S,1));
+
+  theOutputI2S.x = 315;
+  theOutputI2S.y = 100;
+
   for (auto cord : cordVec)
     display.DrawPatchcord(cord);
 
+  Serial.printf("SGTL5000 at %08x\n",(uint32_t) theControlSGTL5000.streamP.ControlSGTL5000);
+  
+  theControlSGTL5000.streamP.ControlSGTL5000->setAddress(HIGH);
+  theControlSGTL5000.streamP.ControlSGTL5000->enable();
+  theControlSGTL5000.streamP.ControlSGTL5000->volume(0.1);
+
+  objVec.at(2).p->streamP.WaveformModulated->begin(0.5,220.0f,WAVEFORM_SINE);
+  
   std::stable_sort(objVec.begin(),objVec.end());
+
+  for (size_t i=0;i<objVec.size();i++)
+  {
+    auto obj = objVec.at(i);
+    if (obj.p->objP->id == AUDIO_SYNTH_WAVEFORM_MODULATED_ID)
+    {
+      Serial.printf("Waveform is at[%d]\n",i);
+      pWav = obj.p->streamP.WaveformModulated;
+      break;
+    }
+  }
   delay(5);
 
   next = millis() + 50;
@@ -144,6 +176,18 @@ char editMode[2] = {0};
 ObjEditor objEditor(enc0,enc1,enc2,display,objVec,objList);
 CordEditor cordEditor(enc0,enc1,enc2,display,objVec,objList);
 
+//======================================================================
+void wavControl(void)
+{
+  static uint32_t next;
+  if (nullptr != pWav && millis() >= next)
+  {
+    next = millis() + 5;
+
+    pWav->amplitude((float) ctrl.getPot16(0) / 4096.0f);
+    pWav->frequency((float) ctrl.getPot16(1)*2.0f + 10.0f);
+  }
+}
 
 //======================================================================
 void loop() 
@@ -208,6 +252,8 @@ void loop()
       display.GetCursor(x,y);
       display.HighlightAudioObject(x-24,y-24,false);
   }   
+
+  wavControl();
 
   if (!initialised)
     initialised = true;

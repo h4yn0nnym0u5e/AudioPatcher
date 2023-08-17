@@ -60,7 +60,17 @@ objmap = {
 x = {'type': 'AudioFilterFIR',
      'data': {'defaults': {'name': {'value': 'new'}}, 'shortName': 'fir', 'inputs': 1, 'outputs': 1, 'category': 'filter-function', 'color': '#E6E0F8', 'icon': 'arrow-in.png'}}
 
+# Extra underscore fixer-upper:
+usl = ["P_W_M","F_I_R","R_M_S","F_F_T","A_K","C_S","S_G_T_L","W_M","S_P_D_I_F","I2_S","P_D_M","T_D_M","U_S_B"]
+usd = {}
+for u in usl:
+    usd[u] = u.replace("_","")
+def fixUnderscores(s):
+    for u in usd:
+        s = s.replace(u,usd[u])
+    return s        
 
+    
 def condIndex(d,i,rv):
     if i in d:
         rv = d[i]
@@ -87,38 +97,47 @@ for li in fi:
 fi.close()
 
 objl = json.loads(jsonstr)['nodes']
-opd = {}
-for obj in objl:
-    mtch = re.search(pTypes,obj['type'])
-    if mtch:
-        nam = obj['type']
-        opd[obj['data']['category']+nam] = (obj,nam)
+def makeMacros(pTypes):
+    opd = {}
+    for obj in objl:
+        mtch = re.search(pTypes,obj['type'])
+        if mtch:
+            nam = obj['type']
+            opd[obj['data']['category']+nam] = (obj,nam)
 
-cats = set()
-for id in sorted(opd):
-    obj,nam = opd[id]
-    shrt = re.sub('(Audio|Synth|Effect|Analyze|Filter)','',nam)
-    id = re.sub('([A-Z])','_\g<1>',nam)[1:].upper().replace('P_W_M','PWM').replace('F_I_R','FIR')
-    id = id.replace('R_M_S','RMS').replace('F_F_T','FFT')
-    inc = obj['data']['inputs']
-    opc = obj['data']['outputs']
-    cat = obj['data']['category'].replace('-function','')
-    cats |= set((cat,))
-    lab = newc = ""
-    try:
-        lab = condIndex(objmap[nam],'label',"")
-        newc = condIndex(objmap[nam],"new","")
-        inc = condIndex(objmap[nam],"inputs",inc)
-    except:
-        pass
-    #print(f"{obj['type']}: {obj['data']['inputs']} inputs, {obj['data']['outputs']} outputs")
-    macro = f"\tAUDIO_ENTRY({nam},{shrt},{id},{inc},{opc},{cat},{lab},{newc}) \\"
-    internal = f'\t"{nam}": {{"label": "{nam}" }},'
+    cats = set()
+    for id in sorted(opd):
+        obj,nam = opd[id]
+        shrt = re.sub('(Audio|Synth|Effect|Analyze|Filter)','',nam)
+        id = re.sub('([a-z])([A-Z])','\g<1>_\g<2>',nam)[0:].upper()
+        #id = fixUnderscores(id)
+        inc = obj['data']['inputs']
+        opc = obj['data']['outputs']
+        cat = obj['data']['category'].replace('-function','')
+        cats |= set((cat,))
+        lab = newc = ""
+        try:
+            lab = condIndex(objmap[nam],'label',"")
+            newc = condIndex(objmap[nam],"new","")
+            inc = condIndex(objmap[nam],"inputs",inc)
+        except:
+            pass
+        #print(f"{obj['type']}: {obj['data']['inputs']} inputs, {obj['data']['outputs']} outputs")
+        macro = f"\tAUDIO_ENTRY({nam},{shrt},{id},{inc},{opc},{cat},{lab},{newc}) \\"
+        internal = f'\t"{nam}": {{"label": "{nam}" }},'
 
-    print(macro)
-    #print(internal)
+        print(macro)
+        #print(internal)
 
-print("\n\n")
-acats = sorted(list(map(lambda x:'AudioCategory_'+x,cats)))
-acats = ["AudioCategory_none","AudioCategory_patchcord"] + acats
+    acats = sorted(list(map(lambda x:'AudioCategory_'+x,cats)))
+    
+    return acats 
+
+acats = ["AudioCategory_none","AudioCategory_patchcord"]
+print("#define AUDIO_ENTRIES \\")
+acats+= makeMacros(pTypes)
+print("\n\n/*")
+acats += makeMacros(r'Audio(' + '|'.join(["Input","Output","Control"]) + ')')
+print("*/\n\n")
 print(f'enum AudioCategory_e {{ {", ".join(acats)} }};')
+           

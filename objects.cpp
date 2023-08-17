@@ -5,6 +5,8 @@ AudioObjStatic_t objList[] =
 {
   {0},
   AUDIO_ENTRIES
+  {0}, // space for the AUDIO_MAX_ID guard value
+  MY_AUDIO_IO
 };
 #undef AUDIO_ENTRY
 
@@ -15,6 +17,7 @@ AudioObjInstance::AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y)
   {
 #define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,cons) case id##_ID: streamP.shrt = new typ(cons); break;
     AUDIO_ENTRIES
+    MY_AUDIO_IO
 #undef AUDIO_ENTRY 
     default:
       streamP.Bitcrusher = nullptr; // pick any type, really
@@ -29,6 +32,7 @@ AudioObjInstance::~AudioObjInstance()
   {
 #define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,cons) case id##_ID: delete streamP.shrt; break;
     AUDIO_ENTRIES
+    MY_AUDIO_IO
 #undef AUDIO_ENTRY 
     default:
       break;     
@@ -38,4 +42,14 @@ AudioObjInstance::~AudioObjInstance()
 bool operator<(const AudioObjInstancePtr& lhs, const AudioObjInstancePtr& rhs)
 {
   return lhs.p->x*10000 + lhs.p->y < rhs.p->x*10000 + rhs.p->y;
+}
+
+
+void PatchcordInstance_t::connect(void)
+{      
+  if (nullptr != src
+   && nullptr != dst
+   && nullptr != src->streamP.streamObj
+   && nullptr != dst->streamP.streamObj)
+    conn->connect(*src->streamP.streamObj,src_port, *dst->streamP.streamObj,dst_port);
 }

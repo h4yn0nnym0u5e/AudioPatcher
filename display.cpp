@@ -49,7 +49,7 @@ void AudioPatcherDisplay::Splash(void)
 struct AudioObjectColours_s {uint16_t body,border,text; }
   AudioObjectColours[] = {{ILI9341_BLACK, ILI9341_WHITE, ILI9341_YELLOW}, // none
                           {CONNECTION_COLOUR, PATCHCORD_COLOUR, ILI9341_WHITE}, // connection
-                          {ILI9341_PURPLE, 0xF018, ILI9341_WHITE},
+                          {ILI9341_PURPLE, 0xD01C, ILI9341_WHITE},
                           {ILI9341_NAVY, 0x03FF, ILI9341_WHITE},
                           {0x0280, ILI9341_GREEN, ILI9341_WHITE},
                           {ILI9341_MAROON, ILI9341_RED, ILI9341_WHITE},
