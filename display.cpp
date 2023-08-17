@@ -48,7 +48,8 @@ void AudioPatcherDisplay::Splash(void)
 
 struct AudioObjectColours_s {uint16_t body,border,text; }
   AudioObjectColours[] = {{ILI9341_BLACK, ILI9341_WHITE, ILI9341_YELLOW}, // none
-                          {CONNECTION_COLOUR, PATCHCORD_COLOUR, ILI9341_WHITE},
+                          {CONNECTION_COLOUR, PATCHCORD_COLOUR, ILI9341_WHITE}, // connection
+                          {ILI9341_PURPLE, 0xF018, ILI9341_WHITE},
                           {ILI9341_NAVY, 0x03FF, ILI9341_WHITE},
                           {0x0280, ILI9341_GREEN, ILI9341_WHITE},
                           {ILI9341_MAROON, ILI9341_RED, ILI9341_WHITE},
@@ -86,10 +87,13 @@ void getOutputPositions(AudioObjStatic_t& o, int16_t x, int16_t y,
 
 
 //=================================================================================================
-void AudioPatcherDisplay::DrawAudioObject(AudioObjStatic_t& o, int16_t x, int16_t y)
+void AudioPatcherDisplay::DrawAudioObject(AudioObjStatic_t& o, int16_t x, int16_t y, bool greyed)
 { 
-  tft.fillRoundRect(x,y,osize.ow,osize.oh,osize.cc,AudioObjectColours[o.category].body);
-  tft.drawRoundRect(x,y,osize.ow,osize.oh,osize.cc,AudioObjectColours[o.category].border);
+  uint16_t bc = greyed?ILI9341_DARKGREY:AudioObjectColours[o.category].body;
+  uint16_t ec = greyed?ILI9341_LIGHTGREY:AudioObjectColours[o.category].border;
+
+  tft.fillRoundRect(x,y,osize.ow,osize.oh,osize.cc,bc);
+  tft.drawRoundRect(x,y,osize.ow,osize.oh,osize.cc,ec);
   
   int16_t lw,lh;
   tft.setFontAdafruit();

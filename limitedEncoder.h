@@ -1,3 +1,6 @@
+#if !defined(_LIMITEDENCODER_H_)
+#define _LIMITEDENCODER_H_
+
 #include <M5Wire.h>
 
 class LimitedEncoder
@@ -15,3 +18,5 @@ class LimitedEncoder
     uint8_t getButton(void) { return enc.getButton(channel); }
     void setLimits(int32_t l,int32_t u);
 };
+
+#endif // !defined(_LIMITEDENCODER_H_)

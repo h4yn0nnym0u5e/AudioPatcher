@@ -7,6 +7,7 @@
 #include "limitedEncoder.h"
 #include "objects.h"
 #include "display.h"
+#include "editors.h"
 #include <iterator>
 #include <vector>
 #include <algorithm>
@@ -21,7 +22,6 @@ M5w_8encoder  encr;
 uint32_t next;
 
 extern AudioObjStatic_t objList[];
-#define COUNT_OF_objList ((int) (AUDIO_MAX_ID - 1))
 std::vector<AudioObjInstancePtr> objVec = {
   {new AudioObjInstance{objList[AUDIO_EFFECT_DELAY_ID],5,5}},
   {new AudioObjInstance{objList[AUDIO_MIXER4_ID],110,5}},
@@ -72,6 +72,7 @@ void setup()
   AudioObjInstancePtr aoi2 = {new AudioObjInstance(objList[AUDIO_SYNTH_NOISE_WHITE_ID],165,55)};
   objVec.insert(std::next(objVec.begin(),2),aoi);
   objVec.insert(std::next(objVec.begin(),3),aoi2);
+  objVec.insert(std::next(objVec.begin(),3),{new AudioObjInstance(objList[AUDIO_ANALYZE_FFT1024_ID],220,55)});
   
   for (auto obj : objVec)
   {
@@ -140,157 +141,9 @@ LimitedEncoder enc2{encr,3,1,COUNT_OF_objList}; // object selector
 int state = 0;
 bool initialised = false;
 char editMode[2] = {0};
+ObjEditor objEditor(enc0,enc1,enc2,display,objVec,objList);
+CordEditor cordEditor(enc0,enc1,enc2,display,objVec,objList);
 
-//======================================================================
-void editObject(void)
-{
-  // Scroll through available object types
-  if (enc2.available() || !initialised)
-  {
-    int v = enc2.getValue();
-    Serial.printf("%d : %s\n",v,objList[v].name);
-    display.ShowSelection(objList[v].name,objList[v].category);
-  }
-
-  // Place an instance of the currently-selected object type
-  if (enc2.getButton())
-    state = 1;
-  else
-  {
-    if (1 == state) // enc2 released
-    {
-      int16_t x,y;
-      
-      state = 0;
-      display.GetCursor(x,y);
-      objVec.push_back({new AudioObjInstance(objList[enc2.getValue()],x-24,y-24)});
-                               
-      AudioObjInstance* ao = objVec.back().p;;
-      display.CursorClear();
-      display.DrawAudioObject(*ao->objP,ao->x,ao->y);
-      display.CursorRestore();
-      std::stable_sort(objVec.begin(),objVec.end());
-    }
-  }
-
-  // Move the cross-hair cursor
-  if (enc0.available() || enc1.available() || !initialised)
-  {
-    int16_t x = enc0.getValue() * 10;
-    int16_t y = enc1.getValue() * 10;
-    display.CursorTo(x,y);
-  } 
-}
-
-//======================================================================
-void highlightObjnum(int n, uint16_t colour)
-{
-  if (!objVec.empty() && n < (int) objVec.size())
-  {
-    auto it = objVec.at(n).p;
-    display.HighlightAudioObject(it->x,it->y,colour);
-  }  
-}
-
-//======================================================================
-void highlightPort(AudioObjInstance* aoi, int io, int n, bool on)
-{
-  uint16_t colour = on?PATCHCORD_COLOUR:CONNECTION_COLOUR;
-  display.DrawConnection(*aoi->objP,aoi->x,aoi->y,n,0 == io,colour);
-}
-
-//======================================================================
-int epIdx,portNum;
-PatchcordInstance_t editCord;
-void editPatchcord(void)
-{
-  bool changedIdx = false;
-  int io = 1-enc2.getValue(); // i = 1 = input = dst, o = 0 = output = src
-  
-  // select an audio object
-  if (enc0.available())
-  {
-    int ec1 = enc0.getValue();
-    AudioObjInstance* aoi = objVec.at(epIdx).p;
-
-    if (aoi != editCord.src && aoi != editCord.dst)
-    {
-      highlightObjnum(epIdx,ILI9341_BLACK);
-      highlightPort(aoi,io,portNum,false);
-    }
-    else
-      highlightObjnum(epIdx,PATCHCORD_COLOUR);
-    
-    if (ec1 >= 0 && ec1 < (int) objVec.size())
-      epIdx = ec1;
-    else
-      enc0.setValue(epIdx);
-    highlightObjnum(epIdx,ILI9341_WHITE);
-    
-    changedIdx = true;
-  }
-
-  // select a connection port
-  if (changedIdx || enc1.available())
-  {
-    int newPortNum = enc1.getValue();
-    AudioObjInstance* aoi = objVec.at(epIdx).p;
-    int numPorts = io?aoi->objP->inputs:aoi->objP->outputs;
-
-    highlightPort(aoi,io,portNum,false);
-    if (0 == numPorts)
-    {
-      io = 1-io;
-      enc2.setValue(1-io);
-      numPorts = io?aoi->objP->inputs:aoi->objP->outputs;
-      changedIdx = true;
-    }
-    
-    if (newPortNum >= numPorts)
-    {
-      newPortNum = numPorts - 1; // always >= 0
-    }
-
-    portNum = newPortNum;
-    enc1.setValue(portNum);
-    highlightPort(aoi,io,portNum,true);
-  }
-  
-  if (changedIdx || enc2.available()) // force an update
-  {
-    char buf[20];
-    AudioObjInstance* aoi = objVec.at(epIdx).p;
-    highlightPort(aoi,io,portNum,false);
-    
-    io = 1-enc2.getValue();
-    sprintf(buf,"%s",io?"dst":"src");
-    display.ShowSelection(buf,AudioCategory_patchcord);
-  }
-
-  if (encr.getButton(3))
-  {
-    if (1 == io) // set dst / input
-    {
-      if (editCord.dst == objVec.at(epIdx).p)
-        editCord.dst = nullptr;        
-      else
-      {
-        editCord.dst = objVec.at(epIdx).p;
-        editCord.dst_port = portNum;
-      }      
-    }
-    else // set src / output
-    {
-      if (editCord.src == objVec.at(epIdx).p)
-        editCord.src = nullptr;        
-      else
-      {
-        editCord.src = objVec.at(epIdx).p;
-        editCord.src_port = portNum;      
-      }
-    }
-  }
-}
 
 //======================================================================
 void loop() 
@@ -303,35 +156,35 @@ void loop()
   // Change mode of operation
   if (encM.available() || !initialised)
   {
+    char oldMode = editMode[0];
     editMode[0] = modes[encM.getValue()];
-    display.ShowMode(editMode);
-    switch (editMode[0])
+
+    if (oldMode != editMode[0])
     {
-      default:
-        break;
-
-      case 'O':
-        enc0.setLimits(0,31);
-        enc2.setLimits(1,COUNT_OF_objList);
-        break;
-
-      case 'P':
-        enc0.setValue(epIdx);
-        enc0.setLimits(0,objVec.size() -1);
-        enc2.setValue(0);
-        enc2.setLimits(0,1);
-        break;
+      display.ShowMode(editMode);
+      switch (oldMode)
+      {
+        default: break;
+        case 'O': objEditor.exit(); break;  
+        case 'P': cordEditor.exit(); break;
+      }
+      switch (editMode[0])
+      {
+        default: break;
+        case 'O': objEditor.enter(); break;  
+        case 'P': cordEditor.enter(); break;
+      }
     }
   }
 
   switch (editMode[0])
   {
     case 'O':
-      editObject();
+      objEditor.edit();
       break;
       
     case 'P':
-      editPatchcord();
+      cordEditor.edit();
       break;
   }
 

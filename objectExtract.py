@@ -3,12 +3,19 @@ import json
 import re
 
 ffp = r'E:\Jonathan\Arduino\libraries\Audio\gui\index.html'
-typeL = ["Synth", "Effect", "Filter", "Mixer", "Amp"]
+typeL = ["Synth", "Effect", "Filter", "Mixer", "Amp", "Analyze"]
 pStart = r'data-container-name="NodeDefinitions"'
 pEnd = r'</script>'
 pTypes = r'Audio(' + '|'.join(typeL) + ')'
 
 objmap = {
+    	"AudioAnalyzeFFT1024": {"label": "ff1k" },
+	"AudioAnalyzeFFT256": {"label": "f256" },
+	"AudioAnalyzeNoteFrequency": {"label": "nfrq" },
+	"AudioAnalyzePeak": {"label": "peak" },
+	"AudioAnalyzePrint": {"label": "prnt" },
+	"AudioAnalyzeRMS": {"label": "rms" },
+	"AudioAnalyzeToneDetect": {"label": "tone" },
 	"AudioEffectBitcrusher": {"label": "crsh" },
 	"AudioEffectChorus": {"label": "chor" },
 	"AudioEffectDelay": {"label": "dely" },
@@ -92,13 +99,18 @@ for id in sorted(opd):
     obj,nam = opd[id]
     shrt = re.sub('(Audio|Synth|Effect)','',nam)
     id = re.sub('([A-Z])','_\g<1>',nam)[1:].upper().replace('P_W_M','PWM').replace('F_I_R','FIR')
+    id = id.replace('R_M_S','RMS').replace('F_F_T','FFT')
     inc = obj['data']['inputs']
     opc = obj['data']['outputs']
     cat = obj['data']['category'].replace('-function','')
     cats |= set((cat,))
-    lab = objmap[nam]['label']
-    newc = condIndex(objmap[nam],"new","")
-    inc = condIndex(objmap[nam],"inputs",inc)
+    lab = newc = ""
+    try:
+        lab = condIndex(objmap[nam],'label',"")
+        newc = condIndex(objmap[nam],"new","")
+        inc = condIndex(objmap[nam],"inputs",inc)
+    except:
+        pass
     #print(f"{obj['type']}: {obj['data']['inputs']} inputs, {obj['data']['outputs']} outputs")
     macro = f"\tAUDIO_ENTRY({nam},{shrt},{id},{inc},{opc},{cat},{lab},{newc}) \\"
     internal = f'\t"{nam}": {{"label": "{nam}" }},'

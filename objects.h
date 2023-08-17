@@ -4,13 +4,19 @@
 #include <Audio.h>
 
 #define AUDIO_ENTRIES \
+  AUDIO_ENTRY(AudioAnalyzeFFT1024,AnalyzeFFT1024,AUDIO_ANALYZE_FFT1024,1,0,analyze,ff1k,) \
+  AUDIO_ENTRY(AudioAnalyzeFFT256,AnalyzeFFT256,AUDIO_ANALYZE_FFT256,1,0,analyze,f256,) \
+  AUDIO_ENTRY(AudioAnalyzeNoteFrequency,AnalyzeNoteFrequency,AUDIO_ANALYZE_NOTE_FREQUENCY,1,0,analyze,nfrq,) \
+  AUDIO_ENTRY(AudioAnalyzePeak,AnalyzePeak,AUDIO_ANALYZE_PEAK,1,0,analyze,peak,) \
+  AUDIO_ENTRY(AudioAnalyzePrint,AnalyzePrint,AUDIO_ANALYZE_PRINT,1,0,analyze,prnt,) \
+  AUDIO_ENTRY(AudioAnalyzeRMS,AnalyzeRMS,AUDIO_ANALYZE_RMS,1,0,analyze,rms,) \
+  AUDIO_ENTRY(AudioAnalyzeToneDetect,AnalyzeToneDetect,AUDIO_ANALYZE_TONE_DETECT,1,0,analyze,tone,) \
   AUDIO_ENTRY(AudioEffectBitcrusher,Bitcrusher,AUDIO_EFFECT_BITCRUSHER,1,1,effect,crsh,) \
   AUDIO_ENTRY(AudioEffectChorus,Chorus,AUDIO_EFFECT_CHORUS,1,1,effect,chor,) \
   AUDIO_ENTRY(AudioEffectDelay,Delay,AUDIO_EFFECT_DELAY,1,8,effect,dely,) \
   AUDIO_ENTRY(AudioEffectDelayExternal,DelayExternal,AUDIO_EFFECT_DELAY_EXTERNAL,1,8,effect,delX,) \
   AUDIO_ENTRY(AudioEffectDigitalCombine,DigitalCombine,AUDIO_EFFECT_DIGITAL_COMBINE,2,1,effect,cmbn,) \
   AUDIO_ENTRY(AudioEffectEnvelope,Envelope,AUDIO_EFFECT_ENVELOPE,1,1,effect,envL,) \
-  AUDIO_ENTRY(AudioEffectExpEnvelope,ExpEnvelope,AUDIO_EFFECT_EXP_ENVELOPE,1,1,effect,envE,) \
   AUDIO_ENTRY(AudioEffectFade,Fade,AUDIO_EFFECT_FADE,1,1,effect,fade,) \
   AUDIO_ENTRY(AudioEffectFlange,Flange,AUDIO_EFFECT_FLANGE,1,1,effect,flng,) \
   AUDIO_ENTRY(AudioEffectFreeverb,Freeverb,AUDIO_EFFECT_FREEVERB,1,1,effect,frvb,) \
@@ -27,9 +33,7 @@
   AUDIO_ENTRY(AudioFilterLadder,FilterLadder,AUDIO_FILTER_LADDER,3,1,filter,ladr,) \
   AUDIO_ENTRY(AudioFilterStateVariable,FilterStateVariable,AUDIO_FILTER_STATE_VARIABLE,2,3,filter,svf,) \
   AUDIO_ENTRY(AudioAmplifier,Amplifier,AUDIO_AMPLIFIER,1,1,mixer,amp,) \
-  AUDIO_ENTRY(AudioMixer,Mixer,AUDIO_MIXER,8,1,mixer,mixN,8) \
   AUDIO_ENTRY(AudioMixer4,Mixer4,AUDIO_MIXER4,4,1,mixer,mix4,) \
-  AUDIO_ENTRY(AudioMixerStereo,MixerStereo,AUDIO_MIXER_STEREO,8,2,mixer,mixS,8) \
   AUDIO_ENTRY(AudioSynthKarplusStrong,KarplusStrong,AUDIO_SYNTH_KARPLUS_STRONG,0,1,synth,kpst,) \
   AUDIO_ENTRY(AudioSynthNoisePink,NoisePink,AUDIO_SYNTH_NOISE_PINK,0,1,synth,npnk,) \
   AUDIO_ENTRY(AudioSynthNoiseWhite,NoiseWhite,AUDIO_SYNTH_NOISE_WHITE,0,1,synth,nwht,) \
@@ -46,16 +50,21 @@
 
 
 
-enum AudioCategory_e { AudioCategory_none, AudioCategory_patchcord, AudioCategory_effect, AudioCategory_filter, AudioCategory_mixer, AudioCategory_synth };
-
+enum AudioCategory_e { AudioCategory_none, AudioCategory_patchcord, AudioCategory_analyze, AudioCategory_effect, AudioCategory_filter, AudioCategory_mixer, AudioCategory_synth };
 
 #define xAUDIO_ENTRY(x) AUDIO_ENTRY(x)
 
+// Define enum with a unique ID for each object type,
+// plus guard values at the ends: IDs are thus 1..N
 #define AUDIO_ENTRY(a,b,c,...) c##_ID,
 enum AudioID {AUDIO_NONE_ID, AUDIO_ENTRIES AUDIO_MAX_ID};
 #undef AUDIO_ENTRY
 
+// Count of possible object types
+#define COUNT_OF_objList ((int) (AUDIO_MAX_ID - 1))
 
+// Union which can hold a pointer to any object type, referred
+// to by its shortened name
 #define AUDIO_ENTRY(a,b,c,d,e,...) a* b;
 union AudioObjPtr_u {AUDIO_ENTRIES};
 #undef AUDIO_ENTRY
