@@ -3,14 +3,17 @@
 
 #include <Audio.h>
 
+/*
+ * This macro defines the list of objects types we're allowed to create and edit
+ */
 #define AUDIO_ENTRIES \
-  AUDIO_ENTRY(AudioAnalyzeFFT1024,AnalyzeFFT1024,AUDIO_ANALYZE_FFT1024,1,0,analyze,ff1k,) \
-  AUDIO_ENTRY(AudioAnalyzeFFT256,AnalyzeFFT256,AUDIO_ANALYZE_FFT256,1,0,analyze,f256,) \
-  AUDIO_ENTRY(AudioAnalyzeNoteFrequency,AnalyzeNoteFrequency,AUDIO_ANALYZE_NOTE_FREQUENCY,1,0,analyze,nfrq,) \
-  AUDIO_ENTRY(AudioAnalyzePeak,AnalyzePeak,AUDIO_ANALYZE_PEAK,1,0,analyze,peak,) \
-  AUDIO_ENTRY(AudioAnalyzePrint,AnalyzePrint,AUDIO_ANALYZE_PRINT,1,0,analyze,prnt,) \
-  AUDIO_ENTRY(AudioAnalyzeRMS,AnalyzeRMS,AUDIO_ANALYZE_RMS,1,0,analyze,rms,) \
-  AUDIO_ENTRY(AudioAnalyzeToneDetect,AnalyzeToneDetect,AUDIO_ANALYZE_TONE_DETECT,1,0,analyze,tone,) \
+  AUDIO_ENTRY(AudioAnalyzeFFT1024,FFT1024,AUDIO_ANALYZE_FFT1024,1,0,analyze,ff1k,) \
+  AUDIO_ENTRY(AudioAnalyzeFFT256,FFT256,AUDIO_ANALYZE_FFT256,1,0,analyze,f256,) \
+  AUDIO_ENTRY(AudioAnalyzeNoteFrequency,NoteFrequency,AUDIO_ANALYZE_NOTE_FREQUENCY,1,0,analyze,nfrq,) \
+  AUDIO_ENTRY(AudioAnalyzePeak,Peak,AUDIO_ANALYZE_PEAK,1,0,analyze,peak,) \
+  AUDIO_ENTRY(AudioAnalyzePrint,Print,AUDIO_ANALYZE_PRINT,1,0,analyze,prnt,) \
+  AUDIO_ENTRY(AudioAnalyzeRMS,RMS,AUDIO_ANALYZE_RMS,1,0,analyze,rms,) \
+  AUDIO_ENTRY(AudioAnalyzeToneDetect,ToneDetect,AUDIO_ANALYZE_TONE_DETECT,1,0,analyze,tone,) \
   AUDIO_ENTRY(AudioEffectBitcrusher,Bitcrusher,AUDIO_EFFECT_BITCRUSHER,1,1,effect,crsh,) \
   AUDIO_ENTRY(AudioEffectChorus,Chorus,AUDIO_EFFECT_CHORUS,1,1,effect,chor,) \
   AUDIO_ENTRY(AudioEffectDelay,Delay,AUDIO_EFFECT_DELAY,1,8,effect,dely,) \
@@ -28,10 +31,10 @@
   AUDIO_ENTRY(AudioEffectReverb,Reverb,AUDIO_EFFECT_REVERB,1,1,effect,rvrb,) \
   AUDIO_ENTRY(AudioEffectWaveFolder,WaveFolder,AUDIO_EFFECT_WAVE_FOLDER,2,1,effect,fold,) \
   AUDIO_ENTRY(AudioEffectWaveshaper,Waveshaper,AUDIO_EFFECT_WAVESHAPER,1,1,effect,shpr,) \
-  AUDIO_ENTRY(AudioFilterBiquad,FilterBiquad,AUDIO_FILTER_BIQUAD,1,1,filter,biqd,) \
-  AUDIO_ENTRY(AudioFilterFIR,FilterFIR,AUDIO_FILTER_FIR,1,1,filter,fir,) \
-  AUDIO_ENTRY(AudioFilterLadder,FilterLadder,AUDIO_FILTER_LADDER,3,1,filter,ladr,) \
-  AUDIO_ENTRY(AudioFilterStateVariable,FilterStateVariable,AUDIO_FILTER_STATE_VARIABLE,2,3,filter,svf,) \
+  AUDIO_ENTRY(AudioFilterBiquad,Biquad,AUDIO_FILTER_BIQUAD,1,1,filter,biqd,) \
+  AUDIO_ENTRY(AudioFilterFIR,FIR,AUDIO_FILTER_FIR,1,1,filter,fir,) \
+  AUDIO_ENTRY(AudioFilterLadder,Ladder,AUDIO_FILTER_LADDER,3,1,filter,ladr,) \
+  AUDIO_ENTRY(AudioFilterStateVariable,StateVariable,AUDIO_FILTER_STATE_VARIABLE,2,3,filter,svf,) \
   AUDIO_ENTRY(AudioAmplifier,Amplifier,AUDIO_AMPLIFIER,1,1,mixer,amp,) \
   AUDIO_ENTRY(AudioMixer4,Mixer4,AUDIO_MIXER4,4,1,mixer,mix4,) \
   AUDIO_ENTRY(AudioSynthKarplusStrong,KarplusStrong,AUDIO_SYNTH_KARPLUS_STRONG,0,1,synth,kpst,) \
@@ -49,9 +52,10 @@
   AUDIO_ENTRY(AudioSynthWavetable,Wavetable,AUDIO_SYNTH_WAVETABLE,0,1,synth,wtab,) \
 
 
-
 enum AudioCategory_e { AudioCategory_none, AudioCategory_patchcord, AudioCategory_analyze, AudioCategory_effect, AudioCategory_filter, AudioCategory_mixer, AudioCategory_synth };
 
+
+// macro to force expansion of parameter list, if needed
 #define xAUDIO_ENTRY(x) AUDIO_ENTRY(x)
 
 // Define enum with a unique ID for each object type,

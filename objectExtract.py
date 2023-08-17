@@ -97,7 +97,7 @@ for obj in objl:
 cats = set()
 for id in sorted(opd):
     obj,nam = opd[id]
-    shrt = re.sub('(Audio|Synth|Effect)','',nam)
+    shrt = re.sub('(Audio|Synth|Effect|Analyze|Filter)','',nam)
     id = re.sub('([A-Z])','_\g<1>',nam)[1:].upper().replace('P_W_M','PWM').replace('F_I_R','FIR')
     id = id.replace('R_M_S','RMS').replace('F_F_T','FFT')
     inc = obj['data']['inputs']
