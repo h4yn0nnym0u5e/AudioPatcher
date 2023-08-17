@@ -43,9 +43,11 @@ class CordEditor
     AudioObjStatic_t (&objList)[];
     int epIdx,portNum;
     PatchcordInstance_t editCord;
+    int state;
 
     void ShowSelection(int io);
-    void highlightObjnum(int n, uint16_t colour);
+    AudioObjInstance* highlightObjnum(int n, uint16_t colour);
+    AudioObjInstance* highlightObj(AudioObjInstance* it, uint16_t colour);
     void highlightPort(AudioObjInstance* aoi, int io, int n, bool on);
     void greyOut(srctype s);
 
@@ -56,7 +58,7 @@ class CordEditor
             AudioObjStatic_t (&ol)[])
             : enc0(e0), enc1(e1), enc2(e2),
             display(d), objVec(o), objList(ol),
-            epIdx(0), portNum(0)
+            epIdx(0), portNum(0), state(0)
             {}
     void edit(void);
     void enter(void);

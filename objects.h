@@ -165,7 +165,7 @@ class PatchcordInstance_t
         connect();
       }
     PatchcordInstance_t() : PatchcordInstance_t(nullptr, -1, nullptr, -1) {}
-    ~PatchcordInstance_t() {delete conn;}
+    ~PatchcordInstance_t();
     AudioConnection* conn; // the actual connection
     // duplicate of inaccessible information
     AudioObjInstance* src;

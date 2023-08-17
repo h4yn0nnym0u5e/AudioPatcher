@@ -44,6 +44,14 @@ bool operator<(const AudioObjInstancePtr& lhs, const AudioObjInstancePtr& rhs)
   return lhs.p->x*10000 + lhs.p->y < rhs.p->x*10000 + rhs.p->y;
 }
 
+PatchcordInstance_t::~PatchcordInstance_t()
+{
+  if (nullptr != conn)
+    delete conn;
+
+  if (nullptr != dst) // destination port now unused
+    dst->inputUsedFlags &= ~(1<<dst_port);
+}
 
 void PatchcordInstance_t::connect(void)
 {      
@@ -51,5 +59,8 @@ void PatchcordInstance_t::connect(void)
    && nullptr != dst
    && nullptr != src->streamP.streamObj
    && nullptr != dst->streamP.streamObj)
+  {
     conn->connect(*src->streamP.streamObj,src_port, *dst->streamP.streamObj,dst_port);
+    dst->inputUsedFlags |= 1<<dst_port; // flag that input is in use
+  }
 }

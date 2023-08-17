@@ -74,20 +74,36 @@ void CordEditor::ShowSelection(int io)
   greyOut(io?noDst:noSrc);
 }
 
-void CordEditor::highlightObjnum(int n, uint16_t colour)
+AudioObjInstance* CordEditor::highlightObj(AudioObjInstance* it, uint16_t colour)
 {
+  if (nullptr != it)
+    display.HighlightAudioObject(it->x,it->y,colour);
+
+  return it;
+}
+
+AudioObjInstance* CordEditor::highlightObjnum(int n, uint16_t colour)
+{
+  AudioObjInstance* it = nullptr;
+  
   if (!objVec.empty() && n < (int) objVec.size())
   {
-    auto it = objVec.at(n).p;
-    display.HighlightAudioObject(it->x,it->y,colour);
-  }  
+    it = objVec.at(n).p;
+    highlightObj(it,colour);
+  }
+
+  return it;
 }
 
 //----------------------------------------------------------------------
 void CordEditor::highlightPort(AudioObjInstance* aoi, int io, int n, bool on)
 {
   uint16_t colour = on?PATCHCORD_COLOUR:CONNECTION_COLOUR;
-  display.DrawConnection(*aoi->objP,aoi->x,aoi->y,n,0 == io,colour);
+  if (nullptr != aoi)
+  {
+    display.DrawConnection(*aoi->objP,aoi->x,aoi->y,n,0 == io,colour);
+    Serial.printf("highlight %s.%d: %s\n",io?"input":"output",n,on?"on":"off");
+  }
 }
 
 //----------------------------------------------------------------------
@@ -115,7 +131,12 @@ void CordEditor::edit(void)
     else
       enc0.setValue(epIdx);
     highlightObjnum(epIdx,ILI9341_WHITE);
-    
+
+    portNum = 0;
+    aoi = objVec.at(epIdx).p;
+    if (aoi == editCord.src) portNum = editCord.src_port;
+    if (aoi == editCord.dst) portNum = editCord.dst_port;
+    enc1.setValue(portNum);
     changedIdx = true;
   }
 
@@ -126,7 +147,8 @@ void CordEditor::edit(void)
     AudioObjInstance* aoi = objVec.at(epIdx).p;
     int numPorts = io?aoi->objP->inputs:aoi->objP->outputs;
 
-    highlightPort(aoi,io,portNum,false);
+    if (!changedIdx)
+      highlightPort(aoi,io,portNum,false);
     if (0 == numPorts)
     {
       io = 1-io;
@@ -145,35 +167,67 @@ void CordEditor::edit(void)
     highlightPort(aoi,io,portNum,true);
   }
   
-  if (changedIdx || enc2.available()) // force an update
+  if (enc2.available()) // src / dst switch
   {
     AudioObjInstance* aoi = objVec.at(epIdx).p;
     highlightPort(aoi,io,portNum,false);
     
     io = 1-enc2.getValue();
     ShowSelection(io);
+    
+    if (nullptr != editCord.src)
+      highlightPort(editCord.src,0,editCord.src_port,true);
+    if (nullptr != editCord.dst)
+      highlightPort(editCord.dst,1,editCord.dst_port,true);
+      
+    portNum = 0;
+    enc1.setValue(portNum);
+    highlightPort(aoi,io,portNum,true);
   }
 
-  if (enc2.getButton())
+  // select a source or destination
+  if (enc1.getButton())
+    state = 1;
+  else
   {
-    if (1 == io) // set dst / input
+    if (1 == state)
     {
-      if (editCord.dst == objVec.at(epIdx).p)
-        editCord.dst = nullptr;        
-      else
+      AudioObjInstance* aoi = objVec.at(epIdx).p;
+      
+      state = 0;
+      if (1 == io) // set dst / input
       {
-        editCord.dst = objVec.at(epIdx).p;
-        editCord.dst_port = portNum;
-      }      
-    }
-    else // set src / output
-    {
-      if (editCord.src == objVec.at(epIdx).p)
-        editCord.src = nullptr;        
-      else
+        highlightPort(editCord.dst,1,editCord.dst_port,false);
+        if (editCord.dst == aoi)
+        {
+          Serial.println("dst cleared");
+          editCord.dst = nullptr;
+        }
+        else
+        {
+          Serial.println("dst set");
+          highlightObj(editCord.dst,ILI9341_BLACK);
+          editCord.dst = aoi;
+          editCord.dst_port = portNum;
+          highlightPort(editCord.dst,1,editCord.dst_port,true);
+        }      
+      }
+      else // set src / output
       {
-        editCord.src = objVec.at(epIdx).p;
-        editCord.src_port = portNum;      
+        highlightPort(editCord.src,0,editCord.src_port,false);
+        if (editCord.src == aoi)
+        {
+          Serial.println("src cleared");
+          editCord.src = nullptr;        
+        }
+        else
+        {
+          Serial.println("src set");
+          highlightObj(editCord.src,ILI9341_BLACK);
+          editCord.src = aoi;
+          editCord.src_port = portNum;      
+          highlightPort(editCord.src,0,editCord.src_port,true);
+        }
       }
     }
   }
@@ -181,6 +235,9 @@ void CordEditor::edit(void)
 
 void CordEditor::enter(void)
 {
+  AudioObjInstance* aoi;
+  PatchcordInstance_t blankPatch;
+  
   enc0.setValue(epIdx);
   enc0.setLimits(0,objVec.size() -1);
   
@@ -188,10 +245,16 @@ void CordEditor::enter(void)
   enc2.setValue(1); 
   
   ShowSelection(0);
+  aoi = highlightObjnum(epIdx,ILI9341_WHITE);
+  editCord = blankPatch;
+
+  portNum = 0;
+  highlightPort(aoi,0,portNum,true);
 }
 
 void CordEditor::exit(void)
 {
+  highlightObjnum(epIdx,ILI9341_BLACK);
   greyOut(nothing);
 }
 
