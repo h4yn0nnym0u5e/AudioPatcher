@@ -192,7 +192,11 @@ void AudioPatcherDisplay::ShowMode(const char* txt)
       break;
 
     case 'D':
-      colour = 0x821F;
+      colour = 0x721F; // purple-ish
+      break;
+
+    case 'F':
+      colour = 0xC604; // 
       break;
 
     default: // ...oops

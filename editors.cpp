@@ -1,5 +1,6 @@
 #include "editors.h"
 
+static PatchcordInstance_t blankPatch;
 //======================================================================
 //======================================================================
 AudioObjInstance* BaseEditor::highlightObj(AudioObjInstance* it, uint16_t colour)
@@ -104,7 +105,7 @@ void CordEditor::highlightPort(AudioObjInstance* aoi, int io, int n, bool on)
   if (nullptr != aoi)
   {
     display.DrawConnection(*aoi->objP,aoi->x,aoi->y,n,0 == io,colour);
-    Serial.printf("highlight %s.%d: %s\n",io?"input":"output",n,on?"on":"off");
+    // Serial.printf("highlight %s.%d: %s\n",io?"input":"output",n,on?"on":"off");
   }
 }
 
@@ -202,12 +203,12 @@ void CordEditor::edit(void)
         highlightPort(editCord.dst,1,editCord.dst_port,false);
         if (editCord.dst == aoi)
         {
-          Serial.println("dst cleared");
+          //Serial.println("dst cleared");
           editCord.dst = nullptr;
         }
         else
         {
-          Serial.println("dst set");
+          //Serial.println("dst set");
           highlightObj(editCord.dst,ILI9341_BLACK);
           editCord.dst = aoi;
           editCord.dst_port = portNum;
@@ -219,17 +220,31 @@ void CordEditor::edit(void)
         highlightPort(editCord.src,0,editCord.src_port,false);
         if (editCord.src == aoi)
         {
-          Serial.println("src cleared");
+          //Serial.println("src cleared");
           editCord.src = nullptr;        
         }
         else
         {
-          Serial.println("src set");
+          //Serial.println("src set");
           highlightObj(editCord.src,ILI9341_BLACK);
           editCord.src = aoi;
           editCord.src_port = portNum;      
           highlightPort(editCord.src,0,editCord.src_port,true);
         }
+      }
+
+      if (nullptr != editCord.src && nullptr != editCord.dst) // both set - create patchcord
+      {
+          cordVec.push_back(new PatchcordInstance_t{editCord.src,editCord.src_port,editCord.dst,editCord.dst_port}); // create
+          display.DrawPatchcord(cordVec.back()); // draw
+          highlightPort(editCord.src,0,editCord.src_port,false); // un-highlight...
+          highlightPort(editCord.dst,1,editCord.dst_port,false); // ...the ports...
+          if (aoi == editCord.src)
+            highlightObj(editCord.dst,ILI9341_BLACK); // ...and the other...
+          if (aoi == editCord.dst)
+            highlightObj(editCord.src,ILI9341_BLACK); // ...audio object!
+            
+          editCord = blankPatch;
       }
     }
   }
@@ -238,7 +253,6 @@ void CordEditor::edit(void)
 void CordEditor::enter(void)
 {
   AudioObjInstance* aoi;
-  PatchcordInstance_t blankPatch;
   
   enc0.setValue(epIdx);
   enc0.setLimits(0,objVec.size() -1);
@@ -343,7 +357,6 @@ void DeleteEditor::edit(void)
             // now we can delete the audio object
             display.EraseAudioObject(*aoi->objP,aoi->x,aoi->y); // from the display...
             objVec.erase(std::next(objVec.begin(),epIdx));
-            
           }
           break;
 
@@ -405,4 +418,68 @@ void DeleteEditor::ShowSelection(int op)
   
   sprintf(buf,"%s",op?"patchcords":"objects");
   display.ShowBottomText(buf,display.getModeColour());
+}
+
+
+//======================================================================
+//======================================================================
+void FileEditor::enter(void)
+{
+}
+
+void FileEditor::exit(void)
+{
+}
+
+void FileEditor::edit(void)
+{
+  if (enc0.getButton())
+    state = 1;
+  else
+  {
+    if (state)
+    {
+      state = 0;
+      
+      Serial.println("\nSave the patch:");
+      for (auto obj : objVec)
+        Serial.printf("#%d: %d @ %d,%d\n",state++,obj.p->objP->id,obj.p->x,obj.p->y);
+      state = 0;
+      for (auto obj : ioVec)
+        Serial.printf("#%d: %d @ %d,%d\n",--state,obj.p->objP->id,obj.p->x,obj.p->y);
+      for (auto cord : cordVec)
+      {
+        const int UNSET = 999'999'999;
+        int src = UNSET,dst = UNSET;
+        
+        state = 0;
+        for (auto obj : objVec)
+        {
+          if (obj.p == cord->src) src = state;
+          if (obj.p == cord->dst) dst = state;
+          if (src != UNSET && dst != UNSET)
+            break;
+          state++;            
+        }
+
+        if (src == UNSET || dst == UNSET)
+        {
+          state = 0;
+          for (auto obj : ioVec)
+          {
+            --state;
+            if (obj.p == cord->src) src = state;
+            if (obj.p == cord->dst) dst = state;
+            if (src != UNSET && dst != UNSET)
+              break;
+          }
+        }
+        
+        Serial.printf("%d.%d -> %d.%d\n",src,cord->src_port,dst,cord->dst_port);
+      }
+      Serial.println("---------------\n");
+        
+      state = 0;
+    }
+  }
 }

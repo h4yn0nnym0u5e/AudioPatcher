@@ -34,6 +34,13 @@ std::vector<PatchcordInstance_t*> cordVec;
 MY_AUDIO_IO
 #undef AUDIO_ENTRY
 
+#define AUDIO_ENTRY(typ,shrt,id, ...) {&the##shrt},
+std::vector<AudioObjInstancePtr> ioVec = {
+MY_AUDIO_IO
+  };
+#undef AUDIO_ENTRY
+
+
 AudioSynthWaveformModulated* pWav;
 /********************************************************************************************************/
 void setup() 
@@ -165,7 +172,7 @@ void xloop()
 }
 
 /********************************************************************************************************/
-const char* modes = "OPED"; // objects, patchcords, editing, deleting
+const char* modes = "OPEDF"; // objects, patchcords, editing, deleting, filing
 LimitedEncoder encM{encr,0,0,(int32_t) strlen(modes)-1}; // mode
 LimitedEncoder enc0{encr,1,0,31}; // x position in steps of 10
 LimitedEncoder enc1{encr,2,0,23}; // y position in steps of 10
@@ -174,8 +181,9 @@ int state = 0;
 bool initialised = false;
 char editMode[2] = {0};
 ObjEditor objEditor(enc0,enc1,enc2,display,objVec,objList);
-CordEditor cordEditor(enc0,enc1,enc2,display,objVec,objList);
+CordEditor cordEditor(enc0,enc1,enc2,display,objVec,cordVec,objList);
 DeleteEditor deleteEditor(enc0,enc1,enc2,display,objVec,cordVec);
+FileEditor fileEditor(enc0,enc1,enc2,display,objVec,ioVec,cordVec);
 
 //======================================================================
 void wavControl(void)
@@ -213,6 +221,7 @@ void loop()
         case 'O': objEditor.exit(); break;  
         case 'P': cordEditor.exit(); break;
         case 'D': deleteEditor.exit(); break;
+        case 'F': fileEditor.exit(); break;
       }
       switch (editMode[0])
       {
@@ -220,6 +229,7 @@ void loop()
         case 'O': objEditor.enter(); break;  
         case 'P': cordEditor.enter(); break;
         case 'D': deleteEditor.enter(); break;
+        case 'F': fileEditor.enter(); break;
       }
     }
   }
@@ -229,7 +239,9 @@ void loop()
     default: break;
     case 'O': objEditor.edit(); break;
     case 'P': cordEditor.edit(); break;
+    
     case 'D': deleteEditor.edit(); break;
+    case 'F': fileEditor.edit(); break;
   }
 
   
