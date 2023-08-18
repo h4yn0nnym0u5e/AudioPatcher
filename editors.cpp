@@ -1,6 +1,29 @@
 #include "editors.h"
 
 //======================================================================
+//======================================================================
+AudioObjInstance* BaseEditor::highlightObj(AudioObjInstance* it, uint16_t colour)
+{
+  if (nullptr != it)
+    display.HighlightAudioObject(it->x,it->y,colour);
+
+  return it;
+}
+
+AudioObjInstance* BaseEditor::highlightObjnum(int n, uint16_t colour)
+{
+  AudioObjInstance* it = nullptr;
+  
+  if (!objVec.empty() && n < (int) objVec.size())
+  {
+    it = objVec.at(n).p;
+    highlightObj(it,colour);
+  }
+
+  return it;
+}
+
+//======================================================================
 void ObjEditor::ShowSelection(int v)
 {
     Serial.printf("%d : %s\n",v,objList[v].name);
@@ -72,27 +95,6 @@ void CordEditor::ShowSelection(int io)
   sprintf(buf,"%s",io?"dst":"src");
   display.ShowSelection(buf,AudioCategory_patchcord);
   greyOut(io?noDst:noSrc);
-}
-
-AudioObjInstance* CordEditor::highlightObj(AudioObjInstance* it, uint16_t colour)
-{
-  if (nullptr != it)
-    display.HighlightAudioObject(it->x,it->y,colour);
-
-  return it;
-}
-
-AudioObjInstance* CordEditor::highlightObjnum(int n, uint16_t colour)
-{
-  AudioObjInstance* it = nullptr;
-  
-  if (!objVec.empty() && n < (int) objVec.size())
-  {
-    it = objVec.at(n).p;
-    highlightObj(it,colour);
-  }
-
-  return it;
 }
 
 //----------------------------------------------------------------------
@@ -267,4 +269,140 @@ void CordEditor::greyOut(srctype s)
     if (s == noDst && 0 == obj.p->objP->inputs)  grey = true;
     display.DrawAudioObject(*obj.p->objP,obj.p->x,obj.p->y,grey);
   }
+}
+
+
+//======================================================================
+//======================================================================
+void DeleteEditor::enter(void)
+{
+  delType = delObj;
+  
+  enc0.setValue(epIdx);
+  enc0.setLimits(0,objVec.size() -1);
+  highlight(-1,epIdx);
+  
+  enc2.setLimits(0,1);
+  enc2.setValue(delType);
+  ShowSelection(enc2.getValue());  
+}
+
+void DeleteEditor::exit(void)
+{
+  highlight(epIdx,-1);  
+}
+void DeleteEditor::edit(void)
+{
+  // select an audio object
+  if (enc0.available())
+  {
+    int ec1 = enc0.getValue();
+    highlight(epIdx,ec1);
+    epIdx = ec1;
+  }
+  
+  if (enc2.available())
+  {
+    highlight(epIdx,-1);
+    delType = (delType_e) enc2.getValue();
+    ShowSelection(delType);
+    enc0.setLimits(0,delType == delObj
+                              ?(objVec.size() - 1)
+                              :(cordVec.size() - 1));
+    epIdx = enc0.getValue();
+    highlight(-1,epIdx);
+  }
+
+  if (enc0.getButton())
+    state = 1;
+  else
+  {
+    if (1 == state)
+    {
+      state = 0;
+      switch (delType) // time to delete a thing!
+      {
+        case delObj:
+          {
+            AudioObjInstance* aoi = objVec.at(epIdx).p;
+            
+            // delete associated patchcords: go backwards
+            // so we don't change the index of cords we
+            // haven't checked yet
+            for (int i=cordVec.size() - 1;i>=0;--i)
+            {
+              auto cord = cordVec.at(i);
+              if (cord->src == aoi || cord->dst == aoi)
+              {
+                display.DrawPatchcord(cord,ILI9341_BLACK);
+                delete cord;
+                cordVec.erase(std::next(cordVec.begin(),i));
+              }
+            }
+
+            // now we can delete the audio object
+            display.EraseAudioObject(*aoi->objP,aoi->x,aoi->y); // from the display...
+            objVec.erase(std::next(objVec.begin(),epIdx));
+            
+          }
+          break;
+
+        case delCord:
+          {
+            PatchcordInstance_t* ppc = cordVec.at(epIdx);
+            display.DrawPatchcord(ppc,ILI9341_BLACK);
+            delete ppc;
+            cordVec.erase(std::next(cordVec.begin(),epIdx));
+            enc0.setLimits(0,cordVec.size()-1);
+          }
+          break;
+      }
+
+      // selection has changed, update display
+      epIdx = enc0.getValue();
+      highlight(-1,epIdx);
+    }
+  }
+}
+
+
+void DeleteEditor::highlight(int remove, int add)
+{
+  switch (delType)
+  {
+    case delObj:
+    
+      if (remove >= 0)
+      {
+        AudioObjInstance* aoi = 
+          highlightObjnum(remove,ILI9341_BLACK); // take highlight off old object
+        for (auto cord : cordVec) // highlight attached patchcords, too
+          if (cord->src == aoi || cord->dst == aoi)
+            display.DrawPatchcord(cord);                 
+      }
+      if (add >= 0)
+      {
+        AudioObjInstance* aoi = 
+          highlightObjnum(add,ILI9341_WHITE); // put it on the new one
+        for (auto cord : cordVec) // highlight attached patchcords, too
+          if (cord->src == aoi || cord->dst == aoi)
+            display.DrawPatchcord(cord,PATCHCORD_HIGHLIGHT);                
+      }
+      break;
+
+    case delCord:
+      if (remove >= 0)
+        display.DrawPatchcord(cordVec.at(remove)); // take highlight off old object
+      if (add >= 0)
+        display.DrawPatchcord(cordVec.at(add),PATCHCORD_HIGHLIGHT); // put it on the new one     
+      break;
+  }
+}
+
+void DeleteEditor::ShowSelection(int op)
+{
+  char buf[20];
+  
+  sprintf(buf,"%s",op?"patchcords":"objects");
+  display.ShowBottomText(buf,display.getModeColour());
 }

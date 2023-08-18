@@ -175,6 +175,7 @@ bool initialised = false;
 char editMode[2] = {0};
 ObjEditor objEditor(enc0,enc1,enc2,display,objVec,objList);
 CordEditor cordEditor(enc0,enc1,enc2,display,objVec,objList);
+DeleteEditor deleteEditor(enc0,enc1,enc2,display,objVec,cordVec);
 
 //======================================================================
 void wavControl(void)
@@ -211,25 +212,24 @@ void loop()
         default: break;
         case 'O': objEditor.exit(); break;  
         case 'P': cordEditor.exit(); break;
+        case 'D': deleteEditor.exit(); break;
       }
       switch (editMode[0])
       {
         default: break;
         case 'O': objEditor.enter(); break;  
         case 'P': cordEditor.enter(); break;
+        case 'D': deleteEditor.enter(); break;
       }
     }
   }
 
   switch (editMode[0])
   {
-    case 'O':
-      objEditor.edit();
-      break;
-      
-    case 'P':
-      cordEditor.edit();
-      break;
+    default: break;
+    case 'O': objEditor.edit(); break;
+    case 'P': cordEditor.edit(); break;
+    case 'D': deleteEditor.edit(); break;
   }
 
   

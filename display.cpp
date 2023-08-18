@@ -126,6 +126,11 @@ void AudioPatcherDisplay::DrawAudioObject(AudioObjStatic_t& o, int16_t x, int16_
   }
 }
 
+void AudioPatcherDisplay::EraseAudioObject(AudioObjStatic_t& o, int16_t x, int16_t y)
+{
+  tft.fillRoundRect(x-1,y-1,osize.ow+2,osize.oh+2,osize.cc+1,ILI9341_BLACK);   
+}
+
 
 //=================================================================================================
 void AudioPatcherDisplay::HighlightAudioObject(int16_t x, int16_t y, uint16_t colour)
@@ -194,6 +199,8 @@ void AudioPatcherDisplay::ShowMode(const char* txt)
       colour = ILI9341_PINK;
       break;
   }
+  modeColour = colour;
+  
   tft.setFontAdafruit();
   tft.setTextSize(2);
   int16_t th = tft.fontLineSpace(); // assume it's going to fit on one line!
@@ -202,12 +209,11 @@ void AudioPatcherDisplay::ShowMode(const char* txt)
 
   tft.fillRect(0,239-th,tft.measureTextWidth(txt,1)+1,th+1,colour);
   tft.print(*txt);
-  
 }
 
 
 //=================================================================================================
-void AudioPatcherDisplay::ShowSelection(const char* txt, AudioCategory_e cat)
+void AudioPatcherDisplay::ShowBottomText(const char* txt, uint16_t colour)
 {
   static int16_t eraseTo = -1;
   bool fixCursor;
@@ -217,7 +223,7 @@ void AudioPatcherDisplay::ShowSelection(const char* txt, AudioCategory_e cat)
   int16_t tw = tft.measureTextWidth(txt),
           th = tft.fontLineSpace(); // assume it's going to fit on one line!
   fixCursor = cursor_y > 240-th;
-  tft.setTextColor(AudioObjectColours[cat].border,ILI9341_BLACK);
+  tft.setTextColor(colour,ILI9341_BLACK);
   tft.setCursor(20,240 - th);
   if (fixCursor)
     CursorClear();
@@ -228,6 +234,12 @@ void AudioPatcherDisplay::ShowSelection(const char* txt, AudioCategory_e cat)
   if (fixCursor)
     CursorRestore();
 }
+
+void AudioPatcherDisplay::ShowSelection(const char* txt, AudioCategory_e cat)
+{
+  ShowBottomText(txt,AudioObjectColours[cat].border);
+}
+
 
 
 //=================================================================================================
@@ -298,7 +310,7 @@ void AudioPatcherDisplay::CursorRestore(void)
 
 
 //=================================================================================================
-void AudioPatcherDisplay::DrawPatchcord(AudioObjInstance& src, int8_t sp, AudioObjInstance& dst, int8_t dp)
+void AudioPatcherDisplay::DrawPatchcord(AudioObjInstance& src, int8_t sp, AudioObjInstance& dst, int8_t dp, uint16_t colour)
 {
   if (sp < src.objP->outputs && dp < dst.objP->inputs) // port numbers are valid
   {
@@ -318,6 +330,6 @@ void AudioPatcherDisplay::DrawPatchcord(AudioObjInstance& src, int8_t sp, AudioO
     sy += osize.ch / 2;
     dy += osize.ch / 2;
 
-    tft.drawLine(sx,sy,dx,dy,PATCHCORD_COLOUR);
+    tft.drawLine(sx,sy,dx,dy,colour);
   }
 }
