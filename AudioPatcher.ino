@@ -22,7 +22,16 @@ M5w_8encoder  encr;
 uint32_t next;
 
 extern AudioObjStatic_t objList[];
+
+// Non-deletable objects: I/O and control
+#define AUDIO_ENTRY(typ,shrt,id, ...) AudioObjInstance the##shrt{objList[id##_ID],-1,-1,true};
+MY_AUDIO_IO
+#undef AUDIO_ENTRY
+
 std::vector<AudioObjInstancePtr> objVec = {
+#define AUDIO_ENTRY(typ,shrt,id, ...) {&the##shrt},
+  MY_AUDIO_IO
+#undef AUDIO_ENTRY
   {new AudioObjInstance{objList[AUDIO_EFFECT_DELAY_ID],5,5}},
   {new AudioObjInstance{objList[AUDIO_MIXER4_ID],110,5}},
   {new AudioObjInstance{objList[AUDIO_FILTER_LADDER_ID],110,55}},
@@ -30,15 +39,10 @@ std::vector<AudioObjInstancePtr> objVec = {
   };
 std::vector<PatchcordInstance_t*> cordVec; 
 
-#define AUDIO_ENTRY(typ,shrt,id, ...) AudioObjInstance the##shrt{objList[id##_ID],-1,-1};
-MY_AUDIO_IO
-#undef AUDIO_ENTRY
 
-#define AUDIO_ENTRY(typ,shrt,id, ...) {&the##shrt},
+
 std::vector<AudioObjInstancePtr> ioVec = {
-MY_AUDIO_IO
   };
-#undef AUDIO_ENTRY
 
 
 AudioSynthWaveformModulated* pWav;
@@ -93,6 +97,18 @@ void setup()
     display.DrawAudioObject(*obj.p->objP,obj.p->x,obj.p->y);
   }
 
+  theInputI2S.x = -40;
+  theInputI2S.y = 100;
+  theOutputI2S.x = 320 - 8;
+  theOutputI2S.y = 100;
+  theControlSGTL5000.x = 1;
+  theControlSGTL5000.y = 240 - 48 - 20 - 2;
+  for (auto obj : ioVec)
+  {
+    Serial.printf("%s\n",obj.p->objP->name);
+    display.DrawAudioObject(*obj.p->objP,obj.p->x,obj.p->y);
+  }
+
   for (int i=0;i<4;i++)
   {
     PatchcordInstance_t* pci = new PatchcordInstance_t(objVec.at(0).p,i,objVec.at(1).p,i);
@@ -103,9 +119,6 @@ void setup()
   // make some real connections  
   cordVec.push_back(new PatchcordInstance_t{objVec.at(2).p,0,&theOutputI2S,0}); //cordVec.back()->connect();
   cordVec.push_back(new PatchcordInstance_t(objVec.at(2).p,0,&theOutputI2S,1));
-
-  theOutputI2S.x = 315;
-  theOutputI2S.y = 100;
 
   for (auto cord : cordVec)
     display.DrawPatchcord(cord);

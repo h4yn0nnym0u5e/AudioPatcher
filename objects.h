@@ -144,13 +144,15 @@ struct AudioObjStatic_t
 class AudioObjInstance
 {
   public:
-    AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y);
+    AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, bool _noD);
+    AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y) : AudioObjInstance(o,_x,_y,false) {}
     ~AudioObjInstance();
     AudioObjStatic_t* objP;
     AudioObjPtr_u streamP;
     int16_t x;
     int16_t y;
     uint32_t inputAvailFlags; // let's be optimistic!
+    bool noDelete;
 };
 
 struct AudioObjInstancePtr {AudioObjInstance* p; };

@@ -170,15 +170,12 @@ int CordEditor::findGoodPort(int epIdx, int portNum, int io)
 
       port = 0; 
       uint32_t flag = 1;
-Serial.printf("try port ");      
       while (flag != 0                           // still some to check
         && (0 == (flag & aoi->inputAvailFlags))) // but not this one
       {
-Serial.printf("%d .. ",port);      
         port++;
         flag <<= 1;
       }
-Serial.printf("%s : port %d\n",(0 != (flag & aoi->inputAvailFlags))?"ok":"fail",port);      
       if (0 != (flag & aoi->inputAvailFlags)) // found one!
         break;
     }
@@ -253,7 +250,6 @@ int CordEditor::findBestSettings(settings& ns, Prioritise pri)
           else
             result = -1; // can't do anything          
         }
-Serial.printf("found object %d\n",newObj);      
       }
       break;
       
@@ -264,7 +260,6 @@ Serial.printf("found object %d\n",newObj);
           ns.portNum = newPort;
         else
           result = -1;
-Serial.printf("on object %d found port %d\n",ns.objNum,newPort);      
       }
       break;
       
@@ -301,18 +296,29 @@ void CordEditor::edit(void)
   // select an audio object
   if (enc0.available())
   {
-    newSettings.objNum = enc0.getValue();
-Serial.printf("\nselected %d\n",newSettings.objNum);    
+    int tmp = newSettings.objNum = enc0.getValue();
     findBestSettings(newSettings,Prioritise::object);
-    redrawSelected = true;
+    if ((tmp > epIdx) == (newSettings.objNum > epIdx))
+      redrawSelected = true;
+    else
+    {
+      enc0.setValue(epIdx);
+      newSettings = {epIdx,portNum,io}; 
+    }
   }
 
   // select a connection port
   if (changedIdx || enc1.available())
   {
-    newSettings.portNum = enc1.getValue();
+    int tmp = newSettings.portNum = enc1.getValue();
     findBestSettings(newSettings,Prioritise::port);
-    redrawSelected = true;
+    if ((tmp > portNum) == (newSettings.portNum > portNum))
+      redrawSelected = true;
+    else
+    {
+      enc1.setValue(portNum);
+      newSettings = {epIdx,portNum,io}; 
+    }
   }
   
   if (enc2.available()) // src / dst switch
@@ -561,24 +567,27 @@ void DeleteEditor::edit(void)
         case delObj:
           {
             AudioObjInstance* aoi = objVec.at(epIdx).p;
-            
-            // delete associated patchcords: go backwards
-            // so we don't change the index of cords we
-            // haven't checked yet
-            for (int i=cordVec.size() - 1;i>=0;--i)
-            {
-              auto cord = cordVec.at(i);
-              if (cord->src == aoi || cord->dst == aoi)
-              {
-                display.DrawPatchcord(cord,ILI9341_BLACK);
-                delete cord;
-                cordVec.erase(std::next(cordVec.begin(),i));
-              }
-            }
 
-            // now we can delete the audio object
-            display.EraseAudioObject(*aoi->objP,aoi->x,aoi->y); // from the display...
-            objVec.erase(std::next(objVec.begin(),epIdx));
+            if (!aoi->noDelete) // I/O and control are protected
+            {
+              // delete associated patchcords: go backwards
+              // so we don't change the index of cords we
+              // haven't checked yet
+              for (int i=cordVec.size() - 1;i>=0;--i)
+              {
+                auto cord = cordVec.at(i);
+                if (cord->src == aoi || cord->dst == aoi)
+                {
+                  display.DrawPatchcord(cord,ILI9341_BLACK);
+                  delete cord;
+                  cordVec.erase(std::next(cordVec.begin(),i));
+                }
+              }
+  
+              // now we can delete the audio object
+              display.EraseAudioObject(*aoi->objP,aoi->x,aoi->y); // from the display...
+              objVec.erase(std::next(objVec.begin(),epIdx));
+            }
           }
           break;
 
@@ -617,11 +626,16 @@ void DeleteEditor::highlight(int remove, int add)
       }
       if (add >= 0)
       {
-        AudioObjInstance* aoi = 
-          highlightObjnum(add,ILI9341_WHITE); // put it on the new one
-        for (auto cord : cordVec) // highlight attached patchcords, too
-          if (cord->src == aoi || cord->dst == aoi)
-            display.DrawPatchcord(cord,PATCHCORD_HIGHLIGHT);                
+        AudioObjInstance* aoi = objVec.at(add).p;
+        uint16_t colour = aoi->noDelete?ILI9341_RED:ILI9341_WHITE;
+        
+        highlightObjnum(add,colour); // put it on the new one
+        if (!aoi->noDelete) // only if deletable
+        {
+          for (auto cord : cordVec) // highlight attached patchcords, too
+            if (cord->src == aoi || cord->dst == aoi)
+              display.DrawPatchcord(cord,PATCHCORD_HIGHLIGHT);                
+        }
       }
       break;
 

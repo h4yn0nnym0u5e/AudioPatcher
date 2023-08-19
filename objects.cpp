@@ -12,8 +12,8 @@ AudioObjStatic_t objList[] =
 #undef AUDIO_ENTRY
 
 //===========================================================================================
-AudioObjInstance::AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y) 
-  : objP(&o), x(_x),y(_y), inputAvailFlags(0) 
+AudioObjInstance::AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, bool _noD) 
+  : objP(&o), x(_x),y(_y), inputAvailFlags(0), noDelete(_noD) 
 {
   switch (objP->id)
   {
