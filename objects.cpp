@@ -1,6 +1,25 @@
 #include "objects.h"
 
 //===========================================================================================
+// Weak definitions of setup controls
+extern "C" { 
+  int editDoNothing(AudioObjInstance* aoi, int mode) 
+  { 
+    Serial.printf("Constructed a %s, at %08X; systemState = %d\n",
+                  aoi->objP->name,
+                  (uint32_t) aoi,
+                  systemState
+                  ); 
+    return 0; 
+  }
+}
+#define AUDIO_ENTRY(typ,shrt,...) int edit##shrt(AudioObjInstance* aoi, int mode) __attribute__((weak, alias("editDoNothing"))); 
+AUDIO_ENTRIES
+MY_AUDIO_IO
+#undef AUDIO_ENTRY
+
+
+//===========================================================================================
 #define AUDIO_ENTRY(a,b,c,d,e,f,g,...) INIT_OBJ_STATIC_DATA(a,b,c,d,e,f,g)
 AudioObjStatic_t objList[] =
 {
@@ -15,21 +34,22 @@ AudioObjStatic_t objList[] =
 AudioObjInstance::AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, bool _noD) 
   : objP(&o), x(_x),y(_y), inputAvailFlags(0), noDelete(_noD) 
 {
+  // set all inputs (0..N-1) as available
+  if (0 != objP->inputs)
+  {
+    inputAvailFlags  = 1<<(objP->inputs-1);
+    inputAvailFlags |= inputAvailFlags-1;
+  }
+  
   switch (objP->id)
   {
-#define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,cons) case id##_ID: streamP.shrt = new typ(cons); break;
+#define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,cons) case id##_ID: streamP.shrt = new typ(cons); edit##shrt(this,0); break;
     AUDIO_ENTRIES
     MY_AUDIO_IO
 #undef AUDIO_ENTRY 
     default:
       streamP.streamObj = nullptr;
       break;     
-  }
-  // set all inputs (0..N-1) as available
-  if (0 != objP->inputs)
-  {
-    inputAvailFlags  = 1<<(objP->inputs-1);
-    inputAvailFlags |= inputAvailFlags-1;
   }
 }
 

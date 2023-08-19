@@ -14,6 +14,7 @@
 #define PATCHCORD_COLOUR     0xFC02 // orange
 #define PATCHCORD_HIGHLIGHT  0xFE04 // orange
 
+//A 320x240x16-bit display takes 153,600 bytes to store
 class AudioPatcherDisplay
 {
     uint16_t* cbuf = nullptr; 

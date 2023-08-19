@@ -2,9 +2,11 @@
 #define _OBJECTS_H_
 
 #include <Audio.h>
+extern int systemState;
 
 /*
  * This macro defines the list of objects types we're allowed to create and edit
+ * Generated from \Arduino\libraries\Audio\gui\index.html by objectExtract.py
  */
 #define AUDIO_ENTRIES \
   AUDIO_ENTRY(AudioAnalyzeFFT1024,FFT1024,AUDIO_ANALYZE_FFT1024,1,0,analyze,ff1k,) \
@@ -53,55 +55,55 @@
 
 
 /*
-  AUDIO_ENTRY(AudioControlAK4558,ControlAK4558,AUDIO_CONTROL_AK4558,0,0,control,,) \
-  AUDIO_ENTRY(AudioControlCS42448,ControlCS42448,AUDIO_CONTROL_CS42448,0,0,control,,) \
-  AUDIO_ENTRY(AudioControlCS4272,ControlCS4272,AUDIO_CONTROL_CS4272,0,0,control,,) \
-  AUDIO_ENTRY(AudioControlSGTL5000,ControlSGTL5000,AUDIO_CONTROL_SGTL5000,0,0,control,,) \
-  AUDIO_ENTRY(AudioControlWM8731,ControlWM8731,AUDIO_CONTROL_WM8731,0,0,control,,) \
-  AUDIO_ENTRY(AudioControlWM8731master,ControlWM8731master,AUDIO_CONTROL_WM8731MASTER,0,0,control,,) \
-  AUDIO_ENTRY(AsyncAudioInputSPDIF3,AsyncInputSPDIF3,ASYNC_AUDIO_INPUT_SPDIF3,0,2,input,,) \
-  AUDIO_ENTRY(AudioInputAnalog,InputAnalog,AUDIO_INPUT_ANALOG,0,1,input,,) \
-  AUDIO_ENTRY(AudioInputAnalogStereo,InputAnalogStereo,AUDIO_INPUT_ANALOG_STEREO,0,2,input,,) \
-  AUDIO_ENTRY(AudioInputI2S,InputI2S,AUDIO_INPUT_I2S,0,2,input,,) \
-  AUDIO_ENTRY(AudioInputI2S2,InputI2S2,AUDIO_INPUT_I2S2,0,2,input,,) \
-  AUDIO_ENTRY(AudioInputI2SHex,InputI2SHex,AUDIO_INPUT_I2SHEX,0,6,input,,) \
-  AUDIO_ENTRY(AudioInputI2SOct,InputI2SOct,AUDIO_INPUT_I2SOCT,0,8,input,,) \
-  AUDIO_ENTRY(AudioInputI2SQuad,InputI2SQuad,AUDIO_INPUT_I2SQUAD,0,4,input,,) \
-  AUDIO_ENTRY(AudioInputI2Sslave,InputI2Sslave,AUDIO_INPUT_I2SSLAVE,0,2,input,,) \
-  AUDIO_ENTRY(AudioInputPDM,InputPDM,AUDIO_INPUT_PDM,0,1,input,,) \
-  AUDIO_ENTRY(AudioInputPDM2,InputPDM2,AUDIO_INPUT_PDM2,0,1,input,,) \
-  AUDIO_ENTRY(AudioInputSPDIF3,InputSPDIF3,AUDIO_INPUT_SPDIF3,0,2,input,,) \
-  AUDIO_ENTRY(AudioInputTDM,InputTDM,AUDIO_INPUT_TDM,0,16,input,,) \
-  AUDIO_ENTRY(AudioInputTDM2,InputTDM2,AUDIO_INPUT_TDM2,0,16,input,,) \
-  AUDIO_ENTRY(AudioInputUSB,InputUSB,AUDIO_INPUT_USB,0,2,input,,) \
-  AUDIO_ENTRY(AudioOutputADAT,OutputADAT,AUDIO_OUTPUT_ADAT,8,0,output,,) \
-  AUDIO_ENTRY(AudioOutputAnalog,OutputAnalog,AUDIO_OUTPUT_ANALOG,1,0,output,,) \
-  AUDIO_ENTRY(AudioOutputAnalogStereo,OutputAnalogStereo,AUDIO_OUTPUT_ANALOG_STEREO,2,0,output,,) \
-  AUDIO_ENTRY(AudioOutputI2S,OutputI2S,AUDIO_OUTPUT_I2S,2,0,output,,) \
-  AUDIO_ENTRY(AudioOutputI2S2,OutputI2S2,AUDIO_OUTPUT_I2S2,2,0,output,,) \
-  AUDIO_ENTRY(AudioOutputI2SHex,OutputI2SHex,AUDIO_OUTPUT_I2SHEX,6,0,output,,) \
-  AUDIO_ENTRY(AudioOutputI2SOct,OutputI2SOct,AUDIO_OUTPUT_I2SOCT,8,0,output,,) \
-  AUDIO_ENTRY(AudioOutputI2SQuad,OutputI2SQuad,AUDIO_OUTPUT_I2SQUAD,4,0,output,,) \
-  AUDIO_ENTRY(AudioOutputI2Sslave,OutputI2Sslave,AUDIO_OUTPUT_I2SSLAVE,2,0,output,,) \
-  AUDIO_ENTRY(AudioOutputMQS,OutputMQS,AUDIO_OUTPUT_MQS,2,0,output,,) \
-  AUDIO_ENTRY(AudioOutputPT8211,OutputPT8211,AUDIO_OUTPUT_PT8211,2,0,output,,) \
-  AUDIO_ENTRY(AudioOutputPT8211_2,OutputPT8211_2,AUDIO_OUTPUT_PT8211_2,2,0,output,,) \
-  AUDIO_ENTRY(AudioOutputPWM,OutputPWM,AUDIO_OUTPUT_PWM,1,0,output,,) \
-  AUDIO_ENTRY(AudioOutputSPDIF,OutputSPDIF,AUDIO_OUTPUT_SPDIF,2,0,output,,) \
-  AUDIO_ENTRY(AudioOutputSPDIF2,OutputSPDIF2,AUDIO_OUTPUT_SPDIF2,2,0,output,,) \
-  AUDIO_ENTRY(AudioOutputSPDIF3,OutputSPDIF3,AUDIO_OUTPUT_SPDIF3,2,0,output,,) \
-  AUDIO_ENTRY(AudioOutputTDM,OutputTDM,AUDIO_OUTPUT_TDM,16,0,output,,) \
-  AUDIO_ENTRY(AudioOutputTDM2,OutputTDM2,AUDIO_OUTPUT_TDM2,16,0,output,,) \
-  AUDIO_ENTRY(AudioOutputUSB,OutputUSB,AUDIO_OUTPUT_USB,2,0,output,,) \
+  AUDIO_ENTRY(AudioControlAK4558,ControlAK4558,AUDIO_CONTROL_AK4558,0,0,control,ctrl,) \
+  AUDIO_ENTRY(AudioControlCS42448,ControlCS42448,AUDIO_CONTROL_CS42448,0,0,control,ctrl,) \
+  AUDIO_ENTRY(AudioControlCS4272,ControlCS4272,AUDIO_CONTROL_CS4272,0,0,control,ctrl,) \
+  AUDIO_ENTRY(AudioControlSGTL5000,ControlSGTL5000,AUDIO_CONTROL_SGTL5000,0,0,control,ctrl,) \
+  AUDIO_ENTRY(AudioControlWM8731,ControlWM8731,AUDIO_CONTROL_WM8731,0,0,control,ctrl,) \
+  AUDIO_ENTRY(AudioControlWM8731master,ControlWM8731master,AUDIO_CONTROL_WM8731MASTER,0,0,control,ctrl,) \
+  AUDIO_ENTRY(AsyncAudioInputSPDIF3,AsyncInputSPDIF3,ASYNC_AUDIO_INPUT_SPDIF3,0,2,input,SPDIF,) \
+  AUDIO_ENTRY(AudioInputAnalog,InputAnalog,AUDIO_INPUT_ANALOG,0,1,input,ANAi,) \
+  AUDIO_ENTRY(AudioInputAnalogStereo,InputAnalogStereo,AUDIO_INPUT_ANALOG_STEREO,0,2,input,ANAi,) \
+  AUDIO_ENTRY(AudioInputI2S,InputI2S,AUDIO_INPUT_I2S,0,2,input,I2Si,) \
+  AUDIO_ENTRY(AudioInputI2S2,InputI2S2,AUDIO_INPUT_I2S2,0,2,input,I2Si,) \
+  AUDIO_ENTRY(AudioInputI2SHex,InputI2SHex,AUDIO_INPUT_I2SHEX,0,6,input,I2Si,) \
+  AUDIO_ENTRY(AudioInputI2SOct,InputI2SOct,AUDIO_INPUT_I2SOCT,0,8,input,I2Si,) \
+  AUDIO_ENTRY(AudioInputI2SQuad,InputI2SQuad,AUDIO_INPUT_I2SQUAD,0,4,input,I2Si,) \
+  AUDIO_ENTRY(AudioInputI2Sslave,InputI2Sslave,AUDIO_INPUT_I2SSLAVE,0,2,input,I2Si,) \
+  AUDIO_ENTRY(AudioInputPDM,InputPDM,AUDIO_INPUT_PDM,0,1,input,PDMi,) \
+  AUDIO_ENTRY(AudioInputPDM2,InputPDM2,AUDIO_INPUT_PDM2,0,1,input,PDM2i,) \
+  AUDIO_ENTRY(AudioInputSPDIF3,InputSPDIF3,AUDIO_INPUT_SPDIF3,0,2,input,SPDIF,) \
+  AUDIO_ENTRY(AudioInputTDM,InputTDM,AUDIO_INPUT_TDM,0,16,input,TDMi,) \
+  AUDIO_ENTRY(AudioInputTDM2,InputTDM2,AUDIO_INPUT_TDM2,0,16,input,TDM2i,) \
+  AUDIO_ENTRY(AudioInputUSB,InputUSB,AUDIO_INPUT_USB,0,2,input,USBi,) \
+  AUDIO_ENTRY(AudioOutputADAT,OutputADAT,AUDIO_OUTPUT_ADAT,8,0,output,ADATo,) \
+  AUDIO_ENTRY(AudioOutputAnalog,OutputAnalog,AUDIO_OUTPUT_ANALOG,1,0,output,ANAo,) \
+  AUDIO_ENTRY(AudioOutputAnalogStereo,OutputAnalogStereo,AUDIO_OUTPUT_ANALOG_STEREO,2,0,output,ANAo,) \
+  AUDIO_ENTRY(AudioOutputI2S,OutputI2S,AUDIO_OUTPUT_I2S,2,0,output,I2So,) \
+  AUDIO_ENTRY(AudioOutputI2S2,OutputI2S2,AUDIO_OUTPUT_I2S2,2,0,output,I2So,) \
+  AUDIO_ENTRY(AudioOutputI2SHex,OutputI2SHex,AUDIO_OUTPUT_I2SHEX,6,0,output,I2So,) \
+  AUDIO_ENTRY(AudioOutputI2SOct,OutputI2SOct,AUDIO_OUTPUT_I2SOCT,8,0,output,I2So,) \
+  AUDIO_ENTRY(AudioOutputI2SQuad,OutputI2SQuad,AUDIO_OUTPUT_I2SQUAD,4,0,output,I2So,) \
+  AUDIO_ENTRY(AudioOutputI2Sslave,OutputI2Sslave,AUDIO_OUTPUT_I2SSLAVE,2,0,output,I2So,) \
+  AUDIO_ENTRY(AudioOutputMQS,OutputMQS,AUDIO_OUTPUT_MQS,2,0,output,MQSo,) \
+  AUDIO_ENTRY(AudioOutputPT8211,OutputPT8211,AUDIO_OUTPUT_PT8211,2,0,output,PT8211,) \
+  AUDIO_ENTRY(AudioOutputPT8211_2,OutputPT8211_2,AUDIO_OUTPUT_PT8211_2,2,0,output,PT8211,) \
+  AUDIO_ENTRY(AudioOutputPWM,OutputPWM,AUDIO_OUTPUT_PWM,1,0,output,PWMo,) \
+  AUDIO_ENTRY(AudioOutputSPDIF,OutputSPDIF,AUDIO_OUTPUT_SPDIF,2,0,output,SPDIF,) \
+  AUDIO_ENTRY(AudioOutputSPDIF2,OutputSPDIF2,AUDIO_OUTPUT_SPDIF2,2,0,output,SPDIF,) \
+  AUDIO_ENTRY(AudioOutputSPDIF3,OutputSPDIF3,AUDIO_OUTPUT_SPDIF3,2,0,output,SPDIF,) \
+  AUDIO_ENTRY(AudioOutputTDM,OutputTDM,AUDIO_OUTPUT_TDM,16,0,output,TDMo,) \
+  AUDIO_ENTRY(AudioOutputTDM2,OutputTDM2,AUDIO_OUTPUT_TDM2,16,0,output,TDM2o,) \
+  AUDIO_ENTRY(AudioOutputUSB,OutputUSB,AUDIO_OUTPUT_USB,2,0,output,USBo,) \
 */
 
 
 enum AudioCategory_e { AudioCategory_none, AudioCategory_patchcord, AudioCategory_analyze, AudioCategory_effect, AudioCategory_filter, AudioCategory_mixer, AudioCategory_synth, AudioCategory_control, AudioCategory_input, AudioCategory_output };
 // Cherry-pick from the above list for the I/O we are going to use:
 #define MY_AUDIO_IO \
-  AUDIO_ENTRY(AudioControlSGTL5000,ControlSGTL5000,AUDIO_CONTROL_SGTL5000,0,0,control,,) \
-  AUDIO_ENTRY(AudioInputI2S,InputI2S,AUDIO_INPUT_I2S,0,2,input,,) \
-  AUDIO_ENTRY(AudioOutputI2S,OutputI2S,AUDIO_OUTPUT_I2S,2,0,output,,) \
+  AUDIO_ENTRY(AudioControlSGTL5000,ControlSGTL5000,AUDIO_CONTROL_SGTL5000,0,0,control,ctrl,) \
+  AUDIO_ENTRY(AudioInputI2S,InputI2S,AUDIO_INPUT_I2S,0,2,input,I2Si,) \
+  AUDIO_ENTRY(AudioOutputI2S,OutputI2S,AUDIO_OUTPUT_I2S,2,0,output,I2So,) \
 
 
 // macro to force expansion of parameter list, if needed

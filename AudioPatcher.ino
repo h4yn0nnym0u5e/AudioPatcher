@@ -20,6 +20,7 @@
 M5w_8angle    ctrl;
 M5w_8encoder  encr;
 uint32_t next;
+int systemState;
 
 extern AudioObjStatic_t objList[];
 
@@ -49,6 +50,7 @@ AudioSynthWaveformModulated* pWav;
 /********************************************************************************************************/
 void setup() 
 {
+  systemState = 4;
   AudioMemory(50);
   
   display.Init();
@@ -56,6 +58,7 @@ void setup()
   while (!Serial)
     ;
   display.Clear();   
+  systemState = 5;
 
   Serial.println("Setup");
   Serial.printf("%d audio objects available\n",AUDIO_MAX_ID - 2);
@@ -91,18 +94,19 @@ void setup()
   objVec.insert(std::next(objVec.begin(),3),aoi2);
   objVec.insert(std::next(objVec.begin(),3),{new AudioObjInstance(objList[AUDIO_ANALYZE_FFT1024_ID],220,55)});
   
-  for (auto obj : objVec)
-  {
-    Serial.printf("%s\n",obj.p->objP->name);
-    display.DrawAudioObject(*obj.p->objP,obj.p->x,obj.p->y);
-  }
-
   theInputI2S.x = -40;
   theInputI2S.y = 100;
   theOutputI2S.x = 320 - 8;
   theOutputI2S.y = 100;
   theControlSGTL5000.x = 1;
   theControlSGTL5000.y = 240 - 48 - 20 - 2;
+  
+  for (auto obj : objVec)
+  {
+    Serial.printf("%s\n",obj.p->objP->name);
+    display.DrawAudioObject(*obj.p->objP,obj.p->x,obj.p->y);
+  }
+
   for (auto obj : ioVec)
   {
     Serial.printf("%s\n",obj.p->objP->name);
@@ -146,6 +150,7 @@ void setup()
   delay(5);
 
   next = millis() + 50;
+  systemState = 6;
 }
 
 /********************************************************************************************************/
@@ -288,12 +293,15 @@ void loop()
 extern "C" {
   void startup_late_hook(void)
   {
+    systemState = 1;
     while (!Serial)
       ;
+    systemState = 1;
     Serial.println("Late hook");
     if (CrashReport)
     {
       Serial.print(CrashReport);
     }
+    systemState = 3;
   }
 }
