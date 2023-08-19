@@ -168,7 +168,7 @@ void AudioPatcherDisplay::DrawConnection(AudioObjStatic_t& o, int16_t x, int16_t
     tft.fillRect(cx,cb,osize.cw,osize.ch,colour);
   }
   else
-    Serial.println("Bad connection!");
+    Serial.printf("%s:%s.%d: bad connection!\n",o.name,op?"output":"input",n);
 }
 
 

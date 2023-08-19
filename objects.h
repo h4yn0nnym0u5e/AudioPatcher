@@ -150,7 +150,7 @@ class AudioObjInstance
     AudioObjPtr_u streamP;
     int16_t x;
     int16_t y;
-    uint16_t inputAvailFlags;
+    uint32_t inputAvailFlags; // let's be optimistic!
 };
 
 struct AudioObjInstancePtr {AudioObjInstance* p; };

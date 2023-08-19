@@ -21,7 +21,7 @@ class BaseEditor
             : display(d), objVec(o), epIdx(0), state(0)
             {}
     AudioObjInstance* highlightObjnum(int n, uint16_t colour);
-    AudioObjInstance* highlightObj(AudioObjInstance* it, uint16_t colour);  
+    AudioObjInstance* highlightObj(AudioObjInstance* it, uint16_t colour); 
 };
 
 class ObjEditor : public BaseEditor
@@ -52,6 +52,8 @@ class ObjEditor : public BaseEditor
 class CordEditor : public BaseEditor
 {
     enum srctype {nothing,noSrc,noDst};
+    enum class Prioritise {nothing,object,port,srcdst};
+    struct settings {int objNum, portNum, srcdst;};
 
     LimitedEncoder& enc0, &enc1, &enc2;
     std::vector<PatchcordInstance_t*>& cordVec; 
@@ -59,6 +61,8 @@ class CordEditor : public BaseEditor
     int portNum;
     PatchcordInstance_t editCord;
 
+    int findBestSettings(settings& ns, Prioritise pri);
+    int findGoodPort(int epIdx, int portNum, int io); 
     int findGoodObj(int epIdx, int ec1, int io);
     void ShowSelection(int io);
     void highlightPort(AudioObjInstance* aoi, int io, int n, bool on);

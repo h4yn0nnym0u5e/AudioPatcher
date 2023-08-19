@@ -120,7 +120,11 @@ int CordEditor::findGoodObj(int epIdx, int ec1, int io)
   bool ok = false;
   while (!ok)
   {
+    if (ec1 < 0 || ec1 >= (int) objVec.size()) // off end?
+      break; // give up
+      
     aoi = objVec.at(ec1).p;
+    
     if (1 == io)  // we're setting destination...
     {
       if (aoi->inputAvailFlags > 0) // ...and have inputs available
@@ -137,8 +141,6 @@ int CordEditor::findGoodObj(int epIdx, int ec1, int io)
       if (0 == dir) // selection can't be changed
         break;
       ec1 += dir; // move on or back
-      if (ec1 < 0 || ec1 >= (int) objVec.size()) // off end?
-        break; // give up
     }
   }
 
@@ -148,134 +150,219 @@ int CordEditor::findGoodObj(int epIdx, int ec1, int io)
   return ec1;    
 }
 
+int CordEditor::findGoodPort(int epIdx, int portNum, int io)
+{
+  int port = -1; // assume we'll fail 
+  AudioObjInstance* aoi = objVec.at(epIdx).p;
+
+  do
+  {
+    if (1 == io)  // we're setting destination...
+    {
+      if (0 == aoi->inputAvailFlags) // nothing left, give up
+        break;
+        
+      if (aoi->inputAvailFlags & (1<<portNum)) // already OK
+      {
+        port = portNum;
+        break;
+      }
+
+      port = 0; 
+      uint32_t flag = 1;
+Serial.printf("try port ");      
+      while (flag != 0                           // still some to check
+        && (0 == (flag & aoi->inputAvailFlags))) // but not this one
+      {
+Serial.printf("%d .. ",port);      
+        port++;
+        flag <<= 1;
+      }
+Serial.printf("%s : port %d\n",(0 != (flag & aoi->inputAvailFlags))?"ok":"fail",port);      
+      if (0 != (flag & aoi->inputAvailFlags)) // found one!
+        break;
+    }
+    else // we're setting source
+    {
+      if (0 == aoi->objP->outputs) // nothing here, fail
+        break;
+
+      if (portNum < aoi->objP->outputs) // it's already valid
+      {
+        port = portNum;
+        if (portNum < 0)
+          port = 0;
+        break;
+      }
+      else
+      {
+        port = aoi->objP->outputs - 1;
+        break;
+      }      
+    }
+    port = -1;
+  } while (0);
+
+  return port;
+}
+
+
+int CordEditor::findBestSettings(settings& ns, Prioritise pri)
+{
+  static int depth = 0;
+  int result = 0;
+
+  depth++;
+  // pri actually tells us what's just been changed: if it's
+  // nothing, then we're trying to re-validate the provided settings
+  switch (pri)
+  {
+    default:
+    case Prioritise::object: // object changed, prioritise that
+      {
+        int newObj;
+
+        do
+        {
+          newObj = findGoodObj(epIdx,ns.objNum,ns.srcdst);
+          if (newObj >= 0) break; // this is an object which we can use
+          
+          if (epIdx == ns.objNum)
+          {
+            newObj = findGoodObj(epIdx,epIdx+1,ns.srcdst);
+            if (newObj >= 0) break; // this is an object which we can use
+          }
+          
+          newObj = findGoodObj(epIdx,2*epIdx - ns.objNum,ns.srcdst); // search the other way
+        } while (0);
+        
+        if (newObj >= 0) // this is an object which we can use...
+        {
+          ns.objNum = newObj; // ...use it ...
+          result = findBestSettings(ns,Prioritise::port); // ...and find the best port, too
+        }
+        else 
+        {
+          if (depth < 2)
+          {
+            ns.srcdst = 1-ns.srcdst;
+            result = findBestSettings(ns,Prioritise::object);
+            if (result < 0) // no luck
+              ns.srcdst = 1-ns.srcdst;
+          }
+          else
+            result = -1; // can't do anything          
+        }
+Serial.printf("found object %d\n",newObj);      
+      }
+      break;
+      
+    case Prioritise::port: // port changed, prioritise that
+      {
+        int newPort = findGoodPort(ns.objNum,ns.portNum,ns.srcdst);
+        if (newPort >= 0)
+          ns.portNum = newPort;
+        else
+          result = -1;
+Serial.printf("on object %d found port %d\n",ns.objNum,newPort);      
+      }
+      break;
+      
+    case Prioritise::srcdst: // src/dst changed, prioritise that
+      {
+        int newObj = findGoodObj(ns.objNum,ns.objNum,ns.srcdst); // current object OK?
+        if (newObj < 0) // nope
+        {
+          ns.objNum = epIdx + 1;
+          result = findBestSettings(ns,Prioritise::object); // try to find a workable object
+        }
+        else
+        {
+          ns.objNum = newObj; // ...use it ...
+          result = findBestSettings(ns,Prioritise::port); // ...and find the best port, too          
+        }        
+      }
+      break;
+  }
+
+  depth--;
+  return result;
+}
+
 
 void CordEditor::edit(void)
 {
   bool changedIdx = false;
   int io = 1-enc2.getValue(); // i = 1 = input = dst, o = 0 = output = src
+  CordEditor::settings newSettings = {epIdx,portNum,io};
+  bool redrawSelected = false;  
   
+  //-----------------------------------------------
   // select an audio object
   if (enc0.available())
   {
-    int ec1 = enc0.getValue();
-
-    do
-    {
-      AudioObjInstance* aoi;
-      int dir = ec1 > epIdx 
-                    ? 1
-                    :(ec1 < epIdx ? -1 : 0);
-      if (0 == dir) // selection has not changed
-        break;
-
-      bool ok = false;
-      while (!ok)
-      {
-        aoi = objVec.at(ec1).p;
-        if (1 == io)  // we're setting destination...
-        {
-          if (aoi->inputAvailFlags > 0) // ...and have inputs available
-            ok = true;
-        }
-        else // we're setting source
-        {
-          if (aoi->objP->outputs > 0) // object has outputs
-            ok = true;
-        }
-
-        if (!ok) // this object won't do
-        {
-          ec1 += dir; // move on or back
-          if (ec1 < 0 || ec1 >= (int) objVec.size()) // off end?
-            break; // give up
-        }
-      }
-
-      if (!ok) // can't go that way
-      {
-        enc0.setValue(epIdx); // stay where we were
-        break;
-      }
-      else
-        enc0.setValue(ec1); // ok, but might have changed
-
-      aoi = objVec.at(epIdx).p;
-  
-      if (aoi != editCord.src && aoi != editCord.dst)
-      {
-        highlightObjnum(epIdx,ILI9341_BLACK);
-        highlightPort(aoi,io,portNum,false);
-      }
-      else
-        highlightObjnum(epIdx,PATCHCORD_COLOUR);
-      
-      epIdx = ec1;
-      aoi = highlightObjnum(epIdx,ILI9341_WHITE);
-
-      // find any output, or available input
-      portNum = 0;
-      if (aoi == editCord.src) portNum = editCord.src_port;
-      if (aoi == editCord.dst) portNum = editCord.dst_port;
-      uint32_t flag = 1;
-      while (1 == io 
-          && 0 != aoi->inputAvailFlags // double-check: ought to be true
-          && 0 == (aoi->inputAvailFlags & flag))
-      {
-        portNum++;
-        flag <<= 1;
-      }
-      
-      enc1.setValue(portNum);
-      changedIdx = true;
-    } while (0);
+    newSettings.objNum = enc0.getValue();
+Serial.printf("\nselected %d\n",newSettings.objNum);    
+    findBestSettings(newSettings,Prioritise::object);
+    redrawSelected = true;
   }
 
   // select a connection port
   if (changedIdx || enc1.available())
   {
-    int newPortNum = enc1.getValue();
-    AudioObjInstance* aoi = objVec.at(epIdx).p;
-    int numPorts = io?aoi->objP->inputs:aoi->objP->outputs;
-
-    if (!changedIdx)
-      highlightPort(aoi,io,portNum,false);
-    if (0 == numPorts)
-    {
-      io = 1-io;
-      enc2.setValue(1-io);
-      ShowSelection(io);
-      numPorts = io?aoi->objP->inputs:aoi->objP->outputs;
-      changedIdx = true;
-    }
-    
-    if (newPortNum >= numPorts)
-    {
-      newPortNum = numPorts - 1; // always >= 0
-    }
-
-    portNum = newPortNum;
-    enc1.setValue(portNum);
-    highlightPort(aoi,io,portNum,true);
+    newSettings.portNum = enc1.getValue();
+    findBestSettings(newSettings,Prioritise::port);
+    redrawSelected = true;
   }
   
   if (enc2.available()) // src / dst switch
   {
-    AudioObjInstance* aoi = objVec.at(epIdx).p;
-    highlightPort(aoi,io,portNum,false);
-    
-    io = 1-enc2.getValue();
-    ShowSelection(io);
-    
-    if (nullptr != editCord.src)
-      highlightPort(editCord.src,0,editCord.src_port,true);
-    if (nullptr != editCord.dst)
-      highlightPort(editCord.dst,1,editCord.dst_port,true);
-      
-    portNum = 0;
-    enc1.setValue(portNum);
-    highlightPort(aoi,io,portNum,true);
+    newSettings.srcdst = 1 - enc2.getValue();
+    findBestSettings(newSettings,Prioritise::srcdst);
+    redrawSelected = true;
   }
 
+  //-----------------------------------------------
+  AudioObjInstance* aoi = objVec.at(epIdx).p;
+  
+  if (portNum != newSettings.portNum || epIdx != newSettings.objNum)
+  {
+    highlightPort(aoi,io,portNum,false); 
+    portNum = newSettings.portNum+1; // force port highlight later
+  }
+    
+  if (epIdx != newSettings.objNum)
+  {
+    highlightObjnum(epIdx,ILI9341_BLACK);
+    epIdx = newSettings.objNum;        
+    aoi = highlightObjnum(epIdx,ILI9341_WHITE);
+    enc0.setValue(epIdx); // in case we skipped some
+  }
+  
+  if (io != newSettings.srcdst)
+  {
+    io = newSettings.srcdst;
+    ShowSelection(io);
+    enc2.setValue(1-io);
+    portNum = newSettings.portNum+1; // force port highlight later
+  }
+  
+  if (portNum != newSettings.portNum)
+  {
+    portNum = newSettings.portNum;
+    highlightPort(aoi,io,portNum,true); 
+    enc1.setValue(portNum); // in case we skipped some
+  }
+
+  if (redrawSelected)
+  {
+    if (nullptr != editCord.src)
+      highlightPort(editCord.src,0,editCord.src_port,true); 
+    if (nullptr != editCord.dst)
+      highlightPort(editCord.dst,1,editCord.dst_port,true); 
+  }
+  
+  //-----------------------------------------------
   // select a source or destination
   if (enc1.getButton())
     state = 1;
@@ -333,6 +420,53 @@ void CordEditor::edit(void)
             highlightObj(editCord.src,ILI9341_BLACK); // ...audio object!
             
           editCord = blankPatch;
+
+          int ec1;
+          do
+          {
+            ec1 = findGoodObj(epIdx,epIdx,io); // can we stay on this object?
+            if (ec1 >= 0) // yes
+              break;
+              
+            ec1 = findGoodObj(epIdx,epIdx+1,io); // can we find a later one?
+            if (ec1 >= 0) // yes
+              break;
+              
+            ec1 = findGoodObj(epIdx,epIdx-1,io); // can we find an earlier one?
+            if (ec1 >= 0) // yes
+              break;
+
+            io = 1-io; // try swapping src <-> dst               
+              
+            ec1 = findGoodObj(epIdx,epIdx,io); // can we stay on this object?
+            if (ec1 >= 0) // yes
+              break;
+              
+            ec1 = findGoodObj(epIdx,epIdx+1,io); // can we find a later one?
+            if (ec1 >= 0) // yes
+              break;
+              
+            ec1 = findGoodObj(epIdx,epIdx-1,io); // can we find an earlier one?
+            if (ec1 >= 0) // yes
+              break;
+              
+          } while (0);
+
+          if (ec1 >= 0 && (ec1 != epIdx || io != enc2.getValue()))
+          {
+            if (io != enc2.getValue()) // had to swap src <-> dst
+            {
+              ShowSelection(io);
+              enc2.setValue(1-io);
+            }
+
+            if (ec1 != epIdx)
+            {
+              enc0.setValue(ec1);
+              highlightObjnum(epIdx,ILI9341_BLACK);
+              highlightObjnum(ec1,ILI9341_WHITE);
+            }
+          }
       }
     }
   }
