@@ -1,5 +1,6 @@
 #include "objects.h"
 
+//===========================================================================================
 #define AUDIO_ENTRY(a,b,c,d,e,f,g,...) INIT_OBJ_STATIC_DATA(a,b,c,d,e,f,g)
 AudioObjStatic_t objList[] =
 {
@@ -10,8 +11,9 @@ AudioObjStatic_t objList[] =
 };
 #undef AUDIO_ENTRY
 
+//===========================================================================================
 AudioObjInstance::AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y) 
-  : objP(&o), x(_x),y(_y), inputUsedFlags(0) 
+  : objP(&o), x(_x),y(_y), inputAvailFlags(0) 
 {
   switch (objP->id)
   {
@@ -20,22 +22,31 @@ AudioObjInstance::AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y)
     MY_AUDIO_IO
 #undef AUDIO_ENTRY 
     default:
-      streamP.Bitcrusher = nullptr; // pick any type, really
+      streamP.streamObj = nullptr;
       break;     
+  }
+  // set all inputs (0..N-1) as available
+  if (0 != objP->inputs)
+  {
+    inputAvailFlags  = 1<<(objP->inputs-1);
+    inputAvailFlags |= inputAvailFlags-1;
   }
 }
 
 
 AudioObjInstance::~AudioObjInstance() 
 {
-  switch (objP->id)
+  if (nullptr != streamP.streamObj)
   {
+    switch (objP->id)
+    {
 #define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,cons) case id##_ID: delete streamP.shrt; break;
-    AUDIO_ENTRIES
-    MY_AUDIO_IO
+      AUDIO_ENTRIES
+      MY_AUDIO_IO
 #undef AUDIO_ENTRY 
-    default:
-      break;     
+      default:
+        break;     
+    }
   }
 }
 
@@ -44,13 +55,14 @@ bool operator<(const AudioObjInstancePtr& lhs, const AudioObjInstancePtr& rhs)
   return lhs.p->x*10000 + lhs.p->y < rhs.p->x*10000 + rhs.p->y;
 }
 
+//===========================================================================================
 PatchcordInstance_t::~PatchcordInstance_t()
 {
   if (nullptr != conn)
     delete conn;
 
   if (nullptr != dst) // destination port now unused
-    dst->inputUsedFlags &= ~(1<<dst_port);
+    dst->inputAvailFlags |= 1<<dst_port; // flag that input is available
 }
 
 void PatchcordInstance_t::connect(void)
@@ -61,6 +73,6 @@ void PatchcordInstance_t::connect(void)
    && nullptr != dst->streamP.streamObj)
   {
     conn->connect(*src->streamP.streamObj,src_port, *dst->streamP.streamObj,dst_port);
-    dst->inputUsedFlags |= 1<<dst_port; // flag that input is in use
+    dst->inputAvailFlags &= ~(1<<dst_port); // this input isn't available
   }
 }

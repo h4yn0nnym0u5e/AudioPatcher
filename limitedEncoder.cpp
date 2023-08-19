@@ -40,7 +40,7 @@ void LimitedEncoder::setValue(int32_t v)
   if (value > upper)
     value = upper;
     
-  valuex2 = value*2; 
+  valuex2 = (value*2 | (valuex2 & 1)); 
 }
 
 void LimitedEncoder::setLimits(int32_t l,int32_t u)

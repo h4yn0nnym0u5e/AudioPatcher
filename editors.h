@@ -59,6 +59,7 @@ class CordEditor : public BaseEditor
     int portNum;
     PatchcordInstance_t editCord;
 
+    int findGoodObj(int epIdx, int ec1, int io);
     void ShowSelection(int io);
     void highlightPort(AudioObjInstance* aoi, int io, int n, bool on);
     void greyOut(srctype s);

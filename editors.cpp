@@ -110,6 +110,45 @@ void CordEditor::highlightPort(AudioObjInstance* aoi, int io, int n, bool on)
 }
 
 //----------------------------------------------------------------------
+int CordEditor::findGoodObj(int epIdx, int ec1, int io)
+{
+  AudioObjInstance* aoi;
+  int dir = ec1 > epIdx 
+                ? 1
+                :(ec1 < epIdx ? -1 : 0);
+
+  bool ok = false;
+  while (!ok)
+  {
+    aoi = objVec.at(ec1).p;
+    if (1 == io)  // we're setting destination...
+    {
+      if (aoi->inputAvailFlags > 0) // ...and have inputs available
+        ok = true;
+    }
+    else // we're setting source
+    {
+      if (aoi->objP->outputs > 0) // object has outputs
+        ok = true;
+    }
+
+    if (!ok) // this object won't do
+    {
+      if (0 == dir) // selection can't be changed
+        break;
+      ec1 += dir; // move on or back
+      if (ec1 < 0 || ec1 >= (int) objVec.size()) // off end?
+        break; // give up
+    }
+  }
+
+  if (!ok)
+    ec1 = -1;
+
+  return ec1;    
+}
+
+
 void CordEditor::edit(void)
 {
   bool changedIdx = false;
@@ -119,28 +158,76 @@ void CordEditor::edit(void)
   if (enc0.available())
   {
     int ec1 = enc0.getValue();
-    AudioObjInstance* aoi = objVec.at(epIdx).p;
 
-    if (aoi != editCord.src && aoi != editCord.dst)
+    do
     {
-      highlightObjnum(epIdx,ILI9341_BLACK);
-      highlightPort(aoi,io,portNum,false);
-    }
-    else
-      highlightObjnum(epIdx,PATCHCORD_COLOUR);
-    
-    if (ec1 >= 0 && ec1 < (int) objVec.size())
-      epIdx = ec1;
-    else
-      enc0.setValue(epIdx);
-    highlightObjnum(epIdx,ILI9341_WHITE);
+      AudioObjInstance* aoi;
+      int dir = ec1 > epIdx 
+                    ? 1
+                    :(ec1 < epIdx ? -1 : 0);
+      if (0 == dir) // selection has not changed
+        break;
 
-    portNum = 0;
-    aoi = objVec.at(epIdx).p;
-    if (aoi == editCord.src) portNum = editCord.src_port;
-    if (aoi == editCord.dst) portNum = editCord.dst_port;
-    enc1.setValue(portNum);
-    changedIdx = true;
+      bool ok = false;
+      while (!ok)
+      {
+        aoi = objVec.at(ec1).p;
+        if (1 == io)  // we're setting destination...
+        {
+          if (aoi->inputAvailFlags > 0) // ...and have inputs available
+            ok = true;
+        }
+        else // we're setting source
+        {
+          if (aoi->objP->outputs > 0) // object has outputs
+            ok = true;
+        }
+
+        if (!ok) // this object won't do
+        {
+          ec1 += dir; // move on or back
+          if (ec1 < 0 || ec1 >= (int) objVec.size()) // off end?
+            break; // give up
+        }
+      }
+
+      if (!ok) // can't go that way
+      {
+        enc0.setValue(epIdx); // stay where we were
+        break;
+      }
+      else
+        enc0.setValue(ec1); // ok, but might have changed
+
+      aoi = objVec.at(epIdx).p;
+  
+      if (aoi != editCord.src && aoi != editCord.dst)
+      {
+        highlightObjnum(epIdx,ILI9341_BLACK);
+        highlightPort(aoi,io,portNum,false);
+      }
+      else
+        highlightObjnum(epIdx,PATCHCORD_COLOUR);
+      
+      epIdx = ec1;
+      aoi = highlightObjnum(epIdx,ILI9341_WHITE);
+
+      // find any output, or available input
+      portNum = 0;
+      if (aoi == editCord.src) portNum = editCord.src_port;
+      if (aoi == editCord.dst) portNum = editCord.dst_port;
+      uint32_t flag = 1;
+      while (1 == io 
+          && 0 != aoi->inputAvailFlags // double-check: ought to be true
+          && 0 == (aoi->inputAvailFlags & flag))
+      {
+        portNum++;
+        flag <<= 1;
+      }
+      
+      enc1.setValue(portNum);
+      changedIdx = true;
+    } while (0);
   }
 
   // select a connection port
@@ -156,6 +243,7 @@ void CordEditor::edit(void)
     {
       io = 1-io;
       enc2.setValue(1-io);
+      ShowSelection(io);
       numPorts = io?aoi->objP->inputs:aoi->objP->outputs;
       changedIdx = true;
     }
@@ -280,7 +368,7 @@ void CordEditor::greyOut(srctype s)
   {
     bool grey = false;
     if (s == noSrc && 0 == obj.p->objP->outputs) grey = true;
-    if (s == noDst && 0 == obj.p->objP->inputs)  grey = true;
+    if (s == noDst && (0 == obj.p->objP->inputs || 0 == obj.p->inputAvailFlags))  grey = true;
     display.DrawAudioObject(*obj.p->objP,obj.p->x,obj.p->y,grey);
   }
 }
