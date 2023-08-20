@@ -5,6 +5,8 @@
 #include "ILI9341_t3.h"
 #include "font_Arial.h"
 #include "objects.h"
+#include "paramEntry.h"
+
 
 #define TFT_DC  9
 #define TFT_CS 15
@@ -22,6 +24,7 @@ class AudioPatcherDisplay
     int16_t cursor_y;
     uint16_t modeColour;
     uint16_t* screenBuffer = nullptr;
+    struct {int16_t x,y,h,w;} savedArea;
     static const int16_t CURSOR_SIZE = 10;
     
     void GetCursorSaveParams(const int16_t x, const int16_t y, int16_t& cxr, int16_t& cyr, int16_t& cw, int16_t& ch);
@@ -45,6 +48,13 @@ class AudioPatcherDisplay
     void CursorTo(int16_t x, int16_t y);
     void GetCursor(int16_t& x, int16_t& y);
     uint16_t getModeColour(void) { return modeColour; }
+    
+    void SaveArea(int16_t x, int16_t y, int16_t w, int16_t h);
+    void InitArea(int16_t x, int16_t y, int16_t w, int16_t h);
+    void RestoreArea(void);
+    void ShowTitle(const char* t, int16_t xoff, int16_t yoff);
+    void ShowLabel(ParamEntry& p, int16_t n, int16_t xoff, int16_t yoff);
+    void ShowValue(ParamEntry& p, int16_t n);
 };
 
 extern AudioPatcherDisplay display;

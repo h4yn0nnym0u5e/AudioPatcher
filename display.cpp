@@ -20,6 +20,71 @@ void AudioPatcherDisplay::Clear(void)
 }
 
 
+void AudioPatcherDisplay::SaveArea(int16_t x, int16_t y, int16_t w, int16_t h)
+{
+  if (nullptr != screenBuffer)
+  {
+    savedArea = {x,y,w,h};
+    tft.readRect(x,y,w,h,screenBuffer);
+  }
+}
+
+
+void AudioPatcherDisplay::RestoreArea(void)
+{
+  if (nullptr != screenBuffer)
+  {
+    tft.writeRect(savedArea.x,savedArea.y,savedArea.h,savedArea.w,screenBuffer);
+  }
+}
+
+
+void AudioPatcherDisplay::InitArea(int16_t x, int16_t y, int16_t w, int16_t h)
+{
+  tft.fillRoundRect(x,y,w,h,6,ILI9341_DARKGREY); 
+  tft.fillRoundRect(x,y,w,26,6,ILI9341_BLACK); 
+  tft.drawRoundRect(x,y,w,h,6,ILI9341_WHITE); 
+  tft.setTextColor(ILI9341_LIGHTGREY,ILI9341_DARKGREY);
+  tft.setTextSize(2);
+}
+
+void AudioPatcherDisplay::ShowTitle(const char* t, int16_t xoff, int16_t yoff)
+{
+  tft.setTextColor(0xA514);
+  tft.setCursor(savedArea.x + xoff,savedArea.y + yoff); // assume we're operating in the area we saved
+  tft.print(t);
+  tft.setTextColor(ILI9341_LIGHTGREY,ILI9341_DARKGREY);
+}
+
+void AudioPatcherDisplay::ShowLabel(ParamEntry& p, int16_t n, int16_t xoff, int16_t yoff)
+{
+  
+  tft.setCursor(savedArea.x + xoff,savedArea.y + n*16 + yoff); // assume we're operating in the area we saved
+  tft.print(p.label);
+  tft.print(":");
+  
+  tft.getCursor(&p.labelEndX,&p.labelEndY);
+}
+
+
+void AudioPatcherDisplay::ShowValue(ParamEntry& p, int16_t n)
+{
+  tft.setCursor(p.labelEndX,p.labelEndY);
+  if (0 == p.type)
+    tft.print(p.value.i);
+  else
+    tft.printf("%.2f",p.value.f);
+
+  int16_t x,y;
+  tft.getCursor(&x,&y);
+  if (p.valueEndX > x)
+  {
+    tft.fillRect(x,p.labelEndY,p.valueEndX - x, 16, ILI9341_DARKGREY);
+  }
+  p.valueEndX = x;
+    
+}
+
 void AudioPatcherDisplay::Splash(void)
 {
   tft.setTextColor(ILI9341_YELLOW);

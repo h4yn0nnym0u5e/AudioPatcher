@@ -7,6 +7,9 @@
 #include <vector>
 #include <algorithm>
 
+extern void lockModeEncoder(void);
+extern void unlockModeEncoder(void);
+
 class BaseEditor
 {
   protected:

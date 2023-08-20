@@ -224,7 +224,30 @@ CordEditor cordEditor(enc0,enc1,enc2,display,objVec,cordVec,objList);
 ParamEditor paramEditor(enc0,display,objVec);
 DeleteEditor deleteEditor(enc0,enc1,enc2,display,objVec,cordVec);
 FileEditor fileEditor(enc0,enc1,enc2,display,objVec,ioVec,cordVec);
+/********************************************************************************************************/
+// "Lock" the mode encoder, e.g. while sub-editor is active
+// Allows re-use followed by restoration of old state
+static int oldMode;
+bool modeEncoderLocked;
+void lockModeEncoder(void)
+{
+  if (!modeEncoderLocked)
+  {
+    oldMode = encM.getValue();
+    modeEncoderLocked = true;
+  }
+}
 
+
+void unlockModeEncoder(void)
+{
+  if (modeEncoderLocked)
+  {
+    encM.setLimits(0,(int32_t) strlen(modes)-1);
+    encM.setValue(oldMode);
+    modeEncoderLocked = false;
+  }
+}
 //======================================================================
 void wavControl(void)
 {
@@ -235,8 +258,8 @@ void wavControl(void)
     pWav = findTheWav();
     if (nullptr != pWav)
     {
-      pWav->amplitude((float) ctrl.getPot16(0) / 4096.0f);
-      pWav->frequency((float) ctrl.getPot16(1)*2.0f + 10.0f);
+      pWav->amplitude((float) ctrl.getPot16(6) / 4096.0f);
+      pWav->frequency((float) ctrl.getPot16(7)*2.0f + 10.0f);
     }
   }
 }
@@ -252,29 +275,32 @@ void loop()
   // Change mode of operation
   if (encM.available() || !initialised)
   {
-    char oldMode = editMode[0];
-    editMode[0] = modes[encM.getValue()];
-
-    if (oldMode != editMode[0])
+    if (!modeEncoderLocked)
     {
-      display.ShowMode(editMode);
-      switch (oldMode)
+      char oldMode = editMode[0];
+      editMode[0] = modes[encM.getValue()];
+  
+      if (oldMode != editMode[0])
       {
-        default: break;
-        case 'O': objEditor.exit(); break;  
-        case 'P': cordEditor.exit(); break;
-        case 'E': paramEditor.exit(); break;
-        case 'D': deleteEditor.exit(); break;
-        case 'F': fileEditor.exit(); break;
-      }
-      switch (editMode[0])
-      {
-        default: break;
-        case 'O': objEditor.enter(); break;  
-        case 'P': cordEditor.enter(); break;
-        case 'E': paramEditor.enter(); break;
-        case 'D': deleteEditor.enter(); break;
-        case 'F': fileEditor.enter(); break;
+        display.ShowMode(editMode);
+        switch (oldMode)
+        {
+          default: break;
+          case 'O': objEditor.exit(); break;  
+          case 'P': cordEditor.exit(); break;
+          case 'E': paramEditor.exit(); break;
+          case 'D': deleteEditor.exit(); break;
+          case 'F': fileEditor.exit(); break;
+        }
+        switch (editMode[0])
+        {
+          default: break;
+          case 'O': objEditor.enter(); break;  
+          case 'P': cordEditor.enter(); break;
+          case 'E': paramEditor.enter(); break;
+          case 'D': deleteEditor.enter(); break;
+          case 'F': fileEditor.enter(); break;
+        }
       }
     }
   }

@@ -522,6 +522,7 @@ void ParamEditor::enter(void)
   enc0.setLimits(0,objVec.size()-1);
   epIdx = enc0.getValue();
   highlightObjnum(epIdx,ILI9341_WHITE);
+  inTarget = false;
 }
 
 
@@ -556,6 +557,7 @@ void ParamEditor::edit(void)
         inTarget = true;
         aoi->objP->editFn(aoi,AudioEditMode::enter);      
         Serial.println("Enter sub-editor!");
+        lockModeEncoder();
       }
     }
   }
@@ -563,8 +565,10 @@ void ParamEditor::edit(void)
   {
     if (0 == aoi->objP->editFn(aoi,AudioEditMode::edit))
     {
+      aoi->objP->editFn(aoi,AudioEditMode::exit);  // tell editor to tidy up
       Serial.println("Exit sub-editor!");
       inTarget = false; // target has yielded UI control
+      unlockModeEncoder();
     }
   }
     
