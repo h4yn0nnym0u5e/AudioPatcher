@@ -151,6 +151,7 @@ class AudioObjInstance
     ~AudioObjInstance();
     AudioObjStatic_t* objP;
     AudioObjPtr_u streamP;
+    void* context; // point to "stuff" needed by this instance: different for each audio object class
     int16_t x;
     int16_t y;
     uint32_t inputAvailFlags; // let's be optimistic!

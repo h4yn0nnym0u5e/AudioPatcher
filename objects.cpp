@@ -1,14 +1,16 @@
 #include "objects.h"
+#include "display.h"
 
 //===========================================================================================
 // Weak definitions of setup controls
 extern "C" { 
   int editDoNothing(AudioObjInstance* aoi, int mode) 
   { 
-    Serial.printf("Constructed a %s, at %08X; systemState = %d\n",
+    Serial.printf("%s a %s, at %08X; systemState = %d @%08X\n",
+                  mode==-1?"Destroyed":"Constructed",
                   aoi->objP->name,
                   (uint32_t) aoi,
-                  systemState
+                  systemState,(uint32_t) &display
                   ); 
     return 0; 
   }
@@ -32,7 +34,7 @@ AudioObjStatic_t objList[] =
 
 //===========================================================================================
 AudioObjInstance::AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, bool _noD) 
-  : objP(&o), x(_x),y(_y), inputAvailFlags(0), noDelete(_noD) 
+  : objP(&o), context(nullptr), x(_x),y(_y), inputAvailFlags(0), noDelete(_noD) 
 {
   // set all inputs (0..N-1) as available
   if (0 != objP->inputs)
@@ -60,7 +62,7 @@ AudioObjInstance::~AudioObjInstance()
   {
     switch (objP->id)
     {
-#define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,cons) case id##_ID: delete streamP.shrt; break;
+#define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,cons) case id##_ID: edit##shrt(this,-1); delete streamP.shrt; break;
       AUDIO_ENTRIES
       MY_AUDIO_IO
 #undef AUDIO_ENTRY 

@@ -36,7 +36,7 @@ std::vector<AudioObjInstancePtr> objVec = {
   {new AudioObjInstance{objList[AUDIO_EFFECT_DELAY_ID],5,5}},
   {new AudioObjInstance{objList[AUDIO_MIXER4_ID],110,5}},
   {new AudioObjInstance{objList[AUDIO_FILTER_LADDER_ID],110,55}},
-  {new AudioObjInstance{objList[AUDIO_EFFECT_CHORUS_ID],55,55}},
+  {new AudioObjInstance{objList[AUDIO_EFFECT_CHORUS_ID],165,110}},
   };
 std::vector<PatchcordInstance_t*> cordVec; 
 
@@ -45,8 +45,31 @@ std::vector<PatchcordInstance_t*> cordVec;
 std::vector<AudioObjInstancePtr> ioVec = {
   };
 
+/********************************************************************************************************/
+void dumpObjVec(void)
+{
+  for (size_t i=0;i<objVec.size();i++)
+    Serial.printf("%d: %s @ %08X\n",i,objVec.at(i).p->objP->name,(uint32_t) objVec.at(i).p);
+}
 
 AudioSynthWaveformModulated* pWav;
+AudioSynthWaveformModulated* findTheWav(void)
+{
+  AudioSynthWaveformModulated* result = nullptr;
+  
+  for (size_t i=0;i<objVec.size();i++)
+  {
+    auto obj = objVec.at(i);
+    if (obj.p->objP->id == AUDIO_SYNTH_WAVEFORM_MODULATED_ID)
+    {
+      //Serial.printf("Waveform is at[%d]\n",i);
+      result = obj.p->streamP.WaveformModulated;
+      //pWav->begin(0.5,220.0f,WAVEFORM_SINE);
+      break;
+    }
+  }
+  return result;
+}
 /********************************************************************************************************/
 void setup() 
 {
@@ -61,7 +84,7 @@ void setup()
   systemState = 5;
 
   Serial.println("Setup");
-  Serial.printf("%d audio objects available\n",AUDIO_MAX_ID - 2);
+  Serial.printf("%d audio object types available\n",AUDIO_MAX_ID - 2);
 
   for (int i=1;i<COUNT_OF_objList;i++)
   {
@@ -88,7 +111,7 @@ void setup()
 
   //halt_cpu();
   
-  AudioObjInstancePtr aoi = {new AudioObjInstance(objList[AUDIO_SYNTH_WAVEFORM_MODULATED_ID],110,110)};
+  AudioObjInstancePtr aoi = {new AudioObjInstance(objList[AUDIO_SYNTH_WAVEFORM_MODULATED_ID],55,110)};
   AudioObjInstancePtr aoi2 = {new AudioObjInstance(objList[AUDIO_SYNTH_NOISE_WHITE_ID],165,55)};
   objVec.insert(std::next(objVec.begin(),2),aoi);
   objVec.insert(std::next(objVec.begin(),3),aoi2);
@@ -115,14 +138,18 @@ void setup()
 
   for (int i=0;i<4;i++)
   {
-    PatchcordInstance_t* pci = new PatchcordInstance_t(objVec.at(0).p,i,objVec.at(1).p,i);
+    PatchcordInstance_t* pci = new PatchcordInstance_t(objVec.at(6).p,i,objVec.at(7).p,i);
     //*pci = {new AudioConnection(),objVec.at(0).p,i,objVec.at(1).p,i)};
     cordVec.push_back(pci);
   }
 
+  std::stable_sort(objVec.begin(),objVec.end());
+  dumpObjVec();
+  
   // make some real connections  
-  cordVec.push_back(new PatchcordInstance_t{objVec.at(2).p,0,&theOutputI2S,0}); //cordVec.back()->connect();
-  cordVec.push_back(new PatchcordInstance_t(objVec.at(2).p,0,&theOutputI2S,1));
+  cordVec.push_back(new PatchcordInstance_t{objVec.at(7).p,0,&theOutputI2S,0}); //cordVec.back()->connect();
+  cordVec.push_back(new PatchcordInstance_t(objVec.at(7).p,0,&theOutputI2S,1));
+  cordVec.push_back(new PatchcordInstance_t(objVec.at(3).p,0,objVec.at(7).p,0));
 
   for (auto cord : cordVec)
     display.DrawPatchcord(cord);
@@ -133,20 +160,14 @@ void setup()
   theControlSGTL5000.streamP.ControlSGTL5000->enable();
   theControlSGTL5000.streamP.ControlSGTL5000->volume(0.1);
 
-  objVec.at(2).p->streamP.WaveformModulated->begin(0.5,220.0f,WAVEFORM_SINE);
   
-  std::stable_sort(objVec.begin(),objVec.end());
-
-  for (size_t i=0;i<objVec.size();i++)
+  pWav = findTheWav();
+  if (nullptr != pWav)
   {
-    auto obj = objVec.at(i);
-    if (obj.p->objP->id == AUDIO_SYNTH_WAVEFORM_MODULATED_ID)
-    {
-      Serial.printf("Waveform is at[%d]\n",i);
-      pWav = obj.p->streamP.WaveformModulated;
-      break;
-    }
+    Serial.printf("Waveform is at 0x%08X\n",(uint32_t) pWav);
+    pWav->begin(0.5,220.0f,WAVEFORM_SINE);
   }
+  
   delay(5);
 
   next = millis() + 50;
@@ -207,12 +228,15 @@ FileEditor fileEditor(enc0,enc1,enc2,display,objVec,ioVec,cordVec);
 void wavControl(void)
 {
   static uint32_t next;
-  if (nullptr != pWav && millis() >= next)
+  if (millis() >= next)
   {
     next = millis() + 5;
-
-    pWav->amplitude((float) ctrl.getPot16(0) / 4096.0f);
-    pWav->frequency((float) ctrl.getPot16(1)*2.0f + 10.0f);
+    pWav = findTheWav();
+    if (nullptr != pWav)
+    {
+      pWav->amplitude((float) ctrl.getPot16(0) / 4096.0f);
+      pWav->frequency((float) ctrl.getPot16(1)*2.0f + 10.0f);
+    }
   }
 }
 

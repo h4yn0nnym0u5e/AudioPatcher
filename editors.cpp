@@ -533,6 +533,7 @@ void DeleteEditor::exit(void)
 {
   highlight(epIdx,-1);  
 }
+
 void DeleteEditor::edit(void)
 {
   // select an audio object
@@ -587,6 +588,7 @@ void DeleteEditor::edit(void)
               // now we can delete the audio object
               display.EraseAudioObject(*aoi->objP,aoi->x,aoi->y); // from the display...
               objVec.erase(std::next(objVec.begin(),epIdx));
+              delete aoi; // ...and from memory
             }
           }
           break;
