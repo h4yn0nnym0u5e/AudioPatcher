@@ -21,7 +21,9 @@ class AudioPatcherDisplay
     int16_t cursor_x; 
     int16_t cursor_y;
     uint16_t modeColour;
+    uint16_t* screenBuffer = nullptr;
     static const int16_t CURSOR_SIZE = 10;
+    
     void GetCursorSaveParams(const int16_t x, const int16_t y, int16_t& cxr, int16_t& cyr, int16_t& cw, int16_t& ch);
   public:  
     void Init(void);

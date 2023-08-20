@@ -11,6 +11,7 @@ void AudioPatcherDisplay::Init(void)
   tft.setRotation(TFT_ROTATION);
   tft.setScroll(0);
   Clear();
+  screenBuffer = (uint16_t*) extmem_malloc(tft.width() * tft.height() * sizeof *screenBuffer);
 }
 
 void AudioPatcherDisplay::Clear(void)

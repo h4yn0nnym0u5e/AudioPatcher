@@ -221,6 +221,7 @@ bool initialised = false;
 char editMode[2] = {0};
 ObjEditor objEditor(enc0,enc1,enc2,display,objVec,objList);
 CordEditor cordEditor(enc0,enc1,enc2,display,objVec,cordVec,objList);
+ParamEditor paramEditor(enc0,display,objVec);
 DeleteEditor deleteEditor(enc0,enc1,enc2,display,objVec,cordVec);
 FileEditor fileEditor(enc0,enc1,enc2,display,objVec,ioVec,cordVec);
 
@@ -262,6 +263,7 @@ void loop()
         default: break;
         case 'O': objEditor.exit(); break;  
         case 'P': cordEditor.exit(); break;
+        case 'E': paramEditor.exit(); break;
         case 'D': deleteEditor.exit(); break;
         case 'F': fileEditor.exit(); break;
       }
@@ -270,6 +272,7 @@ void loop()
         default: break;
         case 'O': objEditor.enter(); break;  
         case 'P': cordEditor.enter(); break;
+        case 'E': paramEditor.enter(); break;
         case 'D': deleteEditor.enter(); break;
         case 'F': fileEditor.enter(); break;
       }
@@ -280,8 +283,8 @@ void loop()
   {
     default: break;
     case 'O': objEditor.edit(); break;
-    case 'P': cordEditor.edit(); break;
-    
+    case 'P': cordEditor.edit(); break;    
+    case 'E': paramEditor.edit(); break;
     case 'D': deleteEditor.edit(); break;
     case 'F': fileEditor.edit(); break;
   }

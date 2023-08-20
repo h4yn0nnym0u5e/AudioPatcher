@@ -516,6 +516,63 @@ void CordEditor::greyOut(srctype s)
 
 //======================================================================
 //======================================================================
+void ParamEditor::enter(void)
+{
+  display.ShowBottomText("",ILI9341_BLACK);
+  enc0.setLimits(0,objVec.size()-1);
+  epIdx = enc0.getValue();
+  highlightObjnum(epIdx,ILI9341_WHITE);
+}
+
+
+void ParamEditor::exit(void)
+{
+  highlightObjnum(epIdx,ILI9341_BLACK);  
+}
+
+
+void ParamEditor::edit(void)
+{
+  AudioObjInstance* aoi = objVec.at(epIdx).p;
+  
+  if (!inTarget) // we're active, claim the UI
+  {
+    //-----------------------------------------------
+    // select an audio object
+    if (enc0.available())
+    {
+      highlightObjnum(epIdx,ILI9341_BLACK);  
+      epIdx = enc0.getValue();
+      highlightObjnum(epIdx,ILI9341_WHITE);
+    }
+
+    if (enc0.getButton())
+      state = 1;
+    else
+    {
+      if (1 == state)
+      {
+        state = 0;
+        inTarget = true;
+        aoi->objP->editFn(aoi,AudioEditMode::enter);      
+        Serial.println("Enter sub-editor!");
+      }
+    }
+  }
+  else // target object has claimed the UI
+  {
+    if (0 == aoi->objP->editFn(aoi,AudioEditMode::edit))
+    {
+      Serial.println("Exit sub-editor!");
+      inTarget = false; // target has yielded UI control
+    }
+  }
+    
+}
+
+
+//======================================================================
+//======================================================================
 void DeleteEditor::enter(void)
 {
   delType = delObj;

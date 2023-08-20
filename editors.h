@@ -85,6 +85,7 @@ class CordEditor : public BaseEditor
     void exit(void); 
 };
 
+
 class DeleteEditor : public BaseEditor
 {
     enum delType_e {delObj,delCord} delType;
@@ -110,6 +111,23 @@ class DeleteEditor : public BaseEditor
     void exit(void); 
 };
 
+class ParamEditor : public BaseEditor
+{
+    LimitedEncoder& enc0; // we only select objects to modify
+    bool inTarget; // true if target object's editor is active
+    
+  public:    
+    ParamEditor(LimitedEncoder& e0,  
+            AudioPatcherDisplay& d,
+            std::vector<AudioObjInstancePtr>& o
+            )
+            : BaseEditor(d,o),
+            enc0(e0)
+            {}
+    void edit(void);
+    void enter(void);
+    void exit(void); 
+};
 
 class FileEditor : public BaseEditor
 {

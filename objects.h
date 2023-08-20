@@ -130,6 +130,8 @@ struct AudioObj_t
   AudioID id;     //!< the object's ID number
 };
 
+enum class AudioEditMode {destructor = -1, constructor, enter,edit,exit};
+class AudioObjInstance; // forward declaration needed for editFn()
 struct AudioObjStatic_t
 {
   const char* name;
@@ -137,10 +139,12 @@ struct AudioObjStatic_t
   const AudioCategory_e category;
   const int8_t inputs,outputs;
   const AudioID id;
+  int (* const editFn)(AudioObjInstance* aoi, AudioEditMode mode);
 };
 
 
-#define INIT_OBJ_STATIC_DATA(a,b,c,d,e,f,g) {.name = #b, .label = #g, .category = AudioCategory_##f, .inputs = d, .outputs = e, .id = c##_ID},
+#define INIT_OBJ_STATIC_DATA(a,b,c,d,e,f,g) {.name = #b, .label = #g, .category = AudioCategory_##f, \
+                                             .inputs = d, .outputs = e, .id = c##_ID, .editFn = edit##b},
 
 
 class AudioObjInstance
