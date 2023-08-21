@@ -36,39 +36,15 @@ std::vector<AudioObjInstancePtr> objVec = {
   {new AudioObjInstance{objList[AUDIO_EFFECT_DELAY_ID],5,5}},
   {new AudioObjInstance{objList[AUDIO_MIXER4_ID],110,5}},
   {new AudioObjInstance{objList[AUDIO_FILTER_LADDER_ID],110,55}},
-  {new AudioObjInstance{objList[AUDIO_EFFECT_CHORUS_ID],165,110}},
+  {new AudioObjInstance{objList[AUDIO_EFFECT_CHORUS_ID],165+55,110}},
   };
 std::vector<PatchcordInstance_t*> cordVec; 
-
-
-
-std::vector<AudioObjInstancePtr> ioVec = {
-  };
 
 /********************************************************************************************************/
 void dumpObjVec(void)
 {
   for (size_t i=0;i<objVec.size();i++)
     Serial.printf("%d: %s @ %08X\n",i,objVec.at(i).p->objP->name,(uint32_t) objVec.at(i).p);
-}
-
-AudioSynthWaveformModulated* pWav;
-AudioSynthWaveformModulated* findTheWav(void)
-{
-  AudioSynthWaveformModulated* result = nullptr;
-  
-  for (size_t i=0;i<objVec.size();i++)
-  {
-    auto obj = objVec.at(i);
-    if (obj.p->objP->id == AUDIO_SYNTH_WAVEFORM_MODULATED_ID)
-    {
-      //Serial.printf("Waveform is at[%d]\n",i);
-      result = obj.p->streamP.WaveformModulated;
-      //pWav->begin(0.5,220.0f,WAVEFORM_SINE);
-      break;
-    }
-  }
-  return result;
 }
 /********************************************************************************************************/
 void setup() 
@@ -111,7 +87,7 @@ void setup()
 
   //halt_cpu();
   
-  AudioObjInstancePtr aoi = {new AudioObjInstance(objList[AUDIO_SYNTH_WAVEFORM_MODULATED_ID],55,110)};
+  AudioObjInstancePtr aoi = {new AudioObjInstance(objList[AUDIO_SYNTH_WAVEFORM_ID],110,110)};
   AudioObjInstancePtr aoi2 = {new AudioObjInstance(objList[AUDIO_SYNTH_NOISE_WHITE_ID],165,55)};
   objVec.insert(std::next(objVec.begin(),2),aoi);
   objVec.insert(std::next(objVec.begin(),3),aoi2);
@@ -130,16 +106,9 @@ void setup()
     display.DrawAudioObject(*obj.p->objP,obj.p->x,obj.p->y);
   }
 
-  for (auto obj : ioVec)
-  {
-    Serial.printf("%s\n",obj.p->objP->name);
-    display.DrawAudioObject(*obj.p->objP,obj.p->x,obj.p->y);
-  }
-
   for (int i=0;i<4;i++)
   {
     PatchcordInstance_t* pci = new PatchcordInstance_t(objVec.at(6).p,i,objVec.at(7).p,i);
-    //*pci = {new AudioConnection(),objVec.at(0).p,i,objVec.at(1).p,i)};
     cordVec.push_back(pci);
   }
 
@@ -147,9 +116,9 @@ void setup()
   dumpObjVec();
   
   // make some real connections  
-  cordVec.push_back(new PatchcordInstance_t{objVec.at(7).p,0,&theOutputI2S,0}); //cordVec.back()->connect();
-  cordVec.push_back(new PatchcordInstance_t(objVec.at(7).p,0,&theOutputI2S,1));
-  cordVec.push_back(new PatchcordInstance_t(objVec.at(3).p,0,objVec.at(7).p,0));
+  cordVec.push_back(new PatchcordInstance_t{objVec.at(8).p,0,&theOutputI2S,0}); //cordVec.back()->connect();
+  cordVec.push_back(new PatchcordInstance_t(objVec.at(8).p,0,&theOutputI2S,1));
+  cordVec.push_back(new PatchcordInstance_t(objVec.at(5).p,0,objVec.at(8).p,0));
 
   for (auto cord : cordVec)
     display.DrawPatchcord(cord);
@@ -159,15 +128,7 @@ void setup()
   theControlSGTL5000.streamP.ControlSGTL5000->setAddress(HIGH);
   theControlSGTL5000.streamP.ControlSGTL5000->enable();
   theControlSGTL5000.streamP.ControlSGTL5000->volume(0.1);
-
-  
-  pWav = findTheWav();
-  if (nullptr != pWav)
-  {
-    Serial.printf("Waveform is at 0x%08X\n",(uint32_t) pWav);
-    pWav->begin(0.5,220.0f,WAVEFORM_SINE);
-  }
-  
+ 
   delay(5);
 
   next = millis() + 50;
@@ -188,7 +149,7 @@ ObjEditor objEditor(enc0,enc1,enc2,display,objVec,objList);
 CordEditor cordEditor(enc0,enc1,enc2,display,objVec,cordVec,objList);
 ParamEditor paramEditor(enc0,display,objVec);
 DeleteEditor deleteEditor(enc0,enc1,enc2,display,objVec,cordVec);
-FileEditor fileEditor(enc0,enc1,enc2,display,objVec,ioVec,cordVec);
+FileEditor fileEditor(enc0,enc1,enc2,display,objVec,cordVec);
 /********************************************************************************************************/
 // "Lock" the mode encoder, e.g. while sub-editor is active
 // Allows re-use followed by restoration of old state
@@ -211,21 +172,6 @@ void unlockModeEncoder(void)
     encM.setLimits(0,(int32_t) strlen(modes)-1);
     encM.setValue(oldMode);
     modeEncoderLocked = false;
-  }
-}
-//======================================================================
-void wavControl(void)
-{
-  static uint32_t next;
-  if (millis() >= next)
-  {
-    next = millis() + 5;
-    pWav = findTheWav();
-    if (nullptr != pWav)
-    {
-      pWav->amplitude((float) ctrl.getPot16(6) / 4096.0f);
-      pWav->frequency((float) ctrl.getPot16(7)*2.0f + 10.0f);
-    }
   }
 }
 
@@ -279,8 +225,6 @@ void loop()
     case 'D': deleteEditor.edit(); break;
     case 'F': fileEditor.edit(); break;
   }
-
-  //wavControl();
 
   if (!initialised)
     initialised = true;

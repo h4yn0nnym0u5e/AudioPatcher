@@ -556,7 +556,6 @@ void ParamEditor::edit(void)
         state = 0;
         inTarget = true;
         aoi->objP->editFn(aoi,AudioEditMode::enter);      
-        Serial.println("Enter sub-editor!");
         lockModeEncoder();
       }
     }
@@ -566,12 +565,10 @@ void ParamEditor::edit(void)
     if (0 == aoi->objP->editFn(aoi,AudioEditMode::edit))
     {
       aoi->objP->editFn(aoi,AudioEditMode::exit);  // tell editor to tidy up
-      Serial.println("Exit sub-editor!");
       inTarget = false; // target has yielded UI control
       unlockModeEncoder();
     }
   }
-    
 }
 
 
@@ -738,14 +735,15 @@ void FileEditor::edit(void)
   {
     if (state)
     {
-      state = 0;
-      
+      state = 0;      
       Serial.println("\nSave the patch:");
       for (auto obj : objVec)
-        Serial.printf("#%d: %d @ %d,%d\n",state++,obj.p->objP->id,obj.p->x,obj.p->y);
-      state = 0;
-      for (auto obj : ioVec)
-        Serial.printf("#%d: %d @ %d,%d\n",--state,obj.p->objP->id,obj.p->x,obj.p->y);
+        Serial.printf("#%d: %d @ %d,%d%s\n",
+                      state++,
+                      obj.p->objP->id,
+                      obj.p->x,obj.p->y,
+                      obj.p->noDelete?" *":""
+                      );
       for (auto cord : cordVec)
       {
         const int UNSET = 999'999'999;
@@ -761,19 +759,6 @@ void FileEditor::edit(void)
           state++;            
         }
 
-        if (src == UNSET || dst == UNSET)
-        {
-          state = 0;
-          for (auto obj : ioVec)
-          {
-            --state;
-            if (obj.p == cord->src) src = state;
-            if (obj.p == cord->dst) dst = state;
-            if (src != UNSET && dst != UNSET)
-              break;
-          }
-        }
-        
         Serial.printf("%d.%d -> %d.%d\n",src,cord->src_port,dst,cord->dst_port);
       }
       Serial.println("---------------\n");

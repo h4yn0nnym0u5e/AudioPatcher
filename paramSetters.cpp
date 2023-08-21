@@ -181,7 +181,6 @@ int editChorus(AudioObjInstance* aoi, AudioEditMode mode)
 }
 
 //===========================================================================================
-
 const ParamEntry paramsMixer4[] = {
   {"ch1", 0.0f, 1.0f},
   {"ch2", 0.0f, 1.0f},
@@ -284,7 +283,7 @@ const ParamEntry paramsWaveformModulated[] = {
 const ParamEntry freqLimits{nullptr,-1.0f,1.0f}; // special, for setting hook control
 struct contextWaveformModulated {
   union { struct {ParamValue waveform,frequency,amplitude,offset,modType,modDepth;} s;
-          ParamValue aray[6];
+          ParamValue aray[COUNT_OF(paramsWaveformModulated)];
         };
   };
 int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode)
@@ -304,7 +303,9 @@ int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode)
         myContext = new contextWaveformModulated{{{{0},{7.0f},{0.5f},{0.0f},{0},{1.0f}}}};
         aoi->context = myContext;
         //for (size_t i=0;i<COUNT_OF(myContext->gain);i++)
-        me->begin(myContext->s.waveform.value.i);
+        me->begin(myContext->s.amplitude.value.f,
+                  pow(2,myContext->s.frequency.value.f),
+                  waveShapes[myContext->s.waveform.value.i].value);
       }
       break;
       
@@ -341,7 +342,6 @@ int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode)
         enc0.setValue(frac > 0.5f?(iprt+1):iprt);
         if (frac > 0.5f)
           frac -= 1.0f;
-Serial.printf("freq: %.3f; frac: %.3f; enc0: %d\n",tmp,frac,enc0.getValue());          
         myContext->s.frequency.value.f = frac;
         HookControl(ctrl,FREQ,freqLimits,myContext->s.frequency);
         myContext->s.frequency.value.f = tmp; // back to log2 mode
@@ -357,9 +357,7 @@ Serial.printf("freq: %.3f; frac: %.3f; enc0: %d\n",tmp,frac,enc0.getValue());
         {
           if (1 == i) // frequency - special case
           {
-            static int oldEnc0 = 0;
             enc0.available(); // force an update
-if (oldEnc0 != enc0.getValue()) {Serial.printf("enc0 set to %d\n",enc0.getValue());  oldEnc0 = enc0.getValue(); }
             if (ScaleFreq(paramsWaveformModulated[i],myContext->aray[i],ctrl.getPot16(i),enc0.getValue(),0.999f))
             {
               float tmp = myContext->s.frequency.value.f; // keep value
@@ -377,7 +375,7 @@ if (oldEnc0 != enc0.getValue()) {Serial.printf("enc0 set to %d\n",enc0.getValue(
               pe->display.ShowValue(paramsWaveformModulated[i],myContext->aray[i],i); 
               switch (i)
               {
-                case 0: aoi->streamP.WaveformModulated->begin(myContext->s.waveform.value.i); break;
+                case 0: aoi->streamP.WaveformModulated->begin(waveShapes[myContext->s.waveform.value.i].value); break;
                 case 2: aoi->streamP.WaveformModulated->amplitude(myContext->s.amplitude.value.f); break;
                 case 3: aoi->streamP.WaveformModulated->offset(myContext->s.offset.value.f); break;
   
@@ -397,6 +395,365 @@ if (oldEnc0 != enc0.getValue()) {Serial.printf("enc0 set to %d\n",enc0.getValue(
       // restore encoder state
       enc0.setLimits(l,u);
       enc0.setValue(v);
+      delete pe;
+      pe = nullptr;
+      break;      
+
+    default:
+      break;      
+  }
+  return result;    
+}
+
+//===========================================================================================
+const ParamEntry paramsWaveform[] = {
+  {"waveform", PARAM_ENTRY_CHOICES(waveShapes)},
+  {"frequency", -4.0f, 14.0f}, // log2(freq) is what we actually store
+  {"amplitude", 0.0f, 1.0f},
+  {"pulseWidth", 0.0f, 1.0f},
+  {"offset", -1.0f, 1.0f},
+};
+struct contextWaveform {
+  union { struct {ParamValue waveform,frequency,amplitude,pulseWidth,offset;} s;
+          ParamValue aray[COUNT_OF(paramsWaveform)];
+        };
+  };
+int editWaveform(AudioObjInstance* aoi, AudioEditMode mode)
+{
+  contextWaveform* myContext = (contextWaveform*) aoi->context;
+  AudioSynthWaveform* me = aoi->streamP.Waveform;
+  static uint32_t exitAt;
+  static uint32_t next;
+  static int32_t v,l,u; // storage for encoder state
+  int result = 0;
+  const int FREQ = 1; // needed to index stuff for special cases
+
+  switch (mode)
+  {
+    case AudioEditMode::constructor: // construction
+      {        
+        myContext = new contextWaveform{{{{0},{7.0f},{0.5f},{0.5f},{0.0f}}}};
+        aoi->context = myContext;
+        //for (size_t i=0;i<COUNT_OF(myContext->gain);i++)
+        me->begin(myContext->s.amplitude.value.f,
+                  pow(2,myContext->s.frequency.value.f),
+                  waveShapes[myContext->s.waveform.value.i].value);
+      }
+      break;
+      
+    case AudioEditMode::destructor: // destruction
+      delete myContext;
+      break;
+
+    case AudioEditMode::enter:
+      {
+        result = 1; // claimed
+        next = millis();
+        pe = new ParamEditor(display,BOX_DEF(250,COUNT_OF(paramsWaveform)));
+        pe->display.ShowTitle(aoi->objP->name,5,5);
+  
+        // change frequency from log2 to Hz
+        float tmp = myContext->s.frequency.value.f;
+        myContext->s.frequency.value.f = pow(2,tmp);
+        
+        for (size_t i=0;i<COUNT_OF(paramsWaveform);i++)
+        {          
+          pe->display.ShowLabel(paramsWaveform[i],myContext->aray[i],i,5,27);
+          pe->display.ShowValue(paramsWaveform[i],myContext->aray[i],i);
+          HookControl(ctrl,i,paramsWaveform[i],myContext->aray[i]);
+        }
+
+        // fix up the pot and encoder values
+        int iprt = floor(tmp);
+        float frac = tmp - iprt;
+        
+        enc0.available(); // force an update
+        v = enc0.getValue();
+        enc0.getLimits(l,u);
+        enc0.setLimits(-3,12);
+        enc0.setValue(frac > 0.5f?(iprt+1):iprt);
+        if (frac > 0.5f)
+          frac -= 1.0f;
+        myContext->s.frequency.value.f = frac;
+        HookControl(ctrl,FREQ,freqLimits,myContext->s.frequency);
+        myContext->s.frequency.value.f = tmp; // back to log2 mode
+      }
+      break;      
+
+    case AudioEditMode::edit:
+      if (millis() > next)
+      {
+        next = millis() + 10;
+        
+        for (size_t i=0;i<COUNT_OF(paramsWaveform);i++)
+        {
+          if (1 == i) // frequency - special case
+          {
+            enc0.available(); // force an update
+            if (ScaleFreq(paramsWaveform[i],myContext->aray[i],ctrl.getPot16(i),enc0.getValue(),0.999f))
+            {
+              float tmp = myContext->s.frequency.value.f; // keep value
+              myContext->s.frequency.value.f = pow(2,tmp); // convert to true frequency
+            
+              pe->display.ShowValue(paramsWaveform[i],myContext->aray[i],i); 
+              aoi->streamP.Waveform->frequency(myContext->s.frequency.value.f);
+              myContext->s.frequency.value.f = tmp;
+            }
+          }
+          else
+          {
+            if (Scale(paramsWaveform[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
+            {
+              pe->display.ShowValue(paramsWaveform[i],myContext->aray[i],i); 
+              switch (i)
+              {
+                case 0: aoi->streamP.Waveform->begin(waveShapes[myContext->s.waveform.value.i].value); break;
+                case 2: aoi->streamP.Waveform->amplitude(myContext->s.amplitude.value.f); break;
+                case 3: aoi->streamP.Waveform->pulseWidth(myContext->s.pulseWidth.value.f); break;
+                case 4: aoi->streamP.Waveform->offset(myContext->s.offset.value.f); break;
+              }
+            }
+          }
+        }                 
+      }
+      
+      result = testExit(exitAt);
+      break;      
+
+    case AudioEditMode::exit:
+      // restore encoder state
+      enc0.setLimits(l,u);
+      enc0.setValue(v);
+      delete pe;
+      pe = nullptr;
+      break;      
+
+    default:
+      break;      
+  }
+  return result;    
+}
+
+//===========================================================================================
+const ParamEntry paramsWaveformDc[] = {
+  {"value", -1.0f, 1.0f},
+};
+struct contextWaveformDc {ParamValue amplitude;};
+int editWaveformDc(AudioObjInstance* aoi, AudioEditMode mode)
+{
+  contextWaveformDc* myContext = (contextWaveformDc*) aoi->context;
+  AudioSynthWaveformDc* me = aoi->streamP.WaveformDc;
+  static uint32_t exitAt;
+  static uint32_t next;
+  int result = 0;
+
+  switch (mode)
+  {
+    case AudioEditMode::constructor: // construction
+      {        
+        myContext = new contextWaveformDc{{0.0f}};
+        aoi->context = myContext;
+        me->amplitude(myContext->amplitude.value.f);
+      }
+      break;
+      
+    case AudioEditMode::destructor: // destruction
+      delete myContext;
+      break;
+
+    case AudioEditMode::enter:
+      result = 1; // claimed
+      next = millis();
+      pe = new ParamEditor(display,BOX_DEF(160,1));
+      pe->display.ShowTitle(aoi->objP->name,5,5);
+      for (size_t i=0;i<COUNT_OF(paramsWaveformDc);i++)
+      {
+        pe->display.ShowLabel(paramsWaveformDc[i],myContext->amplitude,i,5,27);
+        pe->display.ShowValue(paramsWaveformDc[i],myContext->amplitude,i);
+        HookControl(ctrl,i,paramsWaveformDc[i],myContext->amplitude);
+      }
+      break;      
+
+    case AudioEditMode::edit:
+      if (millis() > next)
+      {
+        next = millis() + 10;
+      
+        for (size_t i=0;i<COUNT_OF(paramsWaveformDc);i++)
+        {
+          if (Scale(paramsWaveformDc[i],myContext->amplitude,ctrl.getPot16(i),0.999f))
+          {
+            pe->display.ShowValue(paramsWaveformDc[0],myContext->amplitude,i); 
+            aoi->streamP.WaveformDc->amplitude(myContext->amplitude.value.f);
+          }
+        }           
+      }
+      
+      result = testExit(exitAt);
+      break;      
+
+    case AudioEditMode::exit:
+      delete pe;
+      pe = nullptr;
+      break;      
+
+    default:
+      break;      
+  }
+  return result;    
+}
+
+//===========================================================================================
+ParamChoice inputsSGTL5000[] = 
+  {{"line", AUDIO_INPUT_LINEIN},
+   {"mic" , AUDIO_INPUT_MIC},
+  };
+  
+ParamChoice avcSGTL5000[] = 
+  {{"off", 0},
+   {"on" , 1},
+  };
+  
+ParamChoice inputLevelsSGTL5000[] = 
+  {  // Vpk-pk
+    {"0.24", 15},
+    {"0.29", 14},
+    {"0.34", 13},
+    {"0.40", 12},
+    {"0.48", 11},
+    {"0.56", 10},
+    {"0.67", 9},
+    {"0.79", 8},
+    {"0.94", 7},
+    {"1.11", 6},
+    {"1.33", 5}, // default: index [10]
+    {"1.58", 4},
+    {"1.87", 3},
+    {"2.22", 2},
+    {"2.63", 1},
+    {"3.12", 0},
+  };
+
+ParamChoice outputLevelsSGTL5000[] = 
+  {  // Vpk-pk
+    {"1.16", 31},
+    {"1.22", 30},
+    {"1.29", 29},
+    {"1.37", 28},
+    {"1.44", 27},
+    {"1.53", 26},
+    {"1.62", 25},
+    {"1.71", 24},
+    {"1.80", 23},
+    {"1.91", 22},
+    {"2.02", 21},
+    {"2.14", 20}, // default: index [11]
+    {"2.26", 19},
+    {"2.39", 18},
+    {"2.53", 17},
+    {"2.67", 16},
+    {"2.83", 15},
+    {"2.98", 14},
+    {"3.16", 13}, 
+  };
+  
+const ParamEntry paramsControlSGTL5000[] = {
+  {"        volume", 0.0f, 1.0f},
+  {"  input select", PARAM_ENTRY_CHOICES(inputsSGTL5000)},
+  {"  micGain [dB]", 0, 63},
+  {"   auto volume", PARAM_ENTRY_CHOICES(avcSGTL5000)},
+  {" input [Vpkpk]", PARAM_ENTRY_CHOICES(inputLevelsSGTL5000)},
+  {"output [Vpkpk]", PARAM_ENTRY_CHOICES(outputLevelsSGTL5000)},
+};
+struct contextControlSGTL5000 {
+  union { struct {ParamValue volume,inputSelect,micGain,autoVolume,lineInLevel,lineOutLevel;} s;
+          ParamValue aray[COUNT_OF(paramsControlSGTL5000)];};};
+int editControlSGTL5000(AudioObjInstance* aoi, AudioEditMode mode)
+{
+  contextControlSGTL5000* myContext = (contextControlSGTL5000*) aoi->context;
+  AudioControlSGTL5000* me = aoi->streamP.ControlSGTL5000;
+  static uint32_t exitAt;
+  static uint32_t next;
+  int result = 0;
+
+  switch (mode)
+  {
+    case AudioEditMode::constructor: // construction
+      {        
+        myContext = new contextControlSGTL5000{{{ {0.25f},  {0},{20},{0}, {10},{11} }}};
+        aoi->context = myContext;
+
+        // find SGTL5000 at either address
+        me->enable();
+        if (!me->volume(myContext->s.volume.value.f))
+        {
+          me->setAddress(HIGH);
+          me->enable();
+          me->volume(myContext->s.volume.value.f);
+        }
+        
+        me->micGain(myContext->s.micGain.value.i);
+      }
+      break;
+      
+    case AudioEditMode::destructor: // destruction (never happens!)
+      delete myContext;
+      break;
+
+    case AudioEditMode::enter:
+      result = 1; // claimed
+      next = millis();
+      pe = new ParamEditor(display,BOX_DEF(260,COUNT_OF(paramsControlSGTL5000)));
+      pe->display.ShowTitle(aoi->objP->name,5,5);
+      for (size_t i=0;i<COUNT_OF(paramsControlSGTL5000);i++)
+      {
+        pe->display.ShowLabel(paramsControlSGTL5000[i],myContext->aray[i],i,5,27);
+        pe->display.ShowValue(paramsControlSGTL5000[i],myContext->aray[i],i);
+        HookControl(ctrl,i,paramsControlSGTL5000[i],myContext->aray[i]);
+      }
+      break;      
+
+    case AudioEditMode::edit:
+      if (millis() > next)
+      {
+        next = millis() + 10;
+      
+        for (size_t i=0;i<COUNT_OF(paramsControlSGTL5000);i++)
+        {
+          if (Scale(paramsControlSGTL5000[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
+          {
+            pe->display.ShowValue(paramsControlSGTL5000[i],myContext->aray[i],i);
+
+            switch (i)
+            { // volume,inputSelect,micGain,lineInLevel,lineOutLevel,autoVolume
+              case 0: aoi->streamP.ControlSGTL5000->volume(myContext->s.volume.value.f); break;
+              case 1: aoi->streamP.ControlSGTL5000->inputSelect(inputsSGTL5000[myContext->s.inputSelect.value.i].value); break;
+              case 2: aoi->streamP.ControlSGTL5000->micGain(myContext->s.micGain.value.i); break;
+              
+              case 4: aoi->streamP.ControlSGTL5000->lineInLevel(inputLevelsSGTL5000[myContext->s.lineInLevel.value.i].value); break;
+              case 5: aoi->streamP.ControlSGTL5000->lineOutLevel(outputLevelsSGTL5000[myContext->s.lineOutLevel.value.i].value); break;
+              
+              case 3: 
+                if (myContext->s.autoVolume.value.i)
+                {
+                  aoi->streamP.ControlSGTL5000->audioPreProcessorEnable();
+                  aoi->streamP.ControlSGTL5000->autoVolumeEnable();                  
+                }
+                else
+                {
+                  aoi->streamP.ControlSGTL5000->audioProcessorDisable();
+                  aoi->streamP.ControlSGTL5000->autoVolumeDisable();                  
+                }
+                break;
+            }
+          }
+        }           
+      }
+      
+      result = testExit(exitAt);
+      break;      
+
+    case AudioEditMode::exit:
       delete pe;
       pe = nullptr;
       break;      

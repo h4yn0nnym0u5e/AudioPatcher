@@ -6,6 +6,7 @@
 extern "C" { 
   int editDoNothing(AudioObjInstance* aoi, AudioEditMode mode) 
   { 
+    /*
     if (AudioEditMode::constructor == mode || AudioEditMode::destructor == mode)
     {
       Serial.printf("%s a %s, at %08X; systemState = %d @%08X\n",
@@ -15,6 +16,7 @@ extern "C" {
                   systemState,(uint32_t) &display
                   ); 
     }
+    */
     return 0; 
   }
 }

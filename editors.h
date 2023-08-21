@@ -135,7 +135,6 @@ class ParamEditor : public BaseEditor
 class FileEditor : public BaseEditor
 {
     LimitedEncoder& enc0, &enc1, &enc2;
-    std::vector<AudioObjInstancePtr>& ioVec;
     std::vector<PatchcordInstance_t*>& cordVec; 
     int state;
      
@@ -143,12 +142,11 @@ class FileEditor : public BaseEditor
     FileEditor(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2, 
             AudioPatcherDisplay& d,
             std::vector<AudioObjInstancePtr>& o,
-            std::vector<AudioObjInstancePtr>& io,
             std::vector<PatchcordInstance_t*>& p
             )
             : BaseEditor(d,o),
             enc0(e0), enc1(e1), enc2(e2),
-            ioVec(io), cordVec(p),
+            cordVec(p),
             state(0)
             {}
     void edit(void);

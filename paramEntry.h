@@ -26,8 +26,8 @@ class ParamEntry
 class ParamValue
 {
   public:
-    ParamValue(  int v) : value{.i = v} {}
-    ParamValue(float v) : value{.f = v} {}
+    ParamValue(  int v) : value{.i = v},valueEndX(-1) {}
+    ParamValue(float v) : value{.f = v},valueEndX(-1) {}
     ValUnion value;
     int16_t labelEndX, labelEndY, valueEndX;
 };
