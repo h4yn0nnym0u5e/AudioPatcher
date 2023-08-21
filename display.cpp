@@ -56,7 +56,7 @@ void AudioPatcherDisplay::ShowTitle(const char* t, int16_t xoff, int16_t yoff)
   tft.setTextColor(ILI9341_LIGHTGREY,ILI9341_DARKGREY);
 }
 
-void AudioPatcherDisplay::ShowLabel(ParamEntry& p, ParamValue& v, int16_t n, int16_t xoff, int16_t yoff)
+void AudioPatcherDisplay::ShowLabel(const ParamEntry& p, ParamValue& v, int16_t n, int16_t xoff, int16_t yoff)
 {
   
   tft.setCursor(savedArea.x + xoff,savedArea.y + n*16 + yoff); // assume we're operating in the area we saved
@@ -67,13 +67,16 @@ void AudioPatcherDisplay::ShowLabel(ParamEntry& p, ParamValue& v, int16_t n, int
 }
 
 
-void AudioPatcherDisplay::ShowValue(ParamEntry& p, ParamValue& v, int16_t n)
+void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t n)
 {
   tft.setCursor(v.labelEndX,v.labelEndY);
-  if (0 == p.type)
-    tft.print(v.value.i);
-  else
-    tft.printf("%.2f",v.value.f);
+  switch (p.type)
+  {
+    default: tft.print("???"); break;
+    case 0: tft.print(v.value.i); break;
+    case 1: tft.printf("%.2f",v.value.f); break;
+    case 2: tft.print(p.choices[v.value.i].text); break;
+  }
 
   int16_t x,y;
   tft.getCursor(&x,&y);

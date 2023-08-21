@@ -174,41 +174,6 @@ void setup()
   systemState = 6;
 }
 
-/********************************************************************************************************/
-void hookup(int ch1, int ch2)
-{
-  ctrl.setHook(ch1,ctrl.getLast(ch2));
-}
-
-int id = 1,id2 = 2;
-void xloop() 
-{
-  id2 += encr.getIncrement(0);
-  if (millis() > next || id != id2/2)
-  {
-    next = millis() + 250;
-    id = id2 / 2;
-    if (id >= COUNT_OF_objList)
-    {
-      id = COUNT_OF_objList - 1;
-      id2 = id*2;
-    }
-    if (id < 1)
-    {
-      id = 1;
-      id2 = id*2;
-    }
-    Serial.printf("%d %d; %d %d %s\n",ctrl.getPot16(0),ctrl.getPot16(1),id2,id,objList[id].name);
-  }
-
-  if (encr.getButton(0))
-    hookup(0,1);
-
-  if (encr.getButton(1))
-    hookup(1,0);
-
-  delay(1);
-}
 
 /********************************************************************************************************/
 const char* modes = "OPEDF"; // objects, patchcords, editing, deleting, filing
@@ -336,7 +301,7 @@ void loop()
       display.HighlightAudioObject(x-24,y-24,false);
   }   
 
-  wavControl();
+  //wavControl();
 
   if (!initialised)
     initialised = true;

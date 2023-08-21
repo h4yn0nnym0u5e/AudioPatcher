@@ -53,8 +53,8 @@ class AudioPatcherDisplay
     void InitArea(int16_t x, int16_t y, int16_t w, int16_t h);
     void RestoreArea(void);
     void ShowTitle(const char* t, int16_t xoff, int16_t yoff);
-    void ShowLabel(ParamEntry& p, ParamValue& v, int16_t n, int16_t xoff, int16_t yoff);
-    void ShowValue(ParamEntry& p, ParamValue& v, int16_t n);
+    void ShowLabel(const ParamEntry& p, ParamValue& v, int16_t n, int16_t xoff, int16_t yoff);
+    void ShowValue(const ParamEntry& p, ParamValue& v, int16_t n);
 };
 
 extern AudioPatcherDisplay display;
