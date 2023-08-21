@@ -43,10 +43,16 @@ void LimitedEncoder::setValue(int32_t v)
   valuex2 = (value*2 | (valuex2 & 1)); 
 }
 
-void LimitedEncoder::setLimits(int32_t l,int32_t u)
+void LimitedEncoder::setLimits(const int32_t l, const int32_t u)
 {
   lower = l;
   upper = u;
 
   setValue(value); // ensure value is in limits
+}
+
+void LimitedEncoder::getLimits(int32_t& l, int32_t& u)
+{
+  l = lower;
+  u = upper;
 }

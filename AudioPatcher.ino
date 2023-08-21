@@ -280,27 +280,6 @@ void loop()
     case 'F': fileEditor.edit(); break;
   }
 
-  
-  if (encr.getButton(0))
-    enc0.setValue(0);
-
-
-  // Test highlighting
-  if (encr.getButton(6))
-  {
-      int16_t x,y;
-      
-      display.GetCursor(x,y);
-      display.HighlightAudioObject(x-24,y-24);
-  }   
-  if (encr.getButton(7))
-  {
-      int16_t x,y;
-      
-      display.GetCursor(x,y);
-      display.HighlightAudioObject(x-24,y-24,false);
-  }   
-
   //wavControl();
 
   if (!initialised)

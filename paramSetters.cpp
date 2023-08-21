@@ -31,6 +31,21 @@ bool ScaleF(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filter)
   return result;
 }
 
+bool ScaleFreq(const ParamEntry& pe, ParamValue& pv, int16_t raw, int16_t pow2, float filter)
+{
+  bool result = false;
+  float newVal = map((float) raw, M5ANGLE_MIN, M5ANGLE_MAX, -1.0f, 1.0f); // get a value
+  newVal = newVal + (float) pow2 + 0.781359714f;
+  newVal = newVal*filter + pv.value.f*(1.0f - filter);
+  if (fabs(newVal - pv.value.f) > (0.0005*( pe.max.f - pe.min.f)))
+  {
+    pv.value.f = constrain(newVal, pe.min.f, pe.max.f);
+    result = true;
+  }
+  return result;
+}
+
+
 
 bool ScaleI(const ParamEntry& pe, ParamValue& pv, int16_t raw)
 {
@@ -90,21 +105,10 @@ int editChorus(AudioObjInstance* aoi, AudioEditMode mode)
 {
   contextChorus* myContext = (contextChorus*) aoi->context;
   AudioEffectChorus* me = aoi->streamP.Chorus;
-  int modeI = (int) mode;
   static uint32_t exitAt;
   static uint32_t next;
   int result = 0;
 
-  if (0 == modeI || -1 == modeI)
-  {
-    Serial.printf("It's a %s object! %s! At %08X; systemState = %d @ %08X\n",
-                  aoi->objP->name,
-                  modeI==-1?"Destroyed":"Constructed",
-                  (uint32_t) aoi,
-                  systemState,(uint32_t) &display
-                  ); 
-  }
-  
   switch (mode)
   {
     case AudioEditMode::constructor: // construction
@@ -189,7 +193,6 @@ int editMixer4(AudioObjInstance* aoi, AudioEditMode mode)
 {
   contextMixer4* myContext = (contextMixer4*) aoi->context;
   AudioMixer4* me = aoi->streamP.Mixer4;
-  int modeI = (int) mode;
   static uint32_t exitAt;
   static uint32_t next;
   int result = 0;
@@ -272,12 +275,13 @@ ParamChoice modTypes[] = {{"frequency",0},{"phase",1}};
 
 const ParamEntry paramsWaveformModulated[] = {
   {"waveform", PARAM_ENTRY_CHOICES(waveShapes)},
-  {"frequency", 10.0f, 10000.0f},
+  {"frequency", -4.0f, 14.0f}, // log2(freq) is what we actually store
   {"amplitude", 0.0f, 1.0f},
   {"offset", -1.0f, 1.0f},
   {"mod type",PARAM_ENTRY_CHOICES(modTypes)},
   {"mod depth",0.0f, 12.0f} // frequency is 0.0 - 12.0 octaves; phase modulation could be 9000°
 };
+const ParamEntry freqLimits{nullptr,-1.0f,1.0f}; // special, for setting hook control
 struct contextWaveformModulated {
   union { struct {ParamValue waveform,frequency,amplitude,offset,modType,modDepth;} s;
           ParamValue aray[6];
@@ -287,16 +291,17 @@ int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode)
 {
   contextWaveformModulated* myContext = (contextWaveformModulated*) aoi->context;
   AudioSynthWaveformModulated* me = aoi->streamP.WaveformModulated;
-  int modeI = (int) mode;
   static uint32_t exitAt;
   static uint32_t next;
+  static int32_t v,l,u; // storage for encoder state
   int result = 0;
+  const int FREQ = 1; // needed to index stuff for special cases
 
   switch (mode)
   {
     case AudioEditMode::constructor: // construction
       {        
-        myContext = new contextWaveformModulated{{{{0},{220.0f},{0.0f},{0.0f},{0},{1.0f}}}};
+        myContext = new contextWaveformModulated{{{{0},{7.0f},{0.5f},{0.0f},{0},{1.0f}}}};
         aoi->context = myContext;
         //for (size_t i=0;i<COUNT_OF(myContext->gain);i++)
         me->begin(myContext->s.waveform.value.i);
@@ -308,15 +313,38 @@ int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode)
       break;
 
     case AudioEditMode::enter:
-      result = 1; // claimed
-      next = millis();
-      pe = new ParamEditor(display,BOX_DEF(250,COUNT_OF(paramsWaveformModulated)));
-      pe->display.ShowTitle(aoi->objP->name,5,5);
-      for (size_t i=0;i<COUNT_OF(paramsWaveformModulated);i++)
       {
-        pe->display.ShowLabel(paramsWaveformModulated[i],myContext->aray[i],i,5,27);
-        pe->display.ShowValue(paramsWaveformModulated[i],myContext->aray[i],i);
-        HookControl(ctrl,i,paramsWaveformModulated[i],myContext->aray[i]);
+        result = 1; // claimed
+        next = millis();
+        pe = new ParamEditor(display,BOX_DEF(250,COUNT_OF(paramsWaveformModulated)));
+        pe->display.ShowTitle(aoi->objP->name,5,5);
+  
+        // change frequency from log2 to Hz
+        float tmp = myContext->s.frequency.value.f;
+        myContext->s.frequency.value.f = pow(2,tmp);
+        
+        for (size_t i=0;i<COUNT_OF(paramsWaveformModulated);i++)
+        {          
+          pe->display.ShowLabel(paramsWaveformModulated[i],myContext->aray[i],i,5,27);
+          pe->display.ShowValue(paramsWaveformModulated[i],myContext->aray[i],i);
+          HookControl(ctrl,i,paramsWaveformModulated[i],myContext->aray[i]);
+        }
+
+        // fix up the pot and encoder values
+        int iprt = floor(tmp);
+        float frac = tmp - iprt;
+        
+        enc0.available(); // force an update
+        v = enc0.getValue();
+        enc0.getLimits(l,u);
+        enc0.setLimits(-3,12);
+        enc0.setValue(frac > 0.5f?(iprt+1):iprt);
+        if (frac > 0.5f)
+          frac -= 1.0f;
+Serial.printf("freq: %.3f; frac: %.3f; enc0: %d\n",tmp,frac,enc0.getValue());          
+        myContext->s.frequency.value.f = frac;
+        HookControl(ctrl,FREQ,freqLimits,myContext->s.frequency);
+        myContext->s.frequency.value.f = tmp; // back to log2 mode
       }
       break;      
 
@@ -327,19 +355,36 @@ int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode)
         
         for (size_t i=0;i<COUNT_OF(paramsWaveformModulated);i++)
         {
-          if (Scale(paramsWaveformModulated[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
+          if (1 == i) // frequency - special case
           {
-            pe->display.ShowValue(paramsWaveformModulated[i],myContext->aray[i],i); 
-            switch (i)
+            static int oldEnc0 = 0;
+            enc0.available(); // force an update
+if (oldEnc0 != enc0.getValue()) {Serial.printf("enc0 set to %d\n",enc0.getValue());  oldEnc0 = enc0.getValue(); }
+            if (ScaleFreq(paramsWaveformModulated[i],myContext->aray[i],ctrl.getPot16(i),enc0.getValue(),0.999f))
             {
-              case 0: aoi->streamP.WaveformModulated->begin(myContext->s.waveform.value.i); break;
-              case 1: aoi->streamP.WaveformModulated->frequency(myContext->s.frequency.value.f); break;
-              case 2: aoi->streamP.WaveformModulated->amplitude(myContext->s.amplitude.value.f); break;
-              case 3: aoi->streamP.WaveformModulated->offset(myContext->s.offset.value.f); break;
-
-              // these need special treatment:
-              //case 4: aoi->streamP.WaveformModulated->begin(myContext->s.waveform.value.i); break;
-              //case 5: aoi->streamP.WaveformModulated->begin(myContext->s.waveform.value.i); break;
+              float tmp = myContext->s.frequency.value.f; // keep value
+              myContext->s.frequency.value.f = pow(2,tmp); // convert to true frequency
+            
+              pe->display.ShowValue(paramsWaveformModulated[i],myContext->aray[i],i); 
+              aoi->streamP.WaveformModulated->frequency(myContext->s.frequency.value.f);
+              myContext->s.frequency.value.f = tmp;
+            }
+          }
+          else
+          {
+            if (Scale(paramsWaveformModulated[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
+            {
+              pe->display.ShowValue(paramsWaveformModulated[i],myContext->aray[i],i); 
+              switch (i)
+              {
+                case 0: aoi->streamP.WaveformModulated->begin(myContext->s.waveform.value.i); break;
+                case 2: aoi->streamP.WaveformModulated->amplitude(myContext->s.amplitude.value.f); break;
+                case 3: aoi->streamP.WaveformModulated->offset(myContext->s.offset.value.f); break;
+  
+                // these need special treatment:
+                //case 4: aoi->streamP.WaveformModulated->begin(myContext->s.waveform.value.i); break;
+                //case 5: aoi->streamP.WaveformModulated->begin(myContext->s.waveform.value.i); break;
+              }
             }
           }
         }                 
@@ -349,6 +394,9 @@ int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode)
       break;      
 
     case AudioEditMode::exit:
+      // restore encoder state
+      enc0.setLimits(l,u);
+      enc0.setValue(v);
       delete pe;
       pe = nullptr;
       break;      

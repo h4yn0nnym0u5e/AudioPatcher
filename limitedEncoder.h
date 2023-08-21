@@ -16,7 +16,8 @@ class LimitedEncoder
     int32_t getValue(void) { return value; }
     void setValue(int32_t v);
     uint8_t getButton(void) { return enc.getButton(channel); }
-    void setLimits(int32_t l,int32_t u);
+    void setLimits(const int32_t l, const int32_t u);
+    void getLimits(int32_t& l,int32_t& u);
 };
 
 #endif // !defined(_LIMITEDENCODER_H_)
