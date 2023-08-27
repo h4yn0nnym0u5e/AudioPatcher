@@ -1,4 +1,7 @@
 #include "editors.h"
+extern AudioObjStatic_t objList[];
+extern DeleteEditor deleteEditor;
+extern ObjEditor objEditor;
 
 static PatchcordInstance_t blankPatch;
 //======================================================================
@@ -31,6 +34,10 @@ void ObjEditor::ShowSelection(int v)
     display.ShowSelection(objList[v].name,objList[v].category);
 }
 
+void ObjEditor::create(int id, int x, int y)
+{
+  objVec.push_back({new AudioObjInstance(objList[id],x,y)});                           
+}
 
 void ObjEditor::edit(void)
 {
@@ -53,7 +60,7 @@ void ObjEditor::edit(void)
       
       state = 0;
       display.GetCursor(x,y);
-      objVec.push_back({new AudioObjInstance(objList[enc2.getValue()],x-24,y-24)});
+      create(enc2.getValue(),x-24,y-24);
                                
       AudioObjInstance* ao = objVec.back().p;;
       display.CursorClear();
@@ -80,6 +87,7 @@ void ObjEditor::edit(void)
 void ObjEditor::enter(void)
 {
   enc0.setLimits(0,31);
+  enc1.setLimits(0,23);
   enc2.setLimits(1,COUNT_OF_objList);
   enc2.setValue(lastType);
   ShowSelection(enc2.getValue());
@@ -574,6 +582,33 @@ void ParamEditor::edit(void)
 
 //======================================================================
 //======================================================================
+void DeleteEditor::kill(int idx)
+{
+  AudioObjInstance* aoi = objVec.at(idx).p;
+
+  if (!aoi->noDelete) // I/O and control are protected
+  {
+    // delete associated patchcords: go backwards
+    // so we don't change the index of cords we
+    // haven't checked yet
+    for (int i=cordVec.size() - 1;i>=0;i--)
+    {
+      auto cord = cordVec.at(i);
+      if (cord->src == aoi || cord->dst == aoi)
+      {
+        display.DrawPatchcord(cord,ILI9341_BLACK);
+        delete cord;
+        cordVec.erase(std::next(cordVec.begin(),i));
+      }
+    }
+
+    // now we can delete the audio object
+    display.EraseAudioObject(*aoi->objP,aoi->x,aoi->y); // from the display...
+    objVec.erase(std::next(objVec.begin(),idx));
+    delete aoi; // ...and from memory
+  }  
+}
+
 void DeleteEditor::enter(void)
 {
   delType = delObj;
@@ -625,29 +660,7 @@ void DeleteEditor::edit(void)
       {
         case delObj:
           {
-            AudioObjInstance* aoi = objVec.at(epIdx).p;
-
-            if (!aoi->noDelete) // I/O and control are protected
-            {
-              // delete associated patchcords: go backwards
-              // so we don't change the index of cords we
-              // haven't checked yet
-              for (int i=cordVec.size() - 1;i>=0;--i)
-              {
-                auto cord = cordVec.at(i);
-                if (cord->src == aoi || cord->dst == aoi)
-                {
-                  display.DrawPatchcord(cord,ILI9341_BLACK);
-                  delete cord;
-                  cordVec.erase(std::next(cordVec.begin(),i));
-                }
-              }
-  
-              // now we can delete the audio object
-              display.EraseAudioObject(*aoi->objP,aoi->x,aoi->y); // from the display...
-              objVec.erase(std::next(objVec.begin(),epIdx));
-              delete aoi; // ...and from memory
-            }
+            kill(epIdx);
           }
           break;
 
@@ -661,6 +674,7 @@ void DeleteEditor::edit(void)
           }
           break;
       }
+      Serial.printf("We have %d objects and %d patchcords\n",objVec.size(),cordVec.size());
 
       // selection has changed, update display
       epIdx = enc0.getValue();
@@ -719,8 +733,165 @@ void DeleteEditor::ShowSelection(int op)
 
 //======================================================================
 //======================================================================
+void FileEditor::save(void)
+{
+  char buffer[50];
+  File saveTo;
+  int count;
+
+  sprintf(buffer,"%c.txt",fileChar);
+  SD.remove(buffer);
+  saveTo = SD.open(buffer,FILE_WRITE_BEGIN);
+
+  if (saveTo)
+  {
+    count = 0;
+    for (auto obj : objVec)  
+    {   
+      snprintf(buffer,50,
+              "#%d: %d @ %d,%d%s\n",
+                    count++,
+                    obj.p->objP->id,
+                    obj.p->x,obj.p->y,
+                    obj.p->noDelete?" *":""
+                    );
+      asm("nop");
+      Serial.print(buffer); Serial.flush();
+      saveTo.write(buffer,strlen(buffer));                    
+    }
+    
+    for (auto cord : cordVec)
+    {
+      const int UNSET = 999'999'999;
+      int src = UNSET,dst = UNSET;
+      
+      count = 0;
+      for (auto obj : objVec)
+      {
+        if (obj.p == cord->src) src = count;
+        if (obj.p == cord->dst) dst = count;
+        if (src != UNSET && dst != UNSET)
+          break;
+        count++;            
+      }
+    
+      Serial.printf("%d.%d -> %d.%d\n",src,cord->src_port,dst,cord->dst_port);  
+      saveTo.printf("%d.%d -> %d.%d\n",src,cord->src_port,dst,cord->dst_port);  
+    }
+
+    Serial.print("truncating at "); Serial.flush();
+    size_t sz = saveTo.position();
+    Serial.print(sz); Serial.flush();
+    saveTo.truncate(sz);
+    
+    Serial.print("closing\n"); Serial.flush();
+    saveTo.close();
+    Serial.print("Saved\n"); Serial.flush();
+    
+    saveTo = SD.open("last.txt",FILE_WRITE_BEGIN);
+    if (saveTo)
+    {
+      saveTo.truncate();
+      saveTo.print(fileChar);
+      saveTo.close();
+    }
+  }
+}
+
+
+void FileEditor::load(void)
+{
+  char buffer[50];
+  File loadFrom;
+
+  sprintf(buffer,"%c.txt",fileChar);
+  loadFrom = SD.open(buffer,FILE_READ);
+
+  if (loadFrom)
+  {
+    int got;
+    
+    loadFrom.setTimeout(1);
+
+    // remove existing patch: deleting the objects will
+    // automagically remove the associated patchcords
+    for (int i = objVec.size() - 1; i >= 0; i--)
+    {
+      AudioObjInstance* aoi = objVec.at(i).p;
+
+      if (!aoi->noDelete)
+        deleteEditor.kill(i);
+    }
+    Serial.printf("We have %d objects and %d patchcords remaining\n",objVec.size(),cordVec.size());
+    
+    do // load objects
+    {
+      int n,id,x,y,nd;
+      got = loadFrom.readBytesUntil('\n',buffer,49);
+      if (0 == got)
+        break;
+      buffer[got] = 0;
+      Serial.print(buffer);
+      if (4 == sscanf(buffer,"#%d: %d @ %d,%d",&n,&id,&x,&y))
+      {
+        nd = buffer[strlen(buffer)-1] == '*';
+        Serial.printf(" ... %d %s (%d,%d) %s\n",n,objList[id].name,x,y,nd?"protected":"");
+        
+        if (!nd) // can add this object, it's not a non-destructible one
+          objEditor.create(id,x,y);
+      }
+      else
+        break;  
+    } while (1);
+
+    // objects all loaded, buffer has first patchcord definition
+    
+    std::stable_sort(objVec.begin(),objVec.end());
+    display.CursorClear();
+    for (auto ao : objVec)
+      display.DrawAudioObject(*ao.p->objP,ao.p->x,ao.p->y);
+
+    // now make the connections
+    do
+    {
+      int src,srcport,dst,dstport;
+      if (4 == sscanf(buffer,"%d.%d -> %d.%d",&src,&srcport,&dst,&dstport))
+      {
+        cordVec.push_back(new PatchcordInstance_t{objVec.at(src).p,(int8_t) srcport,objVec.at(dst).p,(int8_t) dstport}); // create
+        display.DrawPatchcord(cordVec.back()); // draw        
+      }
+      else
+        break;
+        
+      got = loadFrom.readBytesUntil('\n',buffer,49);
+      if (0 == got)
+        break;
+      Serial.println(buffer);
+    } while (1);
+    display.CursorRestore();
+    
+    loadFrom.close();
+  }
+}
+
+
+void FileEditor::showMode(void)
+{
+  char buffer[20];
+
+  sprintf(buffer,"%s: %c",enc1.getValue()?"save":"load",fileChar);
+  display.ShowBottomText(buffer,display.getModeColour());
+}
+
 void FileEditor::enter(void)
 {
+  enc0.setLimits(1,26); // single alphabetic character
+  enc0.setValue(fileChar - '@');
+
+  enc1.setLimits(0,1); // load or save
+  enc0.setValue(0);
+
+  showMode();
 }
 
 void FileEditor::exit(void)
@@ -729,41 +900,38 @@ void FileEditor::exit(void)
 
 void FileEditor::edit(void)
 {
+  if (enc0.available())
+  {
+    fileChar = enc0.getValue() + '@';
+    showMode();  
+  }
+  
+  if (enc1.available())
+  {
+    showMode();  
+  }
+  
   if (enc0.getButton())
     state = 1;
   else
   {
     if (state)
     {
-      state = 0;      
-      Serial.println("\nSave the patch:");
-      for (auto obj : objVec)
-        Serial.printf("#%d: %d @ %d,%d%s\n",
-                      state++,
-                      obj.p->objP->id,
-                      obj.p->x,obj.p->y,
-                      obj.p->noDelete?" *":""
-                      );
-      for (auto cord : cordVec)
+      if (enc1.getValue()) // save
       {
-        const int UNSET = 999'999'999;
-        int src = UNSET,dst = UNSET;
-        
-        state = 0;
-        for (auto obj : objVec)
-        {
-          if (obj.p == cord->src) src = state;
-          if (obj.p == cord->dst) dst = state;
-          if (src != UNSET && dst != UNSET)
-            break;
-          state++;            
-        }
-
-        Serial.printf("%d.%d -> %d.%d\n",src,cord->src_port,dst,cord->dst_port);
+        Serial.printf("\nSave to patch %c:\n",fileChar);
+        save();
+        Serial.printf("\nCheck load of patch %c:\n",fileChar);
+        load();
+        Serial.println("---------------\n");        
       }
-      Serial.println("---------------\n");
-        
-      state = 0;
+      else
+      {
+        Serial.printf("\nLoad patch %c:\n",fileChar);
+        load();
+        Serial.println("---------------\n");        
+      }
+      state = 0;       
     }
   }
 }

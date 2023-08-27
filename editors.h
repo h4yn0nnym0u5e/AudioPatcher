@@ -49,6 +49,8 @@ class ObjEditor : public BaseEditor
     void edit(void);
     void enter(void);
     void exit(void) {}
+
+    void create(int id, int x, int y);
 };
 
 
@@ -112,6 +114,8 @@ class DeleteEditor : public BaseEditor
     void edit(void);
     void enter(void);
     void exit(void); 
+
+    void kill(int idx);
 };
 
 class ParamEditor : public BaseEditor
@@ -137,6 +141,11 @@ class FileEditor : public BaseEditor
     LimitedEncoder& enc0, &enc1, &enc2;
     std::vector<PatchcordInstance_t*>& cordVec; 
     int state;
+    char fileChar;
+
+    void showMode(void);
+    void save(void);
+    void load(void);
      
   public:    
     FileEditor(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2, 
@@ -147,7 +156,7 @@ class FileEditor : public BaseEditor
             : BaseEditor(d,o),
             enc0(e0), enc1(e1), enc2(e2),
             cordVec(p),
-            state(0)
+            state(0), fileChar('A')
             {}
     void edit(void);
     void enter(void);

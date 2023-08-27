@@ -12,9 +12,14 @@
 #include <vector>
 #include <algorithm>
 
-//#include "TeensyDebug.h"
+#include "TeensyDebug.h"
 
 //#define COUNT_OF(a) (sizeof a / sizeof a[0])
+
+#if !defined(SAFE_RELEASE_MANY) || !defined(DYNMIXER_H_)
+#error Make sure you have dynamic cores and Audio library!
+#endif // !defined(SAFE_RELEASE_MANY) || !defined(DYNMIXER_H_)
+
 
 /********************************************************************************************************/
 M5w_8angle    ctrl;
@@ -33,9 +38,9 @@ std::vector<AudioObjInstancePtr> objVec = {
 #define AUDIO_ENTRY(typ,shrt,id, ...) {&the##shrt},
   MY_AUDIO_IO
 #undef AUDIO_ENTRY
-  {new AudioObjInstance{objList[AUDIO_EFFECT_DELAY_ID],5,5}},
-  {new AudioObjInstance{objList[AUDIO_MIXER4_ID],110,5}},
-  {new AudioObjInstance{objList[AUDIO_FILTER_LADDER_ID],110,55}},
+//  {new AudioObjInstance{objList[AUDIO_EFFECT_DELAY_ID],5,5}},
+//  {new AudioObjInstance{objList[AUDIO_MIXER4_ID],110,5}},
+//  {new AudioObjInstance{objList[AUDIO_FILTER_LADDER_ID],110,55}},
   {new AudioObjInstance{objList[AUDIO_EFFECT_CHORUS_ID],165+55,110}},
   };
 std::vector<PatchcordInstance_t*> cordVec; 
@@ -68,6 +73,14 @@ void setup()
                   objList[i].name, i, objList[i].inputs, objList[i].outputs);
   }
 
+  while (!SD.begin(BUILTIN_SDCARD))
+  {
+    Serial.println("SD not available!");
+    delay(500);
+  }
+  Serial.println("SD initialised");
+  
+
   ctrl.begin();
   Serial.printf("8Angle says %d\n",ctrl?1:0);
   Serial.printf("8Angle at address 0x%02X; version %d\n",ctrl.getAddress(),ctrl.getVersion());
@@ -84,14 +97,12 @@ void setup()
   encr.begin();
   Serial.printf("8Encoder says %d\n",encr?1:0);
   Serial.printf("8Encoder at address 0x%02X; version %d\n",encr.getAddress(),encr.getVersion());
-
-  //halt_cpu();
   
   AudioObjInstancePtr aoi = {new AudioObjInstance(objList[AUDIO_SYNTH_WAVEFORM_ID],110,110)};
-  AudioObjInstancePtr aoi2 = {new AudioObjInstance(objList[AUDIO_SYNTH_NOISE_WHITE_ID],165,55)};
+  //AudioObjInstancePtr aoi2 = {new AudioObjInstance(objList[AUDIO_SYNTH_NOISE_WHITE_ID],165,55)};
   objVec.insert(std::next(objVec.begin(),2),aoi);
-  objVec.insert(std::next(objVec.begin(),3),aoi2);
-  objVec.insert(std::next(objVec.begin(),3),{new AudioObjInstance(objList[AUDIO_ANALYZE_FFT1024_ID],220,55)});
+  //objVec.insert(std::next(objVec.begin(),3),aoi2);
+  //objVec.insert(std::next(objVec.begin(),3),{new AudioObjInstance(objList[AUDIO_ANALYZE_FFT1024_ID],220,55)});
   
   theInputI2S.x = -40;
   theInputI2S.y = 100;
@@ -106,7 +117,7 @@ void setup()
     display.DrawAudioObject(*obj.p->objP,obj.p->x,obj.p->y);
   }
 
-  for (int i=0;i<4;i++)
+  for (int i=5;i<4;i++)
   {
     PatchcordInstance_t* pci = new PatchcordInstance_t(objVec.at(6).p,i,objVec.at(7).p,i);
     cordVec.push_back(pci);
@@ -116,10 +127,15 @@ void setup()
   dumpObjVec();
   
   // make some real connections  
-  cordVec.push_back(new PatchcordInstance_t{objVec.at(8).p,0,&theOutputI2S,0}); //cordVec.back()->connect();
+  /*
+  cordVec.push_back(new PatchcordInstance_t{objVec.at(8).p,0,&theOutputI2S,0}); 
   cordVec.push_back(new PatchcordInstance_t(objVec.at(8).p,0,&theOutputI2S,1));
   cordVec.push_back(new PatchcordInstance_t(objVec.at(5).p,0,objVec.at(8).p,0));
-
+*/
+  cordVec.push_back(new PatchcordInstance_t{objVec.at(3).p,0,&theOutputI2S,0}); 
+  cordVec.push_back(new PatchcordInstance_t(objVec.at(3).p,0,&theOutputI2S,1));
+  cordVec.push_back(new PatchcordInstance_t(objVec.at(2).p,0,objVec.at(3).p,0));
+  
   for (auto cord : cordVec)
     display.DrawPatchcord(cord);
 
@@ -130,6 +146,7 @@ void setup()
   theControlSGTL5000.streamP.ControlSGTL5000->volume(0.1);
  
   delay(5);
+  halt_cpu();
 
   next = millis() + 50;
   systemState = 6;
