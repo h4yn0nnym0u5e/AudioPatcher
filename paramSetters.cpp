@@ -101,7 +101,7 @@ const ParamEntry paramsChorus[] = {
   {"voices", 1, 20},
 };
 struct contextChorus {union {struct {ParamValue length,voices;} s; ParamValue aray[2];}; short* mem; };
-int editChorus(AudioObjInstance* aoi, AudioEditMode mode)
+int editChorus(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   contextChorus* myContext = (contextChorus*) aoi->context;
   AudioEffectChorus* me = aoi->streamP.Chorus;
@@ -187,8 +187,8 @@ const ParamEntry paramsMixer4[] = {
   {"ch3", 0.0f, 1.0f},
   {"ch4", 0.0f, 1.0f},
 };
-struct contextMixer4 {ParamValue gain[4];};
-int editMixer4(AudioObjInstance* aoi, AudioEditMode mode)
+struct contextMixer4 {ParamValue gain[4] = {0.5f,0.5f,0.5f,0.5f};};
+int editMixer4(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   contextMixer4* myContext = (contextMixer4*) aoi->context;
   AudioMixer4* me = aoi->streamP.Mixer4;
@@ -200,7 +200,7 @@ int editMixer4(AudioObjInstance* aoi, AudioEditMode mode)
   {
     case AudioEditMode::constructor: // construction
       {        
-        myContext = new contextMixer4{{0.5f,0.5f,0.5f,0.5f}};
+        myContext = new contextMixer4;
         aoi->context = myContext;
         for (size_t i=0;i<COUNT_OF(myContext->gain);i++)
           me->gain(i,myContext->gain[i].value.f);
@@ -281,12 +281,12 @@ const ParamEntry paramsWaveformModulated[] = {
   {"mod depth",0.0f, 12.0f} // frequency is 0.0 - 12.0 octaves; phase modulation could be 9000°
 };
 const ParamEntry freqLimits{nullptr,-1.0f,1.0f}; // special, for setting hook control
-struct contextWaveformModulated {
-  union { struct {ParamValue waveform,frequency,amplitude,offset,modType,modDepth;} s;
+struct contextWaveformModulated { contextWaveformModulated() {};
+  union { struct {ParamValue waveform,frequency,amplitude,offset,modType,modDepth;} s {{0},{7.0f},{0.5f},{0.0f},{0},{1.0f}};
           ParamValue aray[COUNT_OF(paramsWaveformModulated)];
         };
   };
-int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode)
+int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   contextWaveformModulated* myContext = (contextWaveformModulated*) aoi->context;
   AudioSynthWaveformModulated* me = aoi->streamP.WaveformModulated;
@@ -300,7 +300,7 @@ int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode)
   {
     case AudioEditMode::constructor: // construction
       {        
-        myContext = new contextWaveformModulated{{{{0},{7.0f},{0.5f},{0.0f},{0},{1.0f}}}};
+        myContext = new contextWaveformModulated; //{{{{0},{7.0f},{0.5f},{0.0f},{0},{1.0f}}}};
         aoi->context = myContext;
         //for (size_t i=0;i<COUNT_OF(myContext->gain);i++)
         me->begin(myContext->s.amplitude.value.f,
@@ -413,12 +413,34 @@ const ParamEntry paramsWaveform[] = {
   {"pulseWidth", 0.0f, 1.0f},
   {"offset", -1.0f, 1.0f},
 };
-struct contextWaveform {
-  union { struct {ParamValue waveform,frequency,amplitude,pulseWidth,offset;} s;
+struct contextWaveform { contextWaveform(){}
+  union { struct {ParamValue waveform,frequency,amplitude,pulseWidth,offset;} s
+               {             {0},     {7.0f},   {0.5f},   {0.5f},    {0.0f}    };
           ParamValue aray[COUNT_OF(paramsWaveform)];
         };
   };
-int editWaveform(AudioObjInstance* aoi, AudioEditMode mode)
+
+
+void setParamFromContextWaveform(int i, AudioObjInstance* aoi, contextWaveform* myContext, float* pfreq)
+{
+  switch (i)
+  {
+    case 0: aoi->streamP.Waveform->begin(waveShapes[myContext->s.waveform.value.i].value); break;
+    case 2: aoi->streamP.Waveform->amplitude(myContext->s.amplitude.value.f); break;
+    case 3: aoi->streamP.Waveform->pulseWidth(myContext->s.pulseWidth.value.f); break;
+    case 4: aoi->streamP.Waveform->offset(myContext->s.offset.value.f); break;
+    case 1:
+      {
+        float tmp = pow(2,myContext->s.frequency.value.f); // convert to true frequency
+        if (nullptr != pfreq)
+          *pfreq = tmp;        
+        aoi->streamP.Waveform->frequency(tmp);
+      }   
+      break;           
+  }
+}
+  
+int editWaveform(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   contextWaveform* myContext = (contextWaveform*) aoi->context;
   AudioSynthWaveform* me = aoi->streamP.Waveform;
@@ -432,9 +454,8 @@ int editWaveform(AudioObjInstance* aoi, AudioEditMode mode)
   {
     case AudioEditMode::constructor: // construction
       {        
-        myContext = new contextWaveform{{{{0},{7.0f},{0.5f},{0.5f},{0.0f}}}};
+        myContext = new contextWaveform;
         aoi->context = myContext;
-        //for (size_t i=0;i<COUNT_OF(myContext->gain);i++)
         me->begin(myContext->s.amplitude.value.f,
                   pow(2,myContext->s.frequency.value.f),
                   waveShapes[myContext->s.waveform.value.i].value);
@@ -492,11 +513,11 @@ int editWaveform(AudioObjInstance* aoi, AudioEditMode mode)
             enc0.available(); // force an update
             if (ScaleFreq(paramsWaveform[i],myContext->aray[i],ctrl.getPot16(i),enc0.getValue(),0.999f))
             {
-              float tmp = myContext->s.frequency.value.f; // keep value
-              myContext->s.frequency.value.f = pow(2,tmp); // convert to true frequency
-            
+              float tmp = myContext->s.frequency.value.f, disp; // keep value
+              setParamFromContextWaveform(i,aoi,myContext,&disp);
+
+              myContext->s.frequency.value.f = disp;
               pe->display.ShowValue(paramsWaveform[i],myContext->aray[i],i); 
-              aoi->streamP.Waveform->frequency(myContext->s.frequency.value.f);
               myContext->s.frequency.value.f = tmp;
             }
           }
@@ -505,13 +526,7 @@ int editWaveform(AudioObjInstance* aoi, AudioEditMode mode)
             if (Scale(paramsWaveform[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
             {
               pe->display.ShowValue(paramsWaveform[i],myContext->aray[i],i); 
-              switch (i)
-              {
-                case 0: aoi->streamP.Waveform->begin(waveShapes[myContext->s.waveform.value.i].value); break;
-                case 2: aoi->streamP.Waveform->amplitude(myContext->s.amplitude.value.f); break;
-                case 3: aoi->streamP.Waveform->pulseWidth(myContext->s.pulseWidth.value.f); break;
-                case 4: aoi->streamP.Waveform->offset(myContext->s.offset.value.f); break;
-              }
+              setParamFromContextWaveform(i,aoi,myContext,nullptr);
             }
           }
         }                 
@@ -528,6 +543,58 @@ int editWaveform(AudioObjInstance* aoi, AudioEditMode mode)
       pe = nullptr;
       break;      
 
+    case AudioEditMode::getParams:
+      {
+        getSetParams* p = (getSetParams*) params;
+        size_t left = p->sz;
+        char* ptr = p->buffer;
+        int off = 0;
+        for (size_t i=0;i<COUNT_OF(paramsWaveform) && off >= 0 && left >= 10;i++)
+        {
+          if (paramsWaveform[i].type == 1) // float
+            off = sprintf(ptr,"%f,",myContext->aray[i].value.f);
+          else
+            off = sprintf(ptr,"%d,",myContext->aray[i].value.i);
+
+          ptr += off;
+          left -= off;            
+        }
+        p->sz = ptr - p->buffer;
+        result = 1;
+      }
+      break;
+
+    // patch L: ~2: 4,8.774944,0.226114,0.294576,0.000000,      
+    case AudioEditMode::setParams:
+      {
+        getSetParams* p = (getSetParams*) params;
+        char* ptr = p->buffer;
+        int off = 0;
+        for (size_t i=0;i<COUNT_OF(paramsWaveform) && off >= 0;i++)
+        {
+          ValUnion value;
+          
+          if (paramsWaveform[i].type == 1) // float
+          {
+            sscanf(ptr,"%f,%n",&value.f,&off);
+            Serial.printf("%.3f ... ",value.f);
+            myContext->aray[i].value.f = value.f;
+          }
+          else
+          {
+            sscanf(ptr,"%d,%n",&value.i,&off);
+            Serial.printf("%d ... ",value.i);
+            myContext->aray[i].value.i = value.i;
+          }
+          setParamFromContextWaveform(i,aoi,myContext,nullptr);
+
+          ptr += off;
+        }
+        p->sz = ptr - p->buffer;
+        result = 1;
+      }
+      break;
+      
     default:
       break;      
   }
@@ -538,8 +605,8 @@ int editWaveform(AudioObjInstance* aoi, AudioEditMode mode)
 const ParamEntry paramsWaveformDc[] = {
   {"value", -1.0f, 1.0f},
 };
-struct contextWaveformDc {ParamValue amplitude;};
-int editWaveformDc(AudioObjInstance* aoi, AudioEditMode mode)
+struct contextWaveformDc {ParamValue amplitude{0.0f};};
+int editWaveformDc(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   contextWaveformDc* myContext = (contextWaveformDc*) aoi->context;
   AudioSynthWaveformDc* me = aoi->streamP.WaveformDc;
@@ -551,7 +618,7 @@ int editWaveformDc(AudioObjInstance* aoi, AudioEditMode mode)
   {
     case AudioEditMode::constructor: // construction
       {        
-        myContext = new contextWaveformDc{{0.0f}};
+        myContext = new contextWaveformDc;
         aoi->context = myContext;
         me->amplitude(myContext->amplitude.value.f);
       }
@@ -665,10 +732,11 @@ const ParamEntry paramsControlSGTL5000[] = {
   {" input [Vpkpk]", PARAM_ENTRY_CHOICES(inputLevelsSGTL5000)},
   {"output [Vpkpk]", PARAM_ENTRY_CHOICES(outputLevelsSGTL5000)},
 };
-struct contextControlSGTL5000 {
-  union { struct {ParamValue volume,inputSelect,micGain,autoVolume,lineInLevel,lineOutLevel;} s;
+struct contextControlSGTL5000 { contextControlSGTL5000(){}
+  union { struct {ParamValue volume,  inputSelect,micGain,autoVolume,lineInLevel,lineOutLevel;} s
+               {             {0.25f}, {0},        {20},   {0},       {10},       {11}           };
           ParamValue aray[COUNT_OF(paramsControlSGTL5000)];};};
-int editControlSGTL5000(AudioObjInstance* aoi, AudioEditMode mode)
+int editControlSGTL5000(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   contextControlSGTL5000* myContext = (contextControlSGTL5000*) aoi->context;
   AudioControlSGTL5000* me = aoi->streamP.ControlSGTL5000;
@@ -680,7 +748,7 @@ int editControlSGTL5000(AudioObjInstance* aoi, AudioEditMode mode)
   {
     case AudioEditMode::constructor: // construction
       {        
-        myContext = new contextControlSGTL5000{{{ {0.25f},  {0},{20},{0}, {10},{11} }}};
+        myContext = new contextControlSGTL5000;
         aoi->context = myContext;
 
         // find SGTL5000 at either address

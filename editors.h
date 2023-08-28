@@ -146,6 +146,7 @@ class FileEditor : public BaseEditor
     void showMode(void);
     void save(void);
     void load(void);
+    void dump(void);
      
   public:    
     FileEditor(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2, 

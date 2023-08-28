@@ -4,7 +4,7 @@
 //===========================================================================================
 // Weak definitions of setup controls
 extern "C" { 
-  int editDoNothing(AudioObjInstance* aoi, AudioEditMode mode) 
+  int editDoNothing(AudioObjInstance* aoi, AudioEditMode mode, void* params) 
   { 
     /*
     if (AudioEditMode::constructor == mode || AudioEditMode::destructor == mode)
@@ -20,7 +20,7 @@ extern "C" {
     return 0; 
   }
 }
-#define AUDIO_ENTRY(typ,shrt,...) int edit##shrt(AudioObjInstance* aoi, AudioEditMode mode) __attribute__((weak, alias("editDoNothing"))); 
+#define AUDIO_ENTRY(typ,shrt,...) int edit##shrt(AudioObjInstance*, AudioEditMode, void*) __attribute__((weak, alias("editDoNothing"))); 
 AUDIO_ENTRIES
 MY_AUDIO_IO
 #undef AUDIO_ENTRY
@@ -50,7 +50,7 @@ AudioObjInstance::AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, 
   
   switch (objP->id)
   {
-#define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,cons) case id##_ID: streamP.shrt = new typ(cons); edit##shrt(this,AudioEditMode::constructor); break;
+#define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,cons) case id##_ID: streamP.shrt = new typ(cons); edit##shrt(this,AudioEditMode::constructor, nullptr); break;
     AUDIO_ENTRIES
     MY_AUDIO_IO
 #undef AUDIO_ENTRY 
@@ -67,7 +67,7 @@ AudioObjInstance::~AudioObjInstance()
   {
     switch (objP->id)
     {
-#define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,cons) case id##_ID: edit##shrt(this,AudioEditMode::destructor); delete streamP.shrt; break;
+#define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,cons) case id##_ID: edit##shrt(this,AudioEditMode::destructor, nullptr); delete streamP.shrt; break;
       AUDIO_ENTRIES
       MY_AUDIO_IO
 #undef AUDIO_ENTRY 

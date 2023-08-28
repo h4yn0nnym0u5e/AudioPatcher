@@ -130,7 +130,8 @@ struct AudioObj_t
   AudioID id;     //!< the object's ID number
 };
 
-enum class AudioEditMode {destructor = -1, constructor, enter,edit,exit};
+enum class AudioEditMode {destructor = -1, constructor, enter,edit,exit, getParams, setParams};
+struct getSetParams {char* buffer; size_t sz;};
 class AudioObjInstance; // forward declaration needed for editFn()
 struct AudioObjStatic_t
 {
@@ -139,7 +140,7 @@ struct AudioObjStatic_t
   const AudioCategory_e category;
   const int8_t inputs,outputs;
   const AudioID id;
-  int (* const editFn)(AudioObjInstance* aoi, AudioEditMode mode);
+  int (* const editFn)(AudioObjInstance* aoi, AudioEditMode mode, void* params);
 };
 
 

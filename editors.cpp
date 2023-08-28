@@ -563,16 +563,16 @@ void ParamEditor::edit(void)
       {
         state = 0;
         inTarget = true;
-        aoi->objP->editFn(aoi,AudioEditMode::enter);      
+        aoi->objP->editFn(aoi,AudioEditMode::enter, nullptr);      
         lockModeEncoder();
       }
     }
   }
   else // target object has claimed the UI
   {
-    if (0 == aoi->objP->editFn(aoi,AudioEditMode::edit))
+    if (0 == aoi->objP->editFn(aoi,AudioEditMode::edit, nullptr))
     {
-      aoi->objP->editFn(aoi,AudioEditMode::exit);  // tell editor to tidy up
+      aoi->objP->editFn(aoi,AudioEditMode::exit, nullptr);  // tell editor to tidy up
       inTarget = false; // target has yielded UI control
       unlockModeEncoder();
     }
@@ -735,7 +735,7 @@ void DeleteEditor::ShowSelection(int op)
 //======================================================================
 void FileEditor::save(void)
 {
-  char buffer[50];
+  char buffer[100];
   File saveTo;
   int count;
 
@@ -779,6 +779,15 @@ void FileEditor::save(void)
       saveTo.printf("%d.%d -> %d.%d\n",src,cord->src_port,dst,cord->dst_port);  
     }
 
+    getSetParams gsp{buffer};
+    for (size_t i = 0;i<objVec.size() - 1;i++)
+    {
+      AudioObjInstance* aoi = objVec.at(i).p;
+      gsp.sz = 90;
+      if (aoi->objP->editFn(aoi,AudioEditMode::getParams, &gsp)) // see if object has settings, if so..
+        saveTo.printf("~%d: %s\n", i, gsp.buffer); // ... save those, too
+    }
+
     Serial.print("truncating at "); Serial.flush();
     size_t sz = saveTo.position();
     Serial.print(sz); Serial.flush();
@@ -799,9 +808,34 @@ void FileEditor::save(void)
 }
 
 
+void FileEditor::dump(void)
+{
+  char buffer[100];
+  File loadFrom;
+
+  sprintf(buffer,"%c.txt",fileChar);
+  loadFrom = SD.open(buffer,FILE_READ);
+
+  if (loadFrom)
+  {
+    int got;
+    
+    loadFrom.setTimeout(1);
+    do
+    {
+      got = loadFrom.readBytesUntil('\n',buffer,49);
+      if (got > 0)
+        Serial.println(buffer);
+    } while (got > 0);
+
+    loadFrom.close();
+  }
+}
+
+
 void FileEditor::load(void)
 {
-  char buffer[50];
+  char buffer[100];
   File loadFrom;
 
   sprintf(buffer,"%c.txt",fileChar);
@@ -852,6 +886,7 @@ void FileEditor::load(void)
       display.DrawAudioObject(*ao.p->objP,ao.p->x,ao.p->y);
 
     // now make the connections
+    Serial.println();
     do
     {
       int src,srcport,dst,dstport;
@@ -869,6 +904,23 @@ void FileEditor::load(void)
       Serial.println(buffer);
     } while (1);
     display.CursorRestore();
+
+    // now get any parameter settings
+    do
+    {
+      int id,off;
+      sscanf(buffer,"~%d:%n",&id,&off);
+      if (id > 0 && (uint32_t) id < objVec.size())
+      {
+        AudioObjInstance* aoi = objVec.at(id).p;
+        getSetParams gsp{buffer+off,strlen(buffer+off)};
+        aoi->objP->editFn(aoi,AudioEditMode::setParams, &gsp);
+      }
+      got = loadFrom.readBytesUntil('\n',buffer,49);
+      if (0 == got)
+        break;
+      Serial.println(buffer);      
+    } while (1);
     
     loadFrom.close();
   }
@@ -922,7 +974,7 @@ void FileEditor::edit(void)
         Serial.printf("\nSave to patch %c:\n",fileChar);
         save();
         Serial.printf("\nCheck load of patch %c:\n",fileChar);
-        load();
+        dump();
         Serial.println("---------------\n");        
       }
       else
