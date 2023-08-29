@@ -70,12 +70,13 @@ void AudioPatcherDisplay::ShowLabel(const ParamEntry& p, ParamValue& v, int16_t 
 void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t n)
 {
   tft.setCursor(v.labelEndX,v.labelEndY);
-  switch (p.type)
+  switch (p.ValType)
   {
     default: tft.print("???"); break;
-    case 0: tft.print(v.value.i); break;
-    case 1: tft.printf("%.2f",v.value.f); break;
-    case 2: tft.print(p.choices[v.value.i].text); break;
+    case 'i': tft.print(v.value.i); break;
+    case 'f': tft.printf("%.2f",v.value.f); break;
+    case 'c': tft.print(p.choices[v.value.i].text); break;
+    case 'l': tft.printf("%.2f",pow(2.0f,v.value.f)); break;
   }
 
   int16_t x,y;

@@ -12,7 +12,7 @@ extern M5w_8angle ctrl;
 #define M5ANGLE_MIN   20
 #define M5ANGLE_MAX 4080
 
-#define BOX_DEF(width,lines) (320/2 - (width)/2),(240/2 - (27+(lines)*16+16)/2),(width),(27+(lines)*16+16)
+// #define BOX_DEF(width,lines) (320/2 - (width)/2),(240/2 - (27+(lines)*16+16)/2),(width),(27+(lines)*16+16)
 
 //===========================================================================================
 ParamEditor* pe;
@@ -61,21 +61,28 @@ bool ScaleI(const ParamEntry& pe, ParamValue& pv, int16_t raw)
 
 bool Scale(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filter = 1.0f)
 {
-  bool result;
-  if (1 == pe.type)  
-    result = ScaleF(pe,pv,raw, filter);
-  else
-    result = ScaleI(pe,pv,raw);
-
+  bool result = false;
+  switch(pe.ValType)
+  { 
+    case 'l':     
+    case 'f': result = ScaleF(pe,pv,raw, filter); break;
+    
+    case 'c':
+    case 'i': result = ScaleI(pe,pv,raw); break;
+  }
   return result;
 }
 
 void HookControl(M5w_8angle& ctrl, int ch, const ParamEntry& pe, ParamValue& pv)
 {
-  if (1 == pe.type)  // float
-    ctrl.setHook(ch,map(pv.value.f,pe.min.f,pe.max.f,M5ANGLE_MIN,M5ANGLE_MAX));
-  else
-    ctrl.setHook(ch,map(pv.value.i,pe.min.i,pe.max.i,M5ANGLE_MIN,M5ANGLE_MAX));
+  switch (pe.ValType)
+  {
+    case 'l':
+    case 'f': ctrl.setHook(ch,map(pv.value.f,pe.min.f,pe.max.f,M5ANGLE_MIN,M5ANGLE_MAX)); break;
+    
+    case 'c':
+    case 'i':  ctrl.setHook(ch,map(pv.value.i,pe.min.i,pe.max.i,M5ANGLE_MIN,M5ANGLE_MAX)); break;
+  }
 }
 
 int testExit(uint32_t& exitAt)
@@ -407,11 +414,11 @@ int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode, void* param
 
 //===========================================================================================
 const ParamEntry paramsWaveform[] = {
-  {"waveform", PARAM_ENTRY_CHOICES(waveShapes)},
-  {"frequency", -4.0f, 14.0f}, // log2(freq) is what we actually store
-  {"amplitude", 0.0f, 1.0f},
+  {"  waveform", PARAM_ENTRY_CHOICES(waveShapes)},
+  {" frequency", -4.0f, 14.0f}, // log2(freq) is what we actually store
+  {" amplitude", 0.0f, 1.0f},
   {"pulseWidth", 0.0f, 1.0f},
-  {"offset", -1.0f, 1.0f},
+  {"    offset", -1.0f, 1.0f},
 };
 struct contextWaveform { contextWaveform(){}
   union { struct {ParamValue waveform,frequency,amplitude,pulseWidth,offset;} s
@@ -551,10 +558,13 @@ int editWaveform(AudioObjInstance* aoi, AudioEditMode mode, void* params)
         int off = 0;
         for (size_t i=0;i<COUNT_OF(paramsWaveform) && off >= 0 && left >= 10;i++)
         {
-          if (paramsWaveform[i].type == 1) // float
-            off = sprintf(ptr,"%f,",myContext->aray[i].value.f);
-          else
-            off = sprintf(ptr,"%d,",myContext->aray[i].value.i);
+          switch (paramsWaveform[i].ValType)
+          {
+            case 'l':
+            case 'f': off = sprintf(ptr,"%f,",myContext->aray[i].value.f); break;
+            case 'c':
+            case 'i': off = sprintf(ptr,"%d,",myContext->aray[i].value.i); break;
+          }
 
           ptr += off;
           left -= off;            
@@ -574,7 +584,7 @@ int editWaveform(AudioObjInstance* aoi, AudioEditMode mode, void* params)
         {
           ValUnion value;
           
-          if (paramsWaveform[i].type == 1) // float
+          if (paramsWaveform[i].ValType == 'f') // float
           {
             sscanf(ptr,"%f,%n",&value.f,&off);
             Serial.printf("%.3f ... ",value.f);
@@ -830,4 +840,47 @@ int editControlSGTL5000(AudioObjInstance* aoi, AudioEditMode mode, void* params)
       break;      
   }
   return result;    
+}
+
+//===========================================================================================
+class ContextStateVariable {
+  public:
+  ContextStateVariable(){}
+    static const ParamEntry params[3];
+    union {struct {ParamValue frequency,resonance,octaves;} s
+                   {          {8.0f}, {0.7f},   {1.0f}    };
+                   ParamValue aray[3];};
+    void setParam(int i, AudioObjInstance* aoi);
+    static const int boxWidth{260};
+    static const int paramCount{COUNT_OF(params)};
+};
+
+void ContextStateVariable::setParam(int i, AudioObjInstance* aoi)
+{
+  switch (i)
+  {
+    case 0: aoi->streamP.StateVariable->frequency(pow(2,s.frequency.value.f)); break;
+    case 1: aoi->streamP.StateVariable->resonance(s.resonance.value.f); break;
+    case 2: aoi->streamP.StateVariable->octaveControl(s.octaves.value.f); break;
+  }
+}
+
+const ParamEntry ContextStateVariable::params[3] = {
+        //{" frequency", -4.0f, 14.0f}, // log2(freq) is what we actually store
+        {"frequency", 3.0f, 13.2877123795495f, 'l'}, // make it simple for now
+        {"resonance", 0.7f, 5.0f},
+        {"  octaves", 0.0f, 7.0f}
+    };
+
+int editStateVariable(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  return editObjType<AudioFilterStateVariable, ContextStateVariable>(aoi,mode,params);
+}
+
+
+
+float testStateVariable(ContextStateVariable* svf)
+{
+  return svf->s.frequency.value.f;
+  editObjType<AudioFilterStateVariable, ContextStateVariable>(nullptr,AudioEditMode::constructor,nullptr);
 }
