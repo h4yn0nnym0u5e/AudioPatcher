@@ -42,8 +42,8 @@ bool ScaleFreq(const ParamEntry& pe, ParamValue& pv, int16_t raw, int16_t pow2, 
   bool result = false;
   float newVal = map((float) raw, M5ANGLE_MIN, M5ANGLE_MAX, -1.0f, 1.0f); // get a value
   newVal = newVal + (float) pow2 + LOG_NOTE_A;
-  //newVal = newVal*filter + pv.value.f*(1.0f - filter);
-  //if (fabs(newVal - pv.value.f) > (0.0005*( pe.max.f - pe.min.f)))
+  newVal = newVal*filter + pv.value.f*(1.0f - filter);
+  if (fabs(newVal - pv.value.f) > (0.0005*( pe.max.f - pe.min.f)))
   {
     pv.value.f = constrain(newVal, pe.min.f, pe.max.f);
     result = true;
@@ -257,7 +257,7 @@ class ContextWaveformModulated
 { 
   public:
     ContextWaveformModulated() {}
-    const ParamEntry params[6];
+    static const ParamEntry params[6];
     union { struct {ParamValue waveform,frequency,amplitude,offset,modType,modDepth;} s {{0},{7.0f},{0.5f},{0.0f},{0},{1.0f}};
             ParamValue aray[COUNT_OF(params)];
           };
