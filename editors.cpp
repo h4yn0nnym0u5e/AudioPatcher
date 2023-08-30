@@ -563,6 +563,7 @@ void ParamEditor::edit(void)
       {
         state = 0;
         inTarget = true;
+        enc0Stash = new LimitedEncoderStash(enc0);
         aoi->objP->editFn(aoi,AudioEditMode::enter, nullptr);      
         lockModeEncoder();
       }
@@ -574,6 +575,11 @@ void ParamEditor::edit(void)
     {
       aoi->objP->editFn(aoi,AudioEditMode::exit, nullptr);  // tell editor to tidy up
       inTarget = false; // target has yielded UI control
+      if (nullptr != enc0Stash)
+      {
+        delete enc0Stash;
+        enc0Stash = nullptr;
+      }
       unlockModeEncoder();
     }
   }

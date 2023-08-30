@@ -20,4 +20,14 @@ class LimitedEncoder
     void getLimits(int32_t& l,int32_t& u);
 };
 
+class LimitedEncoderStash
+{
+    int32_t v,l,u;
+    LimitedEncoder& e;
+  public:
+    LimitedEncoderStash(LimitedEncoder& _e) 
+      : e(_e)
+      { e.available(); v = e.getValue(); e.getLimits(l,u); }
+    ~LimitedEncoderStash() {e.setLimits(l,u); e.setValue(v); }
+};
 #endif // !defined(_LIMITEDENCODER_H_)

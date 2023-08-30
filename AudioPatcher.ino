@@ -170,13 +170,14 @@ FileEditor fileEditor(enc0,enc1,enc2,display,objVec,cordVec);
 /********************************************************************************************************/
 // "Lock" the mode encoder, e.g. while sub-editor is active
 // Allows re-use followed by restoration of old state
-static int oldMode;
+LimitedEncoderStash* modeEncoderStash;
 bool modeEncoderLocked;
+
 void lockModeEncoder(void)
 {
   if (!modeEncoderLocked)
   {
-    oldMode = encM.getValue();
+    modeEncoderStash = new LimitedEncoderStash(encM);
     modeEncoderLocked = true;
   }
 }
@@ -186,8 +187,8 @@ void unlockModeEncoder(void)
 {
   if (modeEncoderLocked)
   {
-    encM.setLimits(0,(int32_t) strlen(modes)-1);
-    encM.setValue(oldMode);
+    delete modeEncoderStash;
+    modeEncoderStash = nullptr;
     modeEncoderLocked = false;
   }
 }

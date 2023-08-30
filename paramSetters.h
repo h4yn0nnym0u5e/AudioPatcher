@@ -31,6 +31,28 @@ extern int testExit(uint32_t& exitAt);
 
 #define BOX_DEF(width,lines) (320/2 - (width)/2),(240/2 - (27+(lines)*16+16)/2),(width),(27+(lines)*16+16)
 
+//=====================================================================================
+template <class Tctxt>
+void updateFromControls(Tctxt* myContext, AudioObjInstance* aoi)
+{
+  for (size_t i=0; i < Tctxt::paramCount; i++)
+  {
+    if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
+    {
+      pe->display.ShowValue(myContext->params[i],myContext->aray[i],i);
+      myContext->setParam(i,aoi);
+    }
+  }
+}
+
+
+//=====================================================================================
+template <class Tctxt>
+void enterEditMode(Tctxt* myContext, AudioObjInstance* aoi){} // no special action for most AudioStream classes
+//=====================================================================================
+template <class Tctxt>
+void exitEditMode(Tctxt* myContext, AudioObjInstance* aoi){} // no special action for most AudioStream classes
+//=====================================================================================
 template <class Tstream, class Tctxt>
 int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
@@ -57,13 +79,15 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 
     case AudioEditMode::enter:
       result = 1; // claimed
+      enterEditMode(myContext,aoi);
       pe = new ParamEditor(display,BOX_DEF(Tctxt::boxWidth,Tctxt::paramCount));
       pe->display.ShowTitle(aoi->objP->name,5,5);
       for (size_t i=0; i < Tctxt::paramCount; i++)
       {
         pe->display.ShowLabel(myContext->params[i],myContext->aray[i],i,5,27);
         pe->display.ShowValue(myContext->params[i],myContext->aray[i],i);
-        HookControl(ctrl,i,myContext->params[i],myContext->aray[i]);
+        if (!ctrl.isHooking(i))
+          HookControl(ctrl,i,myContext->params[i],myContext->aray[i]);
       }
       next = 0;
       break;      
@@ -72,20 +96,15 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
       if (millis() >= next)
       {
         next = millis() + 10;
-        for (size_t i=0; i < Tctxt::paramCount; i++)
-        {
-          if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
-          {
-            pe->display.ShowValue(myContext->params[i],myContext->aray[i],i);
-            myContext->setParam(i,aoi);
-          }
-        }
-        
+        updateFromControls(myContext,aoi);
       }
       result = testExit(exitAt);
       break;      
 
     case AudioEditMode::exit:
+      exitEditMode(myContext,aoi);
+      for (size_t i=0; i < Tctxt::paramCount; i++)
+        ctrl.clearHook(i);
       delete pe;
       pe = nullptr;
       break;  

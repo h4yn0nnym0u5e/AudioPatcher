@@ -122,6 +122,7 @@ class ParamEditor : public BaseEditor
 {
     LimitedEncoder& enc0; // we only select objects to modify
     bool inTarget; // true if target object's editor is active
+    LimitedEncoderStash* enc0Stash;
     
   public:    
     ParamEditor(LimitedEncoder& e0,  
@@ -129,7 +130,7 @@ class ParamEditor : public BaseEditor
             std::vector<AudioObjInstancePtr>& o
             )
             : BaseEditor(d,o),
-            enc0(e0)
+            enc0(e0), inTarget(false), enc0Stash(nullptr)
             {}
     void edit(void);
     void enter(void);
