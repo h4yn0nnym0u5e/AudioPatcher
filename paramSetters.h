@@ -86,7 +86,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
       {
         pe->display.ShowLabel(myContext->params[i],myContext->aray[i],i,5,27);
         pe->display.ShowValue(myContext->params[i],myContext->aray[i],i);
-        if (!ctrl.isHooking(i))
+        if (!ctrl.isHooking(i)) // specialized enterEditMode() may have hooked already - don't re-do
           HookControl(ctrl,i,myContext->params[i],myContext->aray[i]);
       }
       next = 0;
@@ -150,7 +150,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
               sscanf(ptr,"%f,%n",&value.f,&off);
               if (value.f < myContext->params[i].min.f || value.f > myContext->params[i].max.f)
                 value.f = (myContext->params[i].min.f + myContext->params[i].max.f) / 2.0f;
-              Serial.printf("%.3f ... ",value.f);
+              Serial.printf("%s = %.3f ... ",myContext->params[i].label,value.f);
               myContext->aray[i].value.f = value.f;
               break;
               
@@ -159,7 +159,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
               sscanf(ptr,"%d,%n",&value.i,&off);
               if (value.i < myContext->params[i].min.i || value.i > myContext->params[i].max.i)
                 value.i = (myContext->params[i].min.i + myContext->params[i].max.i) / 2.0f;
-              Serial.printf("%d ... ",value.i);
+              Serial.printf("%s = %d ... ",myContext->params[i].label,value.i);
               myContext->aray[i].value.i = value.i;
               break;
           }
@@ -167,6 +167,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 
           ptr += off;
         }
+        Serial.println();
         p->sz = ptr - p->buffer;
         result = 1;
       }
