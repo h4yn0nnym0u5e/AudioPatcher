@@ -45,6 +45,75 @@ void updateFromControls(Tctxt* myContext, AudioObjInstance* aoi)
   }
 }
 
+//=====================================================================================
+template <class Tctxt>
+int editGetParams(AudioObjInstance* aoi, getSetParams* p)
+{
+  Tctxt* myContext = (Tctxt*) aoi->context;
+  size_t left = p->sz;
+  char* ptr = p->buffer;
+  int off = 0;
+  
+  for (size_t i=0; i < Tctxt::paramCount && off >= 0 && left >= 15; i++)
+  {
+    switch (myContext->params[i].ValType)
+    {
+      case 'l':
+      case 'f': off = sprintf(ptr,"%f,",myContext->aray[i].value.f); break;
+      case 'c':
+      case 'i': off = sprintf(ptr,"%d,",myContext->aray[i].value.i); break;
+    }
+
+    ptr += off;
+    left -= off;            
+  }
+  p->sz = ptr - p->buffer; // amount of buffer used
+
+  return 1;
+}
+
+
+//=====================================================================================
+// Set object's parameters from supplied string
+template <class Tctxt>
+int editSetParams(AudioObjInstance* aoi, getSetParams* p)
+{
+  Tctxt* myContext = (Tctxt*) aoi->context;
+  char* ptr = p->buffer;
+  int off = 0;
+  for (size_t i=0; i < Tctxt::paramCount && off >= 0; i++)
+  {
+    ValUnion value;
+    
+    switch (myContext->params[i].ValType)
+    {
+      case 'f':
+      case 'l':
+        sscanf(ptr,"%f,%n",&value.f,&off);
+        if (value.f < myContext->params[i].min.f || value.f > myContext->params[i].max.f)
+          value.f = (myContext->params[i].min.f + myContext->params[i].max.f) / 2.0f;
+        Serial.printf("%s = %.3f ... ",myContext->params[i].label,value.f);
+        myContext->aray[i].value.f = value.f;
+        break;
+        
+      case 'i':
+      case 'c':
+        sscanf(ptr,"%d,%n",&value.i,&off);
+        if (value.i < myContext->params[i].min.i || value.i > myContext->params[i].max.i)
+          value.i = (myContext->params[i].min.i + myContext->params[i].max.i) / 2;
+        Serial.printf("%s = %d ... ",myContext->params[i].label,value.i);
+        myContext->aray[i].value.i = value.i;
+        break;
+    }
+    myContext->setParam(i,aoi);
+
+    ptr += off;
+  }
+  Serial.println();
+  p->sz = ptr - p->buffer;
+  return 1;
+}
+
 
 //=====================================================================================
 template <class Tctxt>
@@ -77,7 +146,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
       delete myContext;
       break;
 
-    case AudioEditMode::enter:
+    case AudioEditMode::enter: // start editing an object's settings
       result = 1; // claimed
       enterEditMode(myContext,aoi);
       pe = new ParamEditor(display,BOX_DEF(Tctxt::boxWidth,Tctxt::paramCount));
@@ -92,7 +161,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
       next = 0;
       break;      
 
-    case AudioEditMode::edit:
+    case AudioEditMode::edit: // editing an object's settings
       if (millis() >= next)
       {
         next = millis() + 10;
@@ -101,7 +170,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
       result = testExit(exitAt);
       break;      
 
-    case AudioEditMode::exit:
+    case AudioEditMode::exit: // finish editing an object's settings
       exitEditMode(myContext,aoi);
       for (size_t i=0; i < Tctxt::paramCount; i++)
         ctrl.clearHook(i);
@@ -109,33 +178,18 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
       pe = nullptr;
       break;  
           
-    case AudioEditMode::getParams:
+    case AudioEditMode::getParams: // create a string with the object's settings
       {
-        getSetParams* p = (getSetParams*) params;
-        size_t left = p->sz;
-        char* ptr = p->buffer;
-        int off = 0;
-        for (size_t i=0; i < Tctxt::paramCount && off >= 0 && left >= 10; i++)
-        {
-          switch (myContext->params[i].ValType)
-          {
-            case 'l':
-            case 'f': off = sprintf(ptr,"%f,",myContext->aray[i].value.f); break;
-            case 'c':
-            case 'i': off = sprintf(ptr,"%d,",myContext->aray[i].value.i); break;
-          }
-
-          ptr += off;
-          left -= off;            
-        }
-        p->sz = ptr - p->buffer;
+        editGetParams<Tctxt>(aoi,(getSetParams*) params);
         result = 1;
       }
       break;
 
     // patch L: ~2: 4,8.774944,0.226114,0.294576,0.000000,      
-    case AudioEditMode::setParams:
+    case AudioEditMode::setParams: // load the object's settings from a string
       {
+        editSetParams<Tctxt>(aoi,(getSetParams*) params);
+        /*
         getSetParams* p = (getSetParams*) params;
         char* ptr = p->buffer;
         int off = 0;
@@ -169,6 +223,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
         }
         Serial.println();
         p->sz = ptr - p->buffer;
+        */
         result = 1;
       }
       break;

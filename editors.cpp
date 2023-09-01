@@ -741,7 +741,7 @@ void DeleteEditor::ShowSelection(int op)
 //======================================================================
 void FileEditor::save(void)
 {
-  char buffer[100];
+  char buffer[200];
   File saveTo;
   int count;
 
@@ -789,7 +789,7 @@ void FileEditor::save(void)
     for (size_t i = 0;i<objVec.size() - 1;i++)
     {
       AudioObjInstance* aoi = objVec.at(i).p;
-      gsp.sz = 90;
+      gsp.sz = 190;
       if (aoi->objP->editFn(aoi,AudioEditMode::getParams, &gsp)) // see if object has settings, if so..
         saveTo.printf("~%d: %s\n", i, gsp.buffer); // ... save those, too
     }
@@ -831,7 +831,12 @@ void FileEditor::dump(void)
     {
       got = loadFrom.readBytesUntil('\n',buffer,49);
       if (got > 0)
-        Serial.println(buffer);
+      {
+        if (got == 49) 
+          Serial.print(buffer);
+        else
+          Serial.println(buffer);
+      }
     } while (got > 0);
 
     loadFrom.close();
@@ -841,7 +846,7 @@ void FileEditor::dump(void)
 
 void FileEditor::load(void)
 {
-  char buffer[100];
+  char buffer[200];
   File loadFrom;
 
   sprintf(buffer,"%c.txt",fileChar);
@@ -867,7 +872,7 @@ void FileEditor::load(void)
     do // load objects
     {
       int n,id,x,y,nd;
-      got = loadFrom.readBytesUntil('\n',buffer,49);
+      got = loadFrom.readBytesUntil('\n',buffer,199);
       if (0 == got)
         break;
       buffer[got] = 0;
@@ -904,7 +909,7 @@ void FileEditor::load(void)
       else
         break;
         
-      got = loadFrom.readBytesUntil('\n',buffer,49);
+      got = loadFrom.readBytesUntil('\n',buffer,199);
       if (0 == got)
         break;
       Serial.println(buffer);
@@ -922,7 +927,7 @@ void FileEditor::load(void)
         getSetParams gsp{buffer+off,strlen(buffer+off)};
         aoi->objP->editFn(aoi,AudioEditMode::setParams, &gsp);
       }
-      got = loadFrom.readBytesUntil('\n',buffer,49);
+      got = loadFrom.readBytesUntil('\n',buffer,199);
       if (0 == got)
         break;
       Serial.println(buffer);      

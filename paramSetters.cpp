@@ -658,25 +658,40 @@ int editWaveform(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 //===========================================================================================
 ParamChoice responsesBiquad[] = 
   {{"  (off) "   , 0},
+     
    {"low pass"   , 1},
    {"high pass"  , 2},
    {"band pass"  , 3},
    {"notch"      , 4},
    {"low shelf"  , 5},
    {"high shelf" , 6},
+   
+#if defined(AUDIO_BIQUAD_HAS_PASSTHRU)      
+   {"silent"     ,98},
+   {"passthru"   ,99},
+#endif // defined(AUDIO_BIQUAD_HAS_PASSTHRU)      
   };
   
-
 class ContextBiquad 
 {
   public:
-    ContextBiquad(){}
+    ContextBiquad()
+    {
+      for (size_t i = 0;i<4;i++)
+      {
+        for (size_t j=1;j<COUNT_OF(params);j++)
+          stageSettings[i][j] = aray[j].value;
+        stageSettings[i][0].i = i; // set stage numbers correctly
+      }
+    }
     static const ParamEntry params[6];
-    union { struct {ParamValue stage,response,frequency,     Q,        gain,   slope;} s
-                 {             {0},  {1},     {9.64385618f}, {0.707f}, {0.8f}, {1.0f}    };
-            ParamValue aray[COUNT_OF(params)];
+    
+    union {struct {ParamValue  stage,response,frequency,     Q,        gain,   slope;} s 
+                        {           {0},  {1},     {9.64385618f}, {0.707f}, {0.8f}, {1.0f} };   
+              ParamValue aray[COUNT_OF(params)];
           };
-
+    ValUnion stageSettings[4][COUNT_OF(params)];
+    int prevStage{0};
     void setParam(int i, AudioObjInstance* aoi);
     static const int boxWidth{260};
     static const int paramCount{COUNT_OF(params)};   
@@ -686,20 +701,20 @@ const ParamEntry ContextBiquad::params[] = {
   {"    stage", 0,3},
   {" response", PARAM_ENTRY_CHOICES(responsesBiquad)},
   {"frequency", 8.0f, 13.2877123795495f, 'l'},
-  {"        Q", 0.0f,1.0f},
+  {"        Q", 0.0f,5.0f},
   {"     gain", 0.0f,2.0f},
   {"    slope", 0.0f,2.0f}  
 };
 
-//static void (AudioFilterBiquad::* pFQ)(uint32_t,float,float)[]
-static typeof(&AudioFilterBiquad::setLowpass) pFQ[] = 
+static void (AudioFilterBiquad::* pFQ[])(uint32_t,float,float)
   {&AudioFilterBiquad::setLowpass,
    &AudioFilterBiquad::setHighpass,
    &AudioFilterBiquad::setBandpass,
    &AudioFilterBiquad::setNotch
   };
 
-static typeof(&AudioFilterBiquad::setLowShelf) pFGS[] = 
+//static typeof(&AudioFilterBiquad::setLowShelf) pFGS[] = 
+static void (AudioFilterBiquad::* pFGS[])(uint32_t,float,float,float)
   {&AudioFilterBiquad::setLowShelf,
    &AudioFilterBiquad::setHighShelf
   };
@@ -707,6 +722,22 @@ static typeof(&AudioFilterBiquad::setLowShelf) pFGS[] =
 void ContextBiquad::setParam(int i, AudioObjInstance* aoi)
 {
   int stge = s.stage.value.i;
+
+  if (prevStage != stge // selected a different filter stage...
+   && nullptr != pe)    // ...and we're editing
+  {
+    for (size_t i=0; i < paramCount; i++) // display the values
+    {
+      if (0 != i) // not the stage number!
+        stageSettings[prevStage][i] = aray[i].value; // store edited values
+      aray[i].value = stageSettings[stge][i];      // copy new values
+      pe->display.ShowValue(params[i],aray[i],i);  // display them
+      if (0 != i)
+        HookControl(ctrl,i,params[i],aray[i]);
+    }
+    prevStage = stge;
+  }
+  
   int resp = responsesBiquad[s.response.value.i].value;
   void (AudioFilterBiquad::* FQfn)(uint32_t,float,float);
   void (AudioFilterBiquad::* FGSfn)(uint32_t,float,float,float);
@@ -716,6 +747,10 @@ void ContextBiquad::setParam(int i, AudioObjInstance* aoi)
     default:
     case 0:
       break;
+#if defined(AUDIO_BIQUAD_HAS_PASSTHRU)      
+    case 98: aoi->streamP.Biquad->setSilent(stge); break;  
+    case 99: aoi->streamP.Biquad->setPassThru(stge); break;  
+#endif // defined(AUDIO_BIQUAD_HAS_PASSTHRU)      
 
     case 1:
     case 2:
@@ -740,13 +775,65 @@ void ContextBiquad::setParam(int i, AudioObjInstance* aoi)
         case 4:
         case 5: (aoi->streamP.Biquad->*FGSfn)(stge,pow(2,s.frequency.value.f),s.gain.value.f,s.slope.value.f); break;
       }
-      break;
-    
-  }
-  
+      break;   
+  } 
 }
 
 int editBiquad(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
-  return editObjType<AudioFilterBiquad, ContextBiquad>(aoi,mode,params);    
+  int result = 0;
+  switch (mode)
+  {
+    default: 
+      result = editObjType<AudioFilterBiquad, ContextBiquad>(aoi,mode,params);
+      break;
+
+    case AudioEditMode::getParams:
+      {
+        ContextBiquad* myContext = (ContextBiquad*) aoi->context;
+        getSetParams* orig = (getSetParams*) params;
+        getSetParams working = *orig;
+          
+        for (int j=0;j<4;j++)
+        {
+          for (int i=0;i<myContext->paramCount;i++)
+            myContext->aray[i].value = myContext->stageSettings[j][i];
+          editGetParams<ContextBiquad>(aoi,&working);
+          working.buffer   += working.sz;
+          *working.buffer++ = ' ';
+          *working.buffer   = 0;
+          working.sz = orig->sz - working.sz - 1;
+        }
+        for (int i=0;i<myContext->paramCount;i++)
+          myContext->aray[i].value = myContext->stageSettings[myContext->prevStage][i];
+      }
+      result = 1;
+      break;
+
+    case AudioEditMode::setParams:
+      {
+        ContextBiquad* myContext = (ContextBiquad*) aoi->context;
+        getSetParams* orig = (getSetParams*) params;
+        getSetParams working = *orig;
+          
+        for (int j=0;j<4;j++)
+        {
+          editSetParams<ContextBiquad>(aoi,&working); // get set of values from passed string
+          int jj = myContext->s.stage.value.i;        // defensive - stages could be out of order!
+          for (int i=0;i<myContext->paramCount;i++)   // copy this set of values to stage settings
+            myContext->stageSettings[jj][i] =  myContext->aray[i].value;
+          working.buffer   += working.sz;         // point to next set of values
+          working.sz = orig->sz - working.sz - 1; // and how many characters now remain
+        }
+        for (int i=0;i<myContext->paramCount;i++)
+          myContext->aray[i].value = myContext->stageSettings[myContext->prevStage][i];
+      }
+      result = 1;
+      break;
+
+      
+      
+  }
+  
+  return result;
 }
