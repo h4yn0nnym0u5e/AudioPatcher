@@ -70,6 +70,8 @@ void AudioPatcherDisplay::ShowLabel(const ParamEntry& p, ParamValue& v, int16_t 
 void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t n)
 {
   tft.setCursor(v.labelEndX,v.labelEndY);
+  tft.setTextSize(2);
+  tft.setTextColor(ILI9341_LIGHTGREY,ILI9341_DARKGREY);
   switch (p.ValType)
   {
     default: tft.print("???"); break;
@@ -317,6 +319,29 @@ void AudioPatcherDisplay::ShowSelection(const char* txt, AudioCategory_e cat)
   ShowBottomText(txt,AudioObjectColours[cat].border);
 }
 
+
+//=================================================================================================
+void AudioPatcherDisplay::ShowStatus(const char* txt, int16_t x, int16_t up, uint16_t colour)
+{
+  static int16_t eraseTo = -1;
+  bool fixCursor;
+  
+  tft.setFontAdafruit();
+  tft.setTextSize(1);
+  int16_t tw = tft.measureTextWidth(txt),
+          th = tft.fontLineSpace(); // assume it's going to fit on one line!
+  fixCursor = cursor_y > 240-th;
+  tft.setTextColor(colour,ILI9341_BLACK);
+  tft.setCursor(x,240 - th*(up+1));
+  if (fixCursor)
+    CursorClear();
+  tft.print(txt);
+  if (tw < eraseTo)
+    tft.fillRect(x+tw,240 - th*(up+1),eraseTo - tw, th,ILI9341_BLACK);
+  eraseTo = tw;
+  if (fixCursor)
+    CursorRestore();
+}
 
 
 //=================================================================================================

@@ -189,41 +189,6 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
     case AudioEditMode::setParams: // load the object's settings from a string
       {
         editSetParams<Tctxt>(aoi,(getSetParams*) params);
-        /*
-        getSetParams* p = (getSetParams*) params;
-        char* ptr = p->buffer;
-        int off = 0;
-        for (size_t i=0; i < Tctxt::paramCount && off >= 0; i++)
-        {
-          ValUnion value;
-          
-          switch (myContext->params[i].ValType)
-          {
-            case 'f':
-            case 'l':
-              sscanf(ptr,"%f,%n",&value.f,&off);
-              if (value.f < myContext->params[i].min.f || value.f > myContext->params[i].max.f)
-                value.f = (myContext->params[i].min.f + myContext->params[i].max.f) / 2.0f;
-              Serial.printf("%s = %.3f ... ",myContext->params[i].label,value.f);
-              myContext->aray[i].value.f = value.f;
-              break;
-              
-            case 'i':
-            case 'c':
-              sscanf(ptr,"%d,%n",&value.i,&off);
-              if (value.i < myContext->params[i].min.i || value.i > myContext->params[i].max.i)
-                value.i = (myContext->params[i].min.i + myContext->params[i].max.i) / 2.0f;
-              Serial.printf("%s = %d ... ",myContext->params[i].label,value.i);
-              myContext->aray[i].value.i = value.i;
-              break;
-          }
-          myContext->setParam(i,aoi);
-
-          ptr += off;
-        }
-        Serial.println();
-        p->sz = ptr - p->buffer;
-        */
         result = 1;
       }
       break;

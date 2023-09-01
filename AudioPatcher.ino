@@ -194,6 +194,47 @@ void unlockModeEncoder(void)
 }
 
 //======================================================================
+#if defined(ARDUINO_TEENSY41) || defined(ARDUINO_TEENSY40)
+extern uint8_t _heap_start,_heap_end;
+#define HEAP_START &_heap_start
+#define HEAP_END   &_heap_end
+#else
+extern uint8_t __bss_end;
+#define HEAP_START &__bss_end
+#define HEAP_END   (&_estack - 4096) // guess - allow 4k stack
+#endif
+
+void getHeap(int& usedHeap, int& freeHeap)
+{
+  char* a = (char*) malloc(10000);
+  int u = ((uint32_t) a) - ((uint32_t) HEAP_START); // heap used
+  int f = ((uint32_t) HEAP_END) - ((uint32_t) a);   // heap free
+  //Serial.printf("Heap used %lu bytes; free %lu bytes\n",u,f);  
+  free(a);
+  usedHeap = u; freeHeap = f;
+}
+
+void updateStatus(void)
+{
+  static elapsedMillis next;
+  if (next > 999)
+  {
+    next = 0;
+
+    float cpu = AudioProcessorUsageMax();
+    char buffer[15];
+    AudioProcessorUsageMaxReset();
+    sprintf(buffer,cpu>9.99f?"CPU:%.1f%%":"CPU:%.2f%%",cpu);
+    display.ShowStatus(buffer,320-9*6,0,0xD01C);
+
+    int usedHeap, freeHeap;
+    getHeap(usedHeap, freeHeap);
+    sprintf(buffer,"Free:%3dk",freeHeap / 1024);
+    display.ShowStatus(buffer,320-9*6,1,0xD01C);    
+  }
+}
+
+//======================================================================
 void loop() 
 {
   if (!initialised)
@@ -246,6 +287,8 @@ void loop()
 
   if (!initialised)
     initialised = true;
+
+  updateStatus();    
 }
 
 /********************************************************************************************************/

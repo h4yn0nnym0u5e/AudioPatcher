@@ -55,6 +55,7 @@ class AudioPatcherDisplay
     void ShowTitle(const char* t, int16_t xoff, int16_t yoff);
     void ShowLabel(const ParamEntry& p, ParamValue& v, int16_t n, int16_t xoff, int16_t yoff);
     void ShowValue(const ParamEntry& p, ParamValue& v, int16_t n);
+    void ShowStatus(const char* txt,int16_t x,int16_t y, uint16_t colour);
 };
 
 extern AudioPatcherDisplay display;

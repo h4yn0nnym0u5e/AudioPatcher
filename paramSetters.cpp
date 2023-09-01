@@ -113,6 +113,7 @@ class ContextChorus
 {
   public:
     ContextChorus() : mem{0}, tmp{0} {}
+    ~ContextChorus() { if (nullptr != mem.ptr) free(mem.ptr); }
     static const ParamEntry params[2];
     union {struct {ParamValue length,  voices;} s
                 {             {50.0f}, {2}      }; 
@@ -184,6 +185,7 @@ void ContextChorus::exitEditMode(AudioObjInstance* aoi)
   if (milliseconds2bytes(s.length.value.f) <= tmp.sz) // old allocation is OK for new setting
   {
     aoi->streamP.Chorus->begin(tmp.ptr,milliseconds2bytes(s.length.value.f)/2,s.voices.value.i);
+    free(mem.ptr);
     mem = tmp; // back to using old memory allocation
   }
   else // we're gonna need a bigger buffer!
