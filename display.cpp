@@ -2,7 +2,7 @@
 
 // Use hardware SPI (on Uno, #13, #12, #11) and the above for CS/DC
 ILI9341_t3 tft = ILI9341_t3(TFT_CS, TFT_DC);
-AudioPatcherDisplay display;
+AudioPatcherDisplay& display = AudioPatcherDisplay::getInstance();
 uint16_t behindCursor[100];
 
 void AudioPatcherDisplay::Init(void)

@@ -21,7 +21,7 @@ class BaseEditor
   public:
     BaseEditor(AudioPatcherDisplay& d,
             std::vector<AudioObjInstancePtr>& o)
-            : display(d), objVec(o), epIdx(0), state(0)
+            : display(d.getInstance()), objVec(o), epIdx(0), state(0)
             {}
     AudioObjInstance* highlightObjnum(int n, uint16_t colour);
     AudioObjInstance* highlightObj(AudioObjInstance* it, uint16_t colour); 

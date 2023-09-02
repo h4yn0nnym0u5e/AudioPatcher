@@ -19,6 +19,21 @@
 //A 320x240x16-bit display takes 153,600 bytes to store
 class AudioPatcherDisplay
 {
+    // make this a singleton: private / inaccessible constructor / destructors...
+    AudioPatcherDisplay()  = default;
+    ~AudioPatcherDisplay() = default;
+  public:
+    // ...delete the copy semantics...
+    AudioPatcherDisplay(const AudioPatcherDisplay&) = delete;
+    AudioPatcherDisplay& operator= (const AudioPatcherDisplay&) = delete;
+    // ...and provide an instance generator
+    static AudioPatcherDisplay& getInstance()
+    {
+      static AudioPatcherDisplay theOnlyOneEver;
+      return theOnlyOneEver;
+    }
+    
+    
     uint16_t* cbuf = nullptr; 
     int16_t cursor_x; 
     int16_t cursor_y;
@@ -58,6 +73,6 @@ class AudioPatcherDisplay
     void ShowStatus(const char* txt,int16_t x,int16_t y, uint16_t colour);
 };
 
-extern AudioPatcherDisplay display;
+extern AudioPatcherDisplay& display;
 
 #endif // !defined(_DISPLAY_H_)

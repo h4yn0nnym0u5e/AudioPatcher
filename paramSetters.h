@@ -10,7 +10,7 @@ class ParamEditor
   public:
     ParamEditor(AudioPatcherDisplay& d, 
     int16_t x, int16_t y, int16_t w, int16_t h) 
-    : display(d),
+    : display(d.getInstance()),
       workArea{.x=x, .y=y, .w=w, .h=h}
     {
       display.SaveArea(x,y,w,h);
