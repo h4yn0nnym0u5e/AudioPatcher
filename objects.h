@@ -37,7 +37,7 @@ extern int systemState;
   AUDIO_ENTRY(AudioFilterFIR,FIR,AUDIO_FILTER_FIR,1,1,filter,fir,) \
   AUDIO_ENTRY(AudioFilterLadder,Ladder,AUDIO_FILTER_LADDER,3,1,filter,ladr,) \
   AUDIO_ENTRY(AudioFilterStateVariable,StateVariable,AUDIO_FILTER_STATE_VARIABLE,2,3,filter,svf,) \
-  AUDIO_ENTRY(AudioAmplifier,Amplifier,AUDIO_AMPLIFIER,1,1,mixer,amp,) \
+  AUDIO_ENTRY(AudioMixerStereo,MixerStereo,AUDIO_MIXER_STEREO,8,2,mixer,mixS,(8)) \
   AUDIO_ENTRY(AudioMixer4,Mixer4,AUDIO_MIXER4,4,1,mixer,mix4,) \
   AUDIO_ENTRY(AudioSynthKarplusStrong,KarplusStrong,AUDIO_SYNTH_KARPLUS_STRONG,0,1,synth,kpst,) \
   AUDIO_ENTRY(AudioSynthNoisePink,NoisePink,AUDIO_SYNTH_NOISE_PINK,0,1,synth,npnk,) \
@@ -99,6 +99,8 @@ extern int systemState;
 
 
 enum AudioCategory_e { AudioCategory_none, AudioCategory_patchcord, AudioCategory_analyze, AudioCategory_effect, AudioCategory_filter, AudioCategory_mixer, AudioCategory_synth, AudioCategory_control, AudioCategory_input, AudioCategory_output };
+
+
 // Cherry-pick from the above list for the I/O we are going to use:
 #define MY_AUDIO_IO \
   AUDIO_ENTRY(AudioControlSGTL5000,ControlSGTL5000,AUDIO_CONTROL_SGTL5000,0,0,control,ctrl,) \

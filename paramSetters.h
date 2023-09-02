@@ -147,18 +147,28 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
       break;
 
     case AudioEditMode::enter: // start editing an object's settings
-      result = 1; // claimed
-      enterEditMode(myContext,aoi);
-      pe = new ParamEditor(display,BOX_DEF(Tctxt::boxWidth,Tctxt::paramCount));
-      pe->display.ShowTitle(aoi->objP->name,5,5);
-      for (size_t i=0; i < Tctxt::paramCount; i++)
       {
-        pe->display.ShowLabel(myContext->params[i],myContext->aray[i],i,5,27);
-        pe->display.ShowValue(myContext->params[i],myContext->aray[i],i);
-        if (!ctrl.isHooking(i)) // specialized enterEditMode() may have hooked already - don't re-do
-          HookControl(ctrl,i,myContext->params[i],myContext->aray[i]);
+        int row = 0, cols = 1;
+        
+        result = 1; // claimed
+        enterEditMode(myContext,aoi);
+        if (Tctxt::paramCount > 1 && 0 != myContext->params[1].xoff) // multi-column - assume just 2!
+          cols = 2;
+          
+        pe = new ParamEditor(display,BOX_DEF(Tctxt::boxWidth,Tctxt::paramCount / cols));
+        pe->display.ShowTitle(aoi->objP->name,5,5);
+        for (size_t i=0; i < Tctxt::paramCount; i++)
+        {
+          if (0 != myContext->params[i].xoff) /// if we have an X offset
+            row--; // we're on the same row as before
+          pe->display.ShowLabel(myContext->params[i],myContext->aray[i],row,5,27);
+          pe->display.ShowValue(myContext->params[i],myContext->aray[i],row);
+          if (!ctrl.isHooking(i)) // specialized enterEditMode() may have hooked already - don't re-do
+            HookControl(ctrl,i,myContext->params[i],myContext->aray[i]);
+          row++;            
+        }
+        next = 0;
       }
-      next = 0;
       break;      
 
     case AudioEditMode::edit: // editing an object's settings

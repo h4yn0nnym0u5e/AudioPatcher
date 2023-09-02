@@ -238,6 +238,50 @@ int editMixer4(AudioObjInstance* aoi, AudioEditMode mode, void* params)
   return editObjType<AudioMixer4, ContextMixer4>(aoi,mode,params);    
 }
 
+
+//===========================================================================================
+#define EDIT_MIXER_STEREO_PAN_OFF ((int) (8*12+20))
+class ContextMixerStereo  
+{
+  public:
+    ContextMixerStereo(){}
+    static const ParamEntry params[8];
+    ParamValue aray[8]{
+        {0.55f},{0.0f},
+        {0.55f},{0.0f},
+        {0.55f},{0.0f},
+        {0.55f},{0.0f},
+    };
+    static const int boxWidth{EDIT_MIXER_STEREO_PAN_OFF + 120 + 12};
+    
+    void setParam(int i, AudioObjInstance* aoi);
+    static const int paramCount{COUNT_OF(params)};
+};
+
+void ContextMixerStereo::setParam(int i, AudioObjInstance* aoi)
+{
+  int ch = i / 2;
+  if (0 == (i & 1))
+    aoi->streamP.MixerStereo->gain(ch,aray[i].value.f); 
+  else
+    aoi->streamP.MixerStereo->pan(ch,aray[i].value.f); 
+  
+}
+
+const ParamEntry ContextMixerStereo::params[8] = 
+{
+  {"ch1", 0.0f, 1.0f}, {"pan1", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
+  {"ch2", 0.0f, 1.0f}, {"pan2", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
+  {"ch3", 0.0f, 1.0f}, {"pan3", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
+  {"ch4", 0.0f, 1.0f}, {"pan4", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
+};
+
+int editMixerStereo(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  return editObjType<AudioMixerStereo, ContextMixerStereo>(aoi,mode,params);    
+}
+
+
 //===========================================================================================
 FLASHMEM const ParamChoice waveShapes[] = 
   {{"sine",0},

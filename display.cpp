@@ -41,10 +41,10 @@ void AudioPatcherDisplay::RestoreArea(void)
 
 void AudioPatcherDisplay::InitArea(int16_t x, int16_t y, int16_t w, int16_t h)
 {
-  tft.fillRoundRect(x,y,w,h,6,ILI9341_DARKGREY); 
+  tft.fillRoundRect(x,y,w,h,6,EDIT_BKGND); 
   tft.fillRoundRect(x,y,w,26,6,ILI9341_BLACK); 
   tft.drawRoundRect(x,y,w,h,6,ILI9341_WHITE); 
-  tft.setTextColor(ILI9341_LIGHTGREY,ILI9341_DARKGREY);
+  tft.setTextColor(ILI9341_LIGHTGREY,EDIT_BKGND);
   tft.setTextSize(2);
 }
 
@@ -53,13 +53,13 @@ void AudioPatcherDisplay::ShowTitle(const char* t, int16_t xoff, int16_t yoff)
   tft.setTextColor(0xA514);
   tft.setCursor(savedArea.x + xoff,savedArea.y + yoff); // assume we're operating in the area we saved
   tft.print(t);
-  tft.setTextColor(ILI9341_LIGHTGREY,ILI9341_DARKGREY);
+  tft.setTextColor(ILI9341_LIGHTGREY,EDIT_BKGND);
 }
 
 void AudioPatcherDisplay::ShowLabel(const ParamEntry& p, ParamValue& v, int16_t n, int16_t xoff, int16_t yoff)
 {
-  
-  tft.setCursor(savedArea.x + xoff,savedArea.y + n*16 + yoff); // assume we're operating in the area we saved
+  int xxoff = xoff + p.xoff;
+  tft.setCursor(savedArea.x + xxoff,savedArea.y + n*16 + yoff); // assume we're operating in the area we saved
   tft.print(p.label);
   tft.print(":");
   
@@ -71,7 +71,7 @@ void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t 
 {
   tft.setCursor(v.labelEndX,v.labelEndY);
   tft.setTextSize(2);
-  tft.setTextColor(ILI9341_LIGHTGREY,ILI9341_DARKGREY);
+  tft.setTextColor(ILI9341_LIGHTGREY,EDIT_BKGND);
   switch (p.ValType)
   {
     default: tft.print("???"); break;
@@ -85,7 +85,7 @@ void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t 
   tft.getCursor(&x,&y);
   if (v.valueEndX > x)
   {
-    tft.fillRect(x,v.labelEndY,v.valueEndX - x, 16, ILI9341_DARKGREY);
+    tft.fillRect(x,v.labelEndY,v.valueEndX - x, 16, EDIT_BKGND);
   }
   v.valueEndX = x;  
 }

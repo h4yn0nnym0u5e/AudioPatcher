@@ -13,15 +13,15 @@ union ValUnion {int i; float f;};
 class ParamEntry 
 {
   public:
-    ParamEntry(const char* n,   int l,   int u) : ValType('i'), label(n), min{.i = l}, max{.i = u}  {}
-    ParamEntry(const char* n,   int l,   int u, char c) : ValType(c), label(n), min{.i = l}, max{.i = u}  {}
-    ParamEntry(const char* n, float l, float u) : ValType('f'), label(n), min{.f = l}, max{.f = u}  {}
-    ParamEntry(const char* n, float l, float u, char c) : ValType(c), label(n), min{.f = l}, max{.f = u}  {}
-    ParamEntry(const char* n, const ParamChoice *pc,  int u) : ValType('c'), label(n), min{.i = 0}, max{.i = u}, choices(pc)  {}
+    ParamEntry(const char* n,   int l,   int u, char c = 'i') : ValType(c), label(n), min{.i = l}, max{.i = u}, xoff(0)  {}
+    ParamEntry(const char* n, float l, float u, char c = 'f') : ValType(c), label(n), min{.f = l}, max{.f = u}, xoff(0)  {}
+    ParamEntry(const char* n, float l, float u, int xo) : ValType('f'), label(n), min{.f = l}, max{.f = u}, xoff(xo)  {}
+    ParamEntry(const char* n, const ParamChoice *pc,  int u) : ValType('c'), label(n), min{.i = 0}, max{.i = u}, choices(pc), xoff(0)  {}
     const char ValType;
     const char* label;    
     const ValUnion min,max;
     const ParamChoice* choices = nullptr;
+    const int16_t xoff;
 };
 #define PARAM_ENTRY_CHOICES(choices) choices,COUNT_OF(choices)-1
 

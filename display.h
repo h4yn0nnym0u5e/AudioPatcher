@@ -11,10 +11,18 @@
 #define TFT_DC  9
 #define TFT_CS 15
 #define TFT_ROTATION 3
-
+/* // Values for 2.4" display
 #define CONNECTION_COLOUR    0x9492 // ILI9341_DARKGREY
 #define PATCHCORD_COLOUR     0xFC02 // orange
 #define PATCHCORD_HIGHLIGHT  0xFE04 // orange
+#define EDIT_BKGND ILI9341_DARKGREY
+*/
+
+// Values for 3.2" display
+#define CONNECTION_COLOUR    0x9492 // ILI9341_DARKGREY
+#define PATCHCORD_COLOUR     0xFA02 // orange
+#define PATCHCORD_HIGHLIGHT  0xFC04 // orange
+#define EDIT_BKGND           0x528A // darker grey
 
 //A 320x240x16-bit display takes 153,600 bytes to store
 class AudioPatcherDisplay

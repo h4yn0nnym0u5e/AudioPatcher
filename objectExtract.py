@@ -3,6 +3,7 @@ import json
 import re
 
 ffp = r'E:\Jonathan\Arduino\libraries\Audio\gui\index.html'
+ffp = r'D:\swd\git\!dynamic\libraries\Audio\gui\index.html'
 typeL = ["Synth", "Effect", "Filter", "Mixer", "Amp", "Analyze"]
 pStart = r'data-container-name="NodeDefinitions"'
 pEnd = r'</script>'
