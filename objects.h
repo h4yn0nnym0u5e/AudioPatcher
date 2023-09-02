@@ -9,6 +9,7 @@ extern int systemState;
  * Generated from \Arduino\libraries\Audio\gui\index.html by objectExtract.py
  */
 #define AUDIO_ENTRIES \
+  AUDIO_ENTRY(AudioAnalyzeEvent,Event,AUDIO_ANALYZE_EVENT,1,1,analyze,,) \
   AUDIO_ENTRY(AudioAnalyzeFFT1024,FFT1024,AUDIO_ANALYZE_FFT1024,1,0,analyze,ff1k,) \
   AUDIO_ENTRY(AudioAnalyzeFFT256,FFT256,AUDIO_ANALYZE_FFT256,1,0,analyze,f256,) \
   AUDIO_ENTRY(AudioAnalyzeNoteFrequency,NoteFrequency,AUDIO_ANALYZE_NOTE_FREQUENCY,1,0,analyze,nfrq,) \
@@ -22,6 +23,7 @@ extern int systemState;
   AUDIO_ENTRY(AudioEffectDelayExternal,DelayExternal,AUDIO_EFFECT_DELAY_EXTERNAL,1,8,effect,delX,) \
   AUDIO_ENTRY(AudioEffectDigitalCombine,DigitalCombine,AUDIO_EFFECT_DIGITAL_COMBINE,2,1,effect,cmbn,) \
   AUDIO_ENTRY(AudioEffectEnvelope,Envelope,AUDIO_EFFECT_ENVELOPE,1,1,effect,envL,) \
+  AUDIO_ENTRY(AudioEffectExpEnvelope,ExpEnvelope,AUDIO_EFFECT_EXP_ENVELOPE,1,1,effect,envE,) \
   AUDIO_ENTRY(AudioEffectFade,Fade,AUDIO_EFFECT_FADE,1,1,effect,fade,) \
   AUDIO_ENTRY(AudioEffectFlange,Flange,AUDIO_EFFECT_FLANGE,1,1,effect,flng,) \
   AUDIO_ENTRY(AudioEffectFreeverb,Freeverb,AUDIO_EFFECT_FREEVERB,1,1,effect,frvb,) \
@@ -37,8 +39,10 @@ extern int systemState;
   AUDIO_ENTRY(AudioFilterFIR,FIR,AUDIO_FILTER_FIR,1,1,filter,fir,) \
   AUDIO_ENTRY(AudioFilterLadder,Ladder,AUDIO_FILTER_LADDER,3,1,filter,ladr,) \
   AUDIO_ENTRY(AudioFilterStateVariable,StateVariable,AUDIO_FILTER_STATE_VARIABLE,2,3,filter,svf,) \
-  AUDIO_ENTRY(AudioMixerStereo,MixerStereo,AUDIO_MIXER_STEREO,8,2,mixer,mixS,(8)) \
+  AUDIO_ENTRY(AudioAmplifier,Amplifier,AUDIO_AMPLIFIER,1,1,mixer,amp,) \
+  AUDIO_ENTRY(AudioMixer,Mixer,AUDIO_MIXER,8,1,mixer,mixN,(8)) \
   AUDIO_ENTRY(AudioMixer4,Mixer4,AUDIO_MIXER4,4,1,mixer,mix4,) \
+  AUDIO_ENTRY(AudioMixerStereo,MixerStereo,AUDIO_MIXER_STEREO,8,2,mixer,mixS,(8)) \
   AUDIO_ENTRY(AudioSynthKarplusStrong,KarplusStrong,AUDIO_SYNTH_KARPLUS_STRONG,0,1,synth,kpst,) \
   AUDIO_ENTRY(AudioSynthNoisePink,NoisePink,AUDIO_SYNTH_NOISE_PINK,0,1,synth,npnk,) \
   AUDIO_ENTRY(AudioSynthNoiseWhite,NoiseWhite,AUDIO_SYNTH_NOISE_WHITE,0,1,synth,nwht,) \
@@ -100,7 +104,6 @@ extern int systemState;
 
 enum AudioCategory_e { AudioCategory_none, AudioCategory_patchcord, AudioCategory_analyze, AudioCategory_effect, AudioCategory_filter, AudioCategory_mixer, AudioCategory_synth, AudioCategory_control, AudioCategory_input, AudioCategory_output };
 
-
 // Cherry-pick from the above list for the I/O we are going to use:
 #define MY_AUDIO_IO \
   AUDIO_ENTRY(AudioControlSGTL5000,ControlSGTL5000,AUDIO_CONTROL_SGTL5000,0,0,control,ctrl,) \
@@ -114,11 +117,14 @@ enum AudioCategory_e { AudioCategory_none, AudioCategory_patchcord, AudioCategor
 // Define enum with a unique ID for each object type,
 // plus guard values at the ends: IDs are thus 1..N
 #define AUDIO_ENTRY(a,b,c,...) c##_ID,
-enum AudioID {AUDIO_NONE_ID, AUDIO_ENTRIES AUDIO_MAX_ID, MY_AUDIO_IO};
+enum AudioID {AUDIO_NONE_ID, AUDIO_ENTRIES AUDIO_MAX_ID, MY_AUDIO_IO AUDIO_LOAD_MAX};
 #undef AUDIO_ENTRY
 
 // Count of possible object types, excluding the I/O objects
 #define COUNT_OF_objList ((int) (AUDIO_MAX_ID - 1))
+
+// Count of EVERY possible object type, including the I/O objects
+#define COUNT_OF_objTypes ((int) (AUDIO_LOAD_MAX - 1))
 
 // Union which can hold a pointer to any object type, referred
 // to by its shortened name
@@ -188,5 +194,6 @@ class PatchcordInstance_t
 };
 
 bool operator<(const AudioObjInstancePtr& lhs, const AudioObjInstancePtr& rhs);
+extern int objNameToID(const char* s);
 
 #endif // !defined(_OBJECTS_H_)

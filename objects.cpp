@@ -103,3 +103,15 @@ void PatchcordInstance_t::connect(void)
     dst->inputAvailFlags &= ~(1<<dst_port); // this input isn't available
   }
 }
+
+//===========================================================================================
+int objNameToID(const char* s)
+{
+  int result;
+  for (result = COUNT_OF_objTypes; result >= 0; result--)
+  {
+    if (nullptr != objList[result].name && 0 == strcmp(s,objList[result].name))
+      break;
+  }
+  return result;
+}

@@ -786,9 +786,9 @@ FLASHMEM void FileEditor::save(void)
     for (auto obj : objVec)  
     {   
       snprintf(buffer,50,
-              "#%d: %d @ %d,%d%s\n",
+              "#%d: %s @ %d,%d%s\n",
                     count++,
-                    obj.p->objP->id,
+                    obj.p->objP->name,
                     obj.p->x,obj.p->y,
                     obj.p->noDelete?" *":""
                     );
@@ -897,13 +897,19 @@ FLASHMEM void FileEditor::load(void)
     do // load objects
     {
       int n,id,x,y,nd;
+      char objname[30];
+      
       got = loadFrom.readBytesUntil('\n',buffer,199);
       if (0 == got)
         break;
       buffer[got] = 0;
       Serial.print(buffer);
-      if (4 == sscanf(buffer,"#%d: %d @ %d,%d",&n,&id,&x,&y))
+      if (4 == sscanf(buffer,"#%d: %s @ %d,%d",&n,objname,&x,&y))
       {
+        if (objname[0] < '0' || objname[0] > '9') // name is text
+          id = objNameToID(objname);
+        else
+          sscanf(objname,"%d",&id);
         nd = buffer[strlen(buffer)-1] == '*';
         Serial.printf(" ... %d %s (%d,%d) %s\n",n,objList[id].name,x,y,nd?"protected":"");
         
