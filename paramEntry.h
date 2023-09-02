@@ -4,7 +4,7 @@
 class ParamChoice
 {
   public:
-    const char* text;
+    const char* const text;
     const int value;
 };
 
@@ -17,7 +17,7 @@ class ParamEntry
     ParamEntry(const char* n,   int l,   int u, char c) : ValType(c), label(n), min{.i = l}, max{.i = u}  {}
     ParamEntry(const char* n, float l, float u) : ValType('f'), label(n), min{.f = l}, max{.f = u}  {}
     ParamEntry(const char* n, float l, float u, char c) : ValType(c), label(n), min{.f = l}, max{.f = u}  {}
-    ParamEntry(const char* n, ParamChoice *pc,  int u) : ValType('c'), label(n), min{.i = 0}, max{.i = u}, choices(pc)  {}
+    ParamEntry(const char* n, const ParamChoice *pc,  int u) : ValType('c'), label(n), min{.i = 0}, max{.i = u}, choices(pc)  {}
     const char ValType;
     const char* label;    
     const ValUnion min,max;

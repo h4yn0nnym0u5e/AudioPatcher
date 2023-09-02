@@ -148,6 +148,9 @@ class FileEditor : public BaseEditor
     void save(void);
     void load(void);
     void dump(void);
+    
+    int getLast(void);
+    void setLast(char fileChar);
      
   public:    
     FileEditor(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2, 
@@ -163,6 +166,8 @@ class FileEditor : public BaseEditor
     void edit(void);
     void enter(void);
     void exit(void); 
+    
+    int loadLast(void);
 };
 
 #endif // !defined(_EDITORS_H_)

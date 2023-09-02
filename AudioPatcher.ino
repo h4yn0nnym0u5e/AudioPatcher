@@ -240,6 +240,7 @@ void loop()
   if (!initialised)
   {
     enc2.setValue(enc2.getValue()); // ensures it's valid!
+    fileEditor.loadLast();
   }
     
   // Change mode of operation

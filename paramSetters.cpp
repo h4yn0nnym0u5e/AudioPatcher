@@ -239,7 +239,7 @@ int editMixer4(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
-ParamChoice waveShapes[] = 
+FLASHMEM const ParamChoice waveShapes[] = 
   {{"sine",0},
    {"saw" , 1},
    {"square" , 2},
@@ -426,17 +426,17 @@ int editNoisePink(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
-ParamChoice inputsSGTL5000[] = 
+FLASHMEM const ParamChoice inputsSGTL5000[] = 
   {{"line", AUDIO_INPUT_LINEIN},
    {"mic" , AUDIO_INPUT_MIC},
   };
   
-ParamChoice avcSGTL5000[] = 
+FLASHMEM const ParamChoice avcSGTL5000[] = 
   {{"off", 0},
    {"on" , 1},
   };
   
-ParamChoice inputLevelsSGTL5000[] = 
+FLASHMEM const ParamChoice inputLevelsSGTL5000[] = 
   {  // Vpk-pk
     {"0.24", 15},
     {"0.29", 14},
@@ -456,7 +456,7 @@ ParamChoice inputLevelsSGTL5000[] =
     {"3.12", 0},
   };
 
-ParamChoice outputLevelsSGTL5000[] = 
+FLASHMEM const ParamChoice outputLevelsSGTL5000[] = 
   {  // Vpk-pk
     {"1.16", 31},
     {"1.22", 30},

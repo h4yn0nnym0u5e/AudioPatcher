@@ -6,7 +6,7 @@ extern ObjEditor objEditor;
 static PatchcordInstance_t blankPatch;
 //======================================================================
 //======================================================================
-AudioObjInstance* BaseEditor::highlightObj(AudioObjInstance* it, uint16_t colour)
+FLASHMEM AudioObjInstance* BaseEditor::highlightObj(AudioObjInstance* it, uint16_t colour)
 {
   if (nullptr != it)
     display.HighlightAudioObject(it->x,it->y,colour);
@@ -14,7 +14,7 @@ AudioObjInstance* BaseEditor::highlightObj(AudioObjInstance* it, uint16_t colour
   return it;
 }
 
-AudioObjInstance* BaseEditor::highlightObjnum(int n, uint16_t colour)
+FLASHMEM AudioObjInstance* BaseEditor::highlightObjnum(int n, uint16_t colour)
 {
   AudioObjInstance* it = nullptr;
   
@@ -28,18 +28,18 @@ AudioObjInstance* BaseEditor::highlightObjnum(int n, uint16_t colour)
 }
 
 //======================================================================
-void ObjEditor::ShowSelection(int v)
+FLASHMEM void ObjEditor::ShowSelection(int v)
 {
     Serial.printf("%d : %s\n",v,objList[v].name);
     display.ShowSelection(objList[v].name,objList[v].category);
 }
 
-void ObjEditor::create(int id, int x, int y)
+FLASHMEM void ObjEditor::create(int id, int x, int y)
 {
   objVec.push_back({new AudioObjInstance(objList[id],x,y)});                           
 }
 
-void ObjEditor::edit(void)
+FLASHMEM void ObjEditor::edit(void)
 {
   // Scroll through available object types
   if (enc2.available() || !initialised)
@@ -84,7 +84,7 @@ void ObjEditor::edit(void)
 
 
 //----------------------------------------------------------------------
-void ObjEditor::enter(void)
+FLASHMEM void ObjEditor::enter(void)
 {
   enc0.setLimits(0,31);
   enc1.setLimits(0,23);
@@ -97,7 +97,7 @@ void ObjEditor::enter(void)
 
 //======================================================================
 //======================================================================
-void CordEditor::ShowSelection(int io)
+FLASHMEM void CordEditor::ShowSelection(int io)
 {
   char buf[5];
   
@@ -107,7 +107,7 @@ void CordEditor::ShowSelection(int io)
 }
 
 //----------------------------------------------------------------------
-void CordEditor::highlightPort(AudioObjInstance* aoi, int io, int n, bool on)
+FLASHMEM void CordEditor::highlightPort(AudioObjInstance* aoi, int io, int n, bool on)
 {
   uint16_t colour = on?PATCHCORD_COLOUR:CONNECTION_COLOUR;
   if (nullptr != aoi)
@@ -118,7 +118,7 @@ void CordEditor::highlightPort(AudioObjInstance* aoi, int io, int n, bool on)
 }
 
 //----------------------------------------------------------------------
-int CordEditor::findGoodObj(int epIdx, int ec1, int io)
+FLASHMEM int CordEditor::findGoodObj(int epIdx, int ec1, int io)
 {
   AudioObjInstance* aoi;
   int dir = ec1 > epIdx 
@@ -158,7 +158,7 @@ int CordEditor::findGoodObj(int epIdx, int ec1, int io)
   return ec1;    
 }
 
-int CordEditor::findGoodPort(int epIdx, int portNum, int io)
+FLASHMEM int CordEditor::findGoodPort(int epIdx, int portNum, int io)
 {
   int port = -1; // assume we'll fail 
   AudioObjInstance* aoi = objVec.at(epIdx).p;
@@ -212,7 +212,7 @@ int CordEditor::findGoodPort(int epIdx, int portNum, int io)
 }
 
 
-int CordEditor::findBestSettings(settings& ns, Prioritise pri)
+FLASHMEM int CordEditor::findBestSettings(settings& ns, Prioritise pri)
 {
   static int depth = 0;
   int result = 0;
@@ -293,7 +293,7 @@ int CordEditor::findBestSettings(settings& ns, Prioritise pri)
 }
 
 
-void CordEditor::edit(void)
+FLASHMEM void CordEditor::edit(void)
 {
   bool changedIdx = false;
   int io = 1-enc2.getValue(); // i = 1 = input = dst, o = 0 = output = src
@@ -486,7 +486,7 @@ void CordEditor::edit(void)
   }
 }
 
-void CordEditor::enter(void)
+FLASHMEM void CordEditor::enter(void)
 {
   AudioObjInstance* aoi;
   
@@ -504,13 +504,13 @@ void CordEditor::enter(void)
   highlightPort(aoi,0,portNum,true);
 }
 
-void CordEditor::exit(void)
+FLASHMEM void CordEditor::exit(void)
 {
   highlightObjnum(epIdx,ILI9341_BLACK);
   greyOut(nothing);
 }
 
-void CordEditor::greyOut(srctype s)
+FLASHMEM void CordEditor::greyOut(srctype s)
 {
   for (auto obj : objVec)
   {
@@ -524,7 +524,7 @@ void CordEditor::greyOut(srctype s)
 
 //======================================================================
 //======================================================================
-void ParamEditor::enter(void)
+FLASHMEM void ParamEditor::enter(void)
 {
   display.ShowBottomText("",ILI9341_BLACK);
   enc0.setLimits(0,objVec.size()-1);
@@ -534,13 +534,13 @@ void ParamEditor::enter(void)
 }
 
 
-void ParamEditor::exit(void)
+FLASHMEM void ParamEditor::exit(void)
 {
   highlightObjnum(epIdx,ILI9341_BLACK);  
 }
 
 
-void ParamEditor::edit(void)
+FLASHMEM void ParamEditor::edit(void)
 {
   AudioObjInstance* aoi = objVec.at(epIdx).p;
   
@@ -588,7 +588,7 @@ void ParamEditor::edit(void)
 
 //======================================================================
 //======================================================================
-void DeleteEditor::kill(int idx)
+FLASHMEM void DeleteEditor::kill(int idx)
 {
   AudioObjInstance* aoi = objVec.at(idx).p;
 
@@ -615,7 +615,7 @@ void DeleteEditor::kill(int idx)
   }  
 }
 
-void DeleteEditor::enter(void)
+FLASHMEM void DeleteEditor::enter(void)
 {
   delType = delObj;
   
@@ -628,12 +628,12 @@ void DeleteEditor::enter(void)
   ShowSelection(enc2.getValue());  
 }
 
-void DeleteEditor::exit(void)
+FLASHMEM void DeleteEditor::exit(void)
 {
   highlight(epIdx,-1);  
 }
 
-void DeleteEditor::edit(void)
+FLASHMEM void DeleteEditor::edit(void)
 {
   // select an audio object
   if (enc0.available())
@@ -690,7 +690,7 @@ void DeleteEditor::edit(void)
 }
 
 
-void DeleteEditor::highlight(int remove, int add)
+FLASHMEM void DeleteEditor::highlight(int remove, int add)
 {
   switch (delType)
   {
@@ -728,7 +728,7 @@ void DeleteEditor::highlight(int remove, int add)
   }
 }
 
-void DeleteEditor::ShowSelection(int op)
+FLASHMEM void DeleteEditor::ShowSelection(int op)
 {
   char buf[20];
   
@@ -739,7 +739,38 @@ void DeleteEditor::ShowSelection(int op)
 
 //======================================================================
 //======================================================================
-void FileEditor::save(void)
+FLASHMEM void FileEditor::setLast(char fileChar)
+{
+  File saveTo;
+  
+  saveTo = SD.open("last.txt",FILE_WRITE_BEGIN);
+  if (saveTo)
+  {
+    saveTo.truncate();
+    saveTo.print(fileChar);
+    saveTo.close();
+  }
+}
+
+
+// last file used, or -1
+FLASHMEM int FileEditor::getLast(void)
+{
+  int result = -1;
+  File loadFrom;
+  
+  loadFrom = SD.open("last.txt",FILE_READ);
+  if (loadFrom)
+  {
+    result = loadFrom.read();
+    loadFrom.close();
+  }
+
+  return result;
+}
+
+
+FLASHMEM void FileEditor::save(void)
 {
   char buffer[200];
   File saveTo;
@@ -803,18 +834,12 @@ void FileEditor::save(void)
     saveTo.close();
     Serial.print("Saved\n"); Serial.flush();
     
-    saveTo = SD.open("last.txt",FILE_WRITE_BEGIN);
-    if (saveTo)
-    {
-      saveTo.truncate();
-      saveTo.print(fileChar);
-      saveTo.close();
-    }
+    setLast(fileChar);
   }
 }
 
 
-void FileEditor::dump(void)
+FLASHMEM void FileEditor::dump(void)
 {
   char buffer[100];
   File loadFrom;
@@ -844,7 +869,7 @@ void FileEditor::dump(void)
 }
 
 
-void FileEditor::load(void)
+FLASHMEM void FileEditor::load(void)
 {
   char buffer[200];
   File loadFrom;
@@ -937,8 +962,20 @@ void FileEditor::load(void)
   }
 }
 
+FLASHMEM int FileEditor::loadLast(void)
+{
+  int result = getLast();
 
-void FileEditor::showMode(void)
+  if (result > 0)
+  {
+    fileChar = result;
+    load();
+  }
+
+  return result;
+}
+
+FLASHMEM void FileEditor::showMode(void)
 {
   char buffer[20];
 
@@ -946,22 +983,22 @@ void FileEditor::showMode(void)
   display.ShowBottomText(buffer,display.getModeColour());
 }
 
-void FileEditor::enter(void)
+FLASHMEM void FileEditor::enter(void)
 {
   enc0.setLimits(1,26); // single alphabetic character
   enc0.setValue(fileChar - '@');
 
   enc1.setLimits(0,1); // load or save
-  enc0.setValue(0);
+  enc1.setValue(0);
 
   showMode();
 }
 
-void FileEditor::exit(void)
+FLASHMEM void FileEditor::exit(void)
 {
 }
 
-void FileEditor::edit(void)
+FLASHMEM void FileEditor::edit(void)
 {
   if (enc0.available())
   {
@@ -992,6 +1029,7 @@ void FileEditor::edit(void)
       {
         Serial.printf("\nLoad patch %c:\n",fileChar);
         load();
+        setLast(fileChar);
         Serial.println("---------------\n");        
       }
       state = 0;       
