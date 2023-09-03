@@ -225,6 +225,7 @@ void ContextMixer4::setParam(int i, AudioObjInstance* aoi)
   aoi->streamP.Mixer4->gain(i,aray[i].value.f); 
 }
 
+
 const ParamEntry ContextMixer4::params[4] = 
 {
   {"ch1", 0.0f, 1.0f},
@@ -232,6 +233,7 @@ const ParamEntry ContextMixer4::params[4] =
   {"ch3", 0.0f, 1.0f},
   {"ch4", 0.0f, 1.0f},
 };
+
 
 int editMixer4(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
@@ -283,7 +285,7 @@ int editMixerStereo(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 
 
 //===========================================================================================
-FLASHMEM const ParamChoice waveShapes[] = 
+const ParamChoice waveShapes[] = 
   {{"sine",0},
    {"saw" , 1},
    {"square" , 2},
@@ -576,6 +578,52 @@ void ContextControlSGTL5000::setParam(int i, AudioObjInstance* aoi)
 int editControlSGTL5000(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioControlSGTL5000, ContextControlSGTL5000>(aoi,mode,params);
+}
+
+//===========================================================================================
+FLASHMEM const ParamChoice ladderInterpolation[] = 
+  {  
+    {"FIR poly", LADDER_FILTER_INTERPOLATION_FIR_POLY},
+    {"linear", LADDER_FILTER_INTERPOLATION_LINEAR}
+  };
+  
+class ContextLadder {
+  public:
+  ContextLadder(){}
+    static const ParamEntry params[6];
+    union {struct {ParamValue frequency, resonance,octaves,drive,  gain,   interpolation;} s
+                   {          {11.0f},   {0.5f},   {2.0f}, {1.0f}, {0.2f}, {1}    };
+                   ParamValue aray[6];};
+    void setParam(int i, AudioObjInstance* aoi);
+    static const int boxWidth{260};
+    static const int paramCount{COUNT_OF(params)};
+};
+
+void ContextLadder::setParam(int i, AudioObjInstance* aoi)
+{
+  switch (i)
+  {
+    case 0: aoi->streamP.Ladder->frequency(pow(2,s.frequency.value.f)); break;
+    case 1: aoi->streamP.Ladder->resonance(s.resonance.value.f); break;
+    case 2: aoi->streamP.Ladder->octaveControl(s.octaves.value.f); break;
+    case 3: aoi->streamP.Ladder->inputDrive(s.drive.value.f); break;
+    case 4: aoi->streamP.Ladder->passbandGain(s.gain.value.f); break;
+    case 5: aoi->streamP.Ladder->interpolationMethod((AudioFilterLadderInterpolation) ladderInterpolation[s.interpolation.value.i].value); break;
+  }
+}
+
+const ParamEntry ContextLadder::params[6] = {
+        {"    frequency", 3.0f, 13.2877123795495f, 'l'}, // 8.0 .. 10,000.0 Hz
+        {"    resonance", 0.0f, 1.8f},
+        {"      octaves", 0.0f, 7.0f},
+        {"        drive", 0.0f, 4.0f},
+        {"passband gain", 0.0f, 0.5f},
+        {"interpolation", PARAM_ENTRY_CHOICES(ladderInterpolation)}
+    };
+
+int editLadder(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  return editObjType<AudioFilterLadder, ContextLadder>(aoi,mode,params);
 }
 
 //===========================================================================================

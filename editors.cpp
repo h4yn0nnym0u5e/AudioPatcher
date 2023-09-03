@@ -9,7 +9,11 @@ static PatchcordInstance_t blankPatch;
 FLASHMEM AudioObjInstance* BaseEditor::highlightObj(AudioObjInstance* it, uint16_t colour)
 {
   if (nullptr != it)
+  {
+    if (display.canvasMakeVisible(*it,CANVAS_STEP,CANVAS_STEP))
+      drawAll();
     display.HighlightAudioObject(it->x,it->y,colour);
+  }
 
   return it;
 }
@@ -70,11 +74,12 @@ FLASHMEM void ObjEditor::edit(void)
   {
     if (1 == state) // enc2 released
     {
-      int16_t x,y;
+      int16_t x,y,cx,cy;
       
       state = 0;
       display.GetCursor(x,y);
-      create(enc2.getValue(),x-24,y-24);
+      display.canvasGetCurrent(cx,cy);
+      create(enc2.getValue(),cx+x-24,cy+y-24);
                                
       AudioObjInstance* ao = objVec.back().p;;
       display.CursorClear();
@@ -562,6 +567,7 @@ FLASHMEM void CordEditor::exit(void)
 
 FLASHMEM void CordEditor::greyOut(srctype s)
 {
+  display.SaveStatus();
   for (auto obj : objVec)
   {
     bool grey = false;
@@ -569,6 +575,7 @@ FLASHMEM void CordEditor::greyOut(srctype s)
     if (s == noDst && (0 == obj.p->objP->inputs || 0 == obj.p->inputAvailFlags))  grey = true;
     display.DrawAudioObject(*obj.p->objP,obj.p->x,obj.p->y,grey);
   }
+  display.RestoreStatus();
 }
 
 
@@ -944,6 +951,7 @@ FLASHMEM void FileEditor::load(void)
     }
     Serial.printf("We have %d objects and %d patchcords remaining\n",objVec.size(),cordVec.size());
     
+    
     do // load objects
     {
       int n,id,x,y,nd;
@@ -971,12 +979,10 @@ FLASHMEM void FileEditor::load(void)
     } while (1);
 
     // objects all loaded, buffer has first patchcord definition
-    
+    // make sure objects are in the order the patchcords 
+    // and parameter settings   
     std::stable_sort(objVec.begin(),objVec.end());
-    display.CursorClear();
-    for (auto ao : objVec)
-      display.DrawAudioObject(*ao.p->objP,ao.p->x,ao.p->y);
-
+    
     // now make the connections
     Serial.println();
     do
@@ -985,7 +991,6 @@ FLASHMEM void FileEditor::load(void)
       if (4 == sscanf(buffer,"%d.%d -> %d.%d",&src,&srcport,&dst,&dstport))
       {
         cordVec.push_back(new PatchcordInstance_t{objVec.at(src).p,(int8_t) srcport,objVec.at(dst).p,(int8_t) dstport}); // create
-        display.DrawPatchcord(cordVec.back()); // draw        
       }
       else
         break;
@@ -995,6 +1000,10 @@ FLASHMEM void FileEditor::load(void)
         break;
       Serial.println(buffer);
     } while (1);
+
+    // reset the canvas and draw the patch
+    display.canvasMoveTo(0,0); // does the CursorClear()
+    drawAll();
     display.CursorRestore();
 
     // now get any parameter settings

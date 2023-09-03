@@ -310,10 +310,11 @@ void AudioPatcherDisplay::ShowMode(const char* txt)
   tft.setFontAdafruit();
   tft.setTextSize(2);
   int16_t th = tft.fontLineSpace(); // assume it's going to fit on one line!
+  int16_t ty = tft.height() - th;
   tft.setTextColor(ILI9341_BLACK);
-  tft.setCursor(1,240 - th);
+  tft.setCursor(1,ty);
 
-  tft.fillRect(0,239-th,tft.measureTextWidth(txt,1)+1,th+1,colour);
+  tft.fillRect(0,ty-1,tft.measureTextWidth(txt,1)+1,th+1,colour);
   tft.print(*txt);
 }
 
@@ -372,7 +373,7 @@ void AudioPatcherDisplay::ShowStatus(const char* txt, int16_t x, int16_t up, uin
 
 void AudioPatcherDisplay::SaveStatus(void)
 {
-  SaveArea(0,tft.height() - 20,tft.width(),20);  
+  SaveArea(0,tft.height() - 17,tft.width(),17);  
 }
 
 //=================================================================================================
@@ -476,12 +477,45 @@ void AudioPatcherDisplay::canvasMoveBy(int16_t x, int16_t y)
   canvas_x += x;
   canvas_y += y;
   CursorClear();
-  tft.fillRect(0,0,320,220,ILI9341_BLACK);
+  tft.fillRect(0,0,320,223,ILI9341_BLACK);
 }
 
+
+void AudioPatcherDisplay::canvasMoveTo(int16_t x, int16_t y)
+{
+  canvas_x = x;
+  canvas_y = y;
+  canvasMoveBy(0,0);
+}
 
 void AudioPatcherDisplay::canvasGetLimits(int16_t& xmax, int16_t& ymax) 
 { 
   xmax = tft.width(); 
   ymax = tft.height(); 
+}
+
+bool AudioPatcherDisplay::canvasMakeVisible(AudioObjInstance& obj, int16_t xstep, int16_t ystep)
+{
+  bool result = false; // assume we're not needing to move
+  int16_t xmax,ymax,xmove=0,ymove=0;
+
+  canvasGetLimits(xmax, ymax);
+  ymax -= 20; // allow for status zone (magic number)
+  
+  while (obj.x - canvas_x + OBJECT_SIZE - xmove > xmax) // moved object RHS is off screen
+    xmove += xstep;
+  while (obj.x - canvas_x - xmove < 0) // moved object LHS is off screen
+    xmove -= xstep;
+
+  while (obj.y - canvas_y + OBJECT_SIZE - ymove > ymax) // moved object bottom is off screen
+    ymove += ystep;
+  while (obj.y - canvas_y - ymove < 0) // moved object top is off screen
+    ymove -= xstep;
+
+  // see if move is needed...
+  result = 0 != xmove || 0 != ymove;
+  if (result)
+    canvasMoveBy(xmove,ymove); // ...and do it
+  
+  return result; // true if objects need re-drawing
 }

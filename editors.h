@@ -18,6 +18,8 @@ class BaseEditor
     std::vector<PatchcordInstance_t*>& cordVec;
     int epIdx;
     int state;
+    const int16_t CURSOR_STEP=10;
+    const int16_t CANVAS_STEP=50;
 
   public:
     BaseEditor(AudioPatcherDisplay& d,
@@ -37,8 +39,6 @@ class ObjEditor : public BaseEditor
     int state;
     bool initialised;
     int lastType;
-    const int16_t CURSOR_STEP=10;
-    const int16_t CANVAS_STEP=50;
     int16_t xmax,ymax; // display limits
 
     void ShowSelection(int v);

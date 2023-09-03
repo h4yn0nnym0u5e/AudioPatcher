@@ -150,7 +150,9 @@ void setup()
   theControlSGTL5000.streamP.ControlSGTL5000->volume(0.1);
  
   delay(5);
+#if defined(GDB_IS_ENABLED)
   halt_cpu();
+#endif // defined(GDB_IS_ENABLED)
 
   next = millis() + 50;
   systemState = 6;
