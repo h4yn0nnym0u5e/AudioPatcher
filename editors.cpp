@@ -27,6 +27,20 @@ FLASHMEM AudioObjInstance* BaseEditor::highlightObjnum(int n, uint16_t colour)
   return it;
 }
 
+// Draw all objects, keeping the bottom line intact
+FLASHMEM void BaseEditor::drawAll(void)
+{
+  display.SaveStatus();
+  
+  for (auto obj : objVec)
+    display.DrawAudioObject(*obj.p->objP,obj.p->x,obj.p->y);
+
+  for (auto cord : cordVec)
+    display.DrawPatchcord(cord);    
+    
+  display.RestoreStatus();
+}
+
 //======================================================================
 FLASHMEM void ObjEditor::ShowSelection(int v)
 {
@@ -73,8 +87,42 @@ FLASHMEM void ObjEditor::edit(void)
   // Move the cross-hair cursor
   if (enc0.available() || enc1.available() || !initialised)
   {
-    int16_t x = enc0.getValue() * 10;
-    int16_t y = enc1.getValue() * 10;
+    bool redraw = false;
+    
+    int16_t x = enc0.getValue() * CURSOR_STEP;
+    int16_t y = enc1.getValue() * CURSOR_STEP;
+    if (x < 0)
+    {
+      display.canvasMoveBy(-CANVAS_STEP,0); // clears cursor and screen area
+      redraw = true;
+      x += CURSOR_STEP; // assume just one step over
+      enc0.setValue(x / CURSOR_STEP);
+    }
+    if (x > xmax)
+    {
+      display.canvasMoveBy(CANVAS_STEP,0); 
+      redraw = true;
+      x -= CURSOR_STEP; // assume just one step over
+      enc0.setValue(x / CURSOR_STEP);
+    }
+
+    if (y < 0)
+    {
+      display.canvasMoveBy(0,-CANVAS_STEP); // clears cursor and screen area
+      redraw = true;
+      y += CURSOR_STEP; // assume just one step over
+      enc1.setValue(y / CURSOR_STEP);
+    }
+    if (y > ymax)
+    {
+      display.canvasMoveBy(0,CANVAS_STEP); 
+      redraw = true;
+      y -= CURSOR_STEP; // assume just one step over
+      enc1.setValue(y / CURSOR_STEP);
+    }
+
+    if (redraw)
+      drawAll();
     display.CursorTo(x,y);
   } 
 
@@ -86,8 +134,10 @@ FLASHMEM void ObjEditor::edit(void)
 //----------------------------------------------------------------------
 FLASHMEM void ObjEditor::enter(void)
 {
-  enc0.setLimits(0,31);
-  enc1.setLimits(0,23);
+  display.canvasGetLimits(xmax,ymax);
+  ymax -= 20; // allow for status line (magic number...)
+  enc0.setLimits(-1,xmax / CURSOR_STEP + 1);
+  enc1.setLimits(-1,ymax / CURSOR_STEP + 1);
   enc2.setLimits(1,COUNT_OF_objList);
   enc2.setValue(lastType);
   ShowSelection(enc2.getValue());

@@ -15,16 +15,19 @@ class BaseEditor
   protected:
     AudioPatcherDisplay& display;
     std::vector<AudioObjInstancePtr>& objVec;
+    std::vector<PatchcordInstance_t*>& cordVec;
     int epIdx;
     int state;
 
   public:
     BaseEditor(AudioPatcherDisplay& d,
-            std::vector<AudioObjInstancePtr>& o)
-            : display(d.getInstance()), objVec(o), epIdx(0), state(0)
+            std::vector<AudioObjInstancePtr>& o,
+            std::vector<PatchcordInstance_t*>& p)
+            : display(d.getInstance()), objVec(o), cordVec(p), epIdx(0), state(0)
             {}
     AudioObjInstance* highlightObjnum(int n, uint16_t colour);
     AudioObjInstance* highlightObj(AudioObjInstance* it, uint16_t colour); 
+    void drawAll(void);
 };
 
 class ObjEditor : public BaseEditor
@@ -34,14 +37,18 @@ class ObjEditor : public BaseEditor
     int state;
     bool initialised;
     int lastType;
+    const int16_t CURSOR_STEP=10;
+    const int16_t CANVAS_STEP=50;
+    int16_t xmax,ymax; // display limits
 
     void ShowSelection(int v);
   public:
     ObjEditor(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2, 
             AudioPatcherDisplay& d,
             std::vector<AudioObjInstancePtr>& o,
+            std::vector<PatchcordInstance_t*>& p,
             AudioObjStatic_t (&ol)[])
-            : BaseEditor(d,o), 
+            : BaseEditor(d,o,p), 
              enc0(e0), enc1(e1), enc2(e2),
              objList(ol),
             state(0), initialised(false)
@@ -61,7 +68,6 @@ class CordEditor : public BaseEditor
     struct settings {int objNum, portNum, srcdst;};
 
     LimitedEncoder& enc0, &enc1, &enc2;
-    std::vector<PatchcordInstance_t*>& cordVec; 
     AudioObjStatic_t (&objList)[];
     int portNum;
     PatchcordInstance_t editCord;
@@ -79,9 +85,8 @@ class CordEditor : public BaseEditor
             std::vector<AudioObjInstancePtr>& o,
             std::vector<PatchcordInstance_t*>& p,
             AudioObjStatic_t (&ol)[])
-            : BaseEditor(d,o),
+            : BaseEditor(d,o,p),
             enc0(e0), enc1(e1), enc2(e2),
-            cordVec(p),
             objList(ol),
             portNum(0)
             {}
@@ -97,7 +102,6 @@ class DeleteEditor : public BaseEditor
     enum highType {both, add, remove};
     
     LimitedEncoder& enc0, &enc1, &enc2;
-    std::vector<PatchcordInstance_t*>& cordVec; 
     void ShowSelection(int io);
     void highlight(int remove, int add);
      
@@ -107,9 +111,8 @@ class DeleteEditor : public BaseEditor
             std::vector<AudioObjInstancePtr>& o,
             std::vector<PatchcordInstance_t*>& p
             )
-            : BaseEditor(d,o),
-            enc0(e0), enc1(e1), enc2(e2),
-            cordVec(p)
+            : BaseEditor(d,o,p),
+            enc0(e0), enc1(e1), enc2(e2)
             {}
     void edit(void);
     void enter(void);
@@ -127,9 +130,10 @@ class ParamEditor : public BaseEditor
   public:    
     ParamEditor(LimitedEncoder& e0,  
             AudioPatcherDisplay& d,
-            std::vector<AudioObjInstancePtr>& o
+            std::vector<AudioObjInstancePtr>& o,
+            std::vector<PatchcordInstance_t*>& p
             )
-            : BaseEditor(d,o),
+            : BaseEditor(d,o,p),
             enc0(e0), inTarget(false), enc0Stash(nullptr)
             {}
     void edit(void);
@@ -140,7 +144,6 @@ class ParamEditor : public BaseEditor
 class FileEditor : public BaseEditor
 {
     LimitedEncoder& enc0, &enc1, &enc2;
-    std::vector<PatchcordInstance_t*>& cordVec; 
     int state;
     char fileChar;
 
@@ -158,9 +161,8 @@ class FileEditor : public BaseEditor
             std::vector<AudioObjInstancePtr>& o,
             std::vector<PatchcordInstance_t*>& p
             )
-            : BaseEditor(d,o),
+            : BaseEditor(d,o,p),
             enc0(e0), enc1(e1), enc2(e2),
-            cordVec(p),
             state(0), fileChar('A')
             {}
     void edit(void);

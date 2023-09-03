@@ -84,16 +84,20 @@ void setup()
   ctrl.begin();
   Serial.printf("8Angle says %d\n",ctrl?1:0);
   Serial.printf("8Angle at address 0x%02X; version %d\n",ctrl.getAddress(),ctrl.getVersion());
-  ctrl.writeLED(0,0xFF00'0080);
-  ctrl.writeLED(1,0xFF00'2070);
-  ctrl.writeLED(2,0xFF00'4040);
-  ctrl.writeLED(3,0xFF00'8000);
-  ctrl.writeLED(4,0xFF40'6000);
-  ctrl.writeLED(5,0xFF80'0000);
-  ctrl.writeLED(6,0xFF60'0040);
-  ctrl.writeLED(7,0xFF40'4040);
-  ctrl.writeLED(8,0xFF10'1010);
-
+  
+  ctrl.writeLED(0,0x2F00'0080);
+  ctrl.writeLED(1,0x2F00'2070);
+  ctrl.writeLED(2,0x2F00'3040);
+  ctrl.writeLED(3,0x2F00'8000);
+  ctrl.writeLED(4,0x2F40'6000);
+  ctrl.writeLED(5,0x2F80'0000);
+  ctrl.writeLED(6,0x2F60'0040);
+  ctrl.writeLED(7,0x2F40'4040);
+  ctrl.writeLED(8,0x2F10'1010);
+  /*
+  for (int i=0;i<9;i++)
+    ctrl.writeLED(i,0);
+    */
   encr.begin();
   Serial.printf("8Encoder says %d\n",encr?1:0);
   Serial.printf("8Encoder at address 0x%02X; version %d\n",encr.getAddress(),encr.getVersion());
@@ -162,9 +166,9 @@ LimitedEncoder enc2{encr,3,1,COUNT_OF_objList}; // object selector
 int state = 0;
 bool initialised = false;
 char editMode[2] = {0};
-ObjEditor objEditor(enc0,enc1,enc2,display,objVec,objList);
+ObjEditor objEditor(enc0,enc1,enc2,display,objVec,cordVec,objList);
 CordEditor cordEditor(enc0,enc1,enc2,display,objVec,cordVec,objList);
-ParamEditor paramEditor(enc0,display,objVec);
+ParamEditor paramEditor(enc0,display,objVec,cordVec);
 DeleteEditor deleteEditor(enc0,enc1,enc2,display,objVec,cordVec);
 FileEditor fileEditor(enc0,enc1,enc2,display,objVec,cordVec);
 /********************************************************************************************************/

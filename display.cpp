@@ -135,6 +135,16 @@ struct AudioObjectSizes_t {
 
 
 //=================================================================================================
+bool AudioPatcherDisplay::objIsOnScreen(int16_t x, int16_t y)
+{
+  return
+      x < tft.width() // check object is visible
+   && 0 < x + OBJECT_SIZE
+   && y < tft.height()
+   && 0 < y + OBJECT_SIZE;  
+}
+
+//=================================================================================================
 void getInputPositions(AudioObjStatic_t& o, int16_t x, int16_t y, 
                        int16_t* ppx, int16_t* ppy, int16_t* pys)
 {
@@ -164,53 +174,65 @@ void getOutputPositions(AudioObjStatic_t& o, int16_t x, int16_t y,
 //=================================================================================================
 void AudioPatcherDisplay::DrawAudioObject(AudioObjStatic_t& o, int16_t x, int16_t y, bool greyed)
 { 
-  uint16_t bc = greyed?ILI9341_DARKGREY:AudioObjectColours[o.category].body;
-  uint16_t ec = greyed?ILI9341_LIGHTGREY:AudioObjectColours[o.category].border;
+  x -= canvas_x; y -= canvas_y;
 
-  tft.fillRoundRect(x,y,osize.ow,osize.oh,osize.cc,bc);
-  tft.drawRoundRect(x,y,osize.ow,osize.oh,osize.cc,ec);
-  
-  int16_t lw,lh;
-  tft.setFontAdafruit();
-  tft.setTextSize(1);
-  lw = tft.measureTextWidth(o.label);
-  lh =  tft.measureTextHeight("Atoy"); // caps, ascenders and descenders
-  tft.setTextColor(AudioObjectColours[o.category].text);
-  tft.setCursor(x+(osize.ow - lw) / 2,y+osize.oh-lh-2);
-  tft.print(o.label);
-
-  int16_t cx,cb,cs;
-  if (o.inputs > 0)
+  if (objIsOnScreen(x,y))
   {
-    getInputPositions(o,x,y,&cx,&cb,&cs);
-    for (int i=0;i<o.inputs;i++)
+    uint16_t bc = greyed?ILI9341_DARKGREY:AudioObjectColours[o.category].body;
+    uint16_t ec = greyed?ILI9341_LIGHTGREY:AudioObjectColours[o.category].border;
+  
+    tft.fillRoundRect(x,y,osize.ow,osize.oh,osize.cc,bc);
+    tft.drawRoundRect(x,y,osize.ow,osize.oh,osize.cc,ec);
+    
+    int16_t lw,lh;
+    tft.setFontAdafruit();
+    tft.setTextSize(1);
+    tft.setTextWrap(false);
+    lw = tft.measureTextWidth(o.label);
+    lh =  tft.measureTextHeight("Atoy"); // caps, ascenders and descenders
+    tft.setTextColor(AudioObjectColours[o.category].text);
+    tft.setCursor(x+(osize.ow - lw) / 2,y+osize.oh-lh-2);
+    tft.print(o.label);
+  
+    int16_t cx,cb,cs;
+    if (o.inputs > 0)
     {
-      tft.fillRect(cx,cb,osize.cw,osize.ch,CONNECTION_COLOUR);
-      cb += cs;
+      getInputPositions(o,x,y,&cx,&cb,&cs);
+      for (int i=0;i<o.inputs;i++)
+      {
+        tft.fillRect(cx,cb,osize.cw,osize.ch,CONNECTION_COLOUR);
+        cb += cs;
+      }
     }
-  }
-  
-  if (o.outputs > 0)
-  {
-    getOutputPositions(o,x,y,&cx,&cb,&cs);
-    for (int i=0;i<o.outputs;i++)
+    
+    if (o.outputs > 0)
     {
-      tft.fillRect(cx,cb,osize.cw,osize.ch,CONNECTION_COLOUR);
-      cb += cs;
+      getOutputPositions(o,x,y,&cx,&cb,&cs);
+      for (int i=0;i<o.outputs;i++)
+      {
+        tft.fillRect(cx,cb,osize.cw,osize.ch,CONNECTION_COLOUR);
+        cb += cs;
+      }
     }
   }
 }
 
+
 void AudioPatcherDisplay::EraseAudioObject(AudioObjStatic_t& o, int16_t x, int16_t y)
 {
-  tft.fillRoundRect(x-1,y-1,osize.ow+2,osize.oh+2,osize.cc+1,ILI9341_BLACK);   
+  x -= canvas_x; y -= canvas_y;
+  if (objIsOnScreen(x,y))
+    tft.fillRoundRect(x-1,y-1,osize.ow+2,osize.oh+2,osize.cc+1,ILI9341_BLACK);   
 }
 
 
 //=================================================================================================
 void AudioPatcherDisplay::HighlightAudioObject(int16_t x, int16_t y, uint16_t colour)
 {
-  tft.drawRoundRect(x-1,y-1,osize.ow+2,osize.oh+2,osize.cc+1,colour);  
+  x -= canvas_x; y -= canvas_y;
+  
+  if (objIsOnScreen(x,y))
+    tft.drawRoundRect(x-1,y-1,osize.ow+2,osize.oh+2,osize.cc+1,colour);  
 }
 
 
@@ -223,27 +245,32 @@ void AudioPatcherDisplay::HighlightAudioObject(int16_t x, int16_t y, bool on)
 //=================================================================================================
 void AudioPatcherDisplay::DrawConnection(AudioObjStatic_t& o, int16_t x, int16_t y, int8_t n , bool op, uint16_t colour)
 {
+  x -= canvas_x; y -= canvas_y;
+  
 #define BAD -999  
-  int16_t cx = BAD,cb,cs;
-  
-  if (op) // drawing an output blob
+  if (objIsOnScreen(x,y))
   {
-    if (n < o.outputs)
-      getOutputPositions(o,x,y,&cx,&cb,&cs);
+    int16_t cx = BAD,cb,cs;
+    
+    if (op) // drawing an output blob
+    {
+      if (n < o.outputs)
+        getOutputPositions(o,x,y,&cx,&cb,&cs);
+    }
+    else // input blob
+    {
+      if (n < o.inputs)
+        getInputPositions(o,x,y,&cx,&cb,&cs);
+    }
+    
+    if (BAD != cx) // not impossible - draw it
+    {
+      cb += cs*n;
+      tft.fillRect(cx,cb,osize.cw,osize.ch,colour);
+    }
+    else
+      Serial.printf("%s:%s.%d: bad connection!\n",o.name,op?"output":"input",n);
   }
-  else // input blob
-  {
-    if (n < o.inputs)
-      getInputPositions(o,x,y,&cx,&cb,&cs);
-  }
-  
-  if (BAD != cx) // not impossible - draw it
-  {
-    cb += cs*n;
-    tft.fillRect(cx,cb,osize.cw,osize.ch,colour);
-  }
-  else
-    Serial.printf("%s:%s.%d: bad connection!\n",o.name,op?"output":"input",n);
 }
 
 
@@ -343,6 +370,10 @@ void AudioPatcherDisplay::ShowStatus(const char* txt, int16_t x, int16_t up, uin
     CursorRestore();
 }
 
+void AudioPatcherDisplay::SaveStatus(void)
+{
+  SaveArea(0,tft.height() - 20,tft.width(),20);  
+}
 
 //=================================================================================================
 void AudioPatcherDisplay::GetCursorSaveParams(const int16_t x, const int16_t y, 
@@ -432,6 +463,25 @@ void AudioPatcherDisplay::DrawPatchcord(AudioObjInstance& src, int8_t sp, AudioO
     sy += osize.ch / 2;
     dy += osize.ch / 2;
 
+    sx -= canvas_x; sy -= canvas_y;
+    dx -= canvas_x; dy -= canvas_y;
+    
     tft.drawLine(sx,sy,dx,dy,colour);
   }
+}
+
+//=================================================================================================
+void AudioPatcherDisplay::canvasMoveBy(int16_t x, int16_t y)
+{
+  canvas_x += x;
+  canvas_y += y;
+  CursorClear();
+  tft.fillRect(0,0,320,220,ILI9341_BLACK);
+}
+
+
+void AudioPatcherDisplay::canvasGetLimits(int16_t& xmax, int16_t& ymax) 
+{ 
+  xmax = tft.width(); 
+  ymax = tft.height(); 
 }
