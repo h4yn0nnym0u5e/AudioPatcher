@@ -321,7 +321,7 @@ class ContextWaveformModulated
 const ParamEntry ContextWaveformModulated::params[6] = 
 {
   {" waveform", PARAM_ENTRY_CHOICES(waveShapes)},
-  {"frequency", -4.0f, 14.0f}, // log2(freq) is what we actually store
+  {"frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
   {"amplitude", 0.0f, 1.0f},
   {"   offset", -1.0f, 1.0f},
   {" mod type",PARAM_ENTRY_CHOICES(modTypes)},
