@@ -25,7 +25,7 @@ static float noteToFreq(byte note)
   float result = notesFromC0orMIDI_12[note % 12];
 
   if (note >= 12)
-    result *= 1 << (note / 12);
+    result *= 1 << ((note - 12) / 12);
   else
     result /= 2.0f;
 
@@ -46,7 +46,7 @@ void myNoteOn(byte channel, byte note, byte velocity)
         break;
 
       case AUDIO_SYNTH_WAVEFORM_ID:
-        Serial.printf("Note on: %.3f\n",freq);
+        Serial.printf("Note on: %d -> %.3f\n",note,freq);
         obj.p->streamP.Waveform->frequency(freq);
         obj.p->streamP.Waveform->amplitude(velocity / 127.0f);
         break;        
