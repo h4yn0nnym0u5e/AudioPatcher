@@ -642,6 +642,69 @@ FLASHMEM void ParamEditor::edit(void)
   }
 }
 
+//======================================================================
+//======================================================================
+FLASHMEM void MIDIEditor::enter(void)
+{
+  display.ShowBottomText("",ILI9341_BLACK);
+  enc0.setLimits(0,objVec.size()-1);
+  epIdx = enc0.getValue();
+  highlightObjnum(epIdx,ILI9341_WHITE);
+  inTarget = false;
+}
+
+
+FLASHMEM void MIDIEditor::exit(void)
+{
+  highlightObjnum(epIdx,ILI9341_BLACK);  
+}
+
+
+FLASHMEM void MIDIEditor::edit(void)
+{
+  AudioObjInstance* aoi = objVec.at(epIdx).p;
+  
+  if (!inTarget) // we're active, claim the UI
+  {
+    //-----------------------------------------------
+    // select an audio object
+    if (enc0.available())
+    {
+      highlightObjnum(epIdx,ILI9341_BLACK);  
+      epIdx = enc0.getValue();
+      highlightObjnum(epIdx,ILI9341_WHITE);
+    }
+
+    if (enc0.getButton())
+      state = 1;
+    else
+    {
+      if (1 == state)
+      {
+        state = 0;
+        inTarget = true;
+        enc0Stash = new LimitedEncoderStash(enc0);
+        aoi->objP->editFn(aoi,AudioEditMode::MIDIenter, nullptr);      
+        lockModeEncoder();
+      }
+    }
+  }
+  else // target object has claimed the UI
+  {
+    if (0 == aoi->objP->editFn(aoi,AudioEditMode::MIDIedit, nullptr))
+    {
+      aoi->objP->editFn(aoi,AudioEditMode::MIDIexit, nullptr);  // tell editor to tidy up
+      inTarget = false; // target has yielded UI control
+      if (nullptr != enc0Stash)
+      {
+        delete enc0Stash;
+        enc0Stash = nullptr;
+      }
+      unlockModeEncoder();
+    }
+  }
+}
+
 
 //======================================================================
 //======================================================================

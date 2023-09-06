@@ -161,7 +161,7 @@ void setup()
 
 
 /********************************************************************************************************/
-const char* modes = "OPEDF"; // objects, patchcords, editing, deleting, filing
+const char* modes = "OPEMDF"; // objects, patchcords, editing, MIDI config, deleting, filing
 LimitedEncoder encM{encr,0,0,(int32_t) strlen(modes)-1}; // mode
 LimitedEncoder enc0{encr,1,0,31}; // x position in steps of 10
 LimitedEncoder enc1{encr,2,0,23}; // y position in steps of 10
@@ -172,6 +172,7 @@ char editMode[2] = {0};
 ObjEditor objEditor(enc0,enc1,enc2,display,objVec,cordVec,objList);
 CordEditor cordEditor(enc0,enc1,enc2,display,objVec,cordVec,objList);
 ParamEditor paramEditor(enc0,display,objVec,cordVec);
+MIDIEditor midiEditor(enc0,display,objVec,cordVec);
 DeleteEditor deleteEditor(enc0,enc1,enc2,display,objVec,cordVec);
 FileEditor fileEditor(enc0,enc1,enc2,display,objVec,cordVec);
 
@@ -270,6 +271,7 @@ void loop()
           case 'O': objEditor.exit(); break;  
           case 'P': cordEditor.exit(); break;
           case 'E': paramEditor.exit(); break;
+          case 'M': midiEditor.exit(); break;
           case 'D': deleteEditor.exit(); break;
           case 'F': fileEditor.exit(); break;
         }
@@ -279,6 +281,7 @@ void loop()
           case 'O': objEditor.enter(); break;  
           case 'P': cordEditor.enter(); break;
           case 'E': paramEditor.enter(); break;
+          case 'M': midiEditor.enter(); break;
           case 'D': deleteEditor.enter(); break;
           case 'F': fileEditor.enter(); break;
         }
@@ -292,6 +295,7 @@ void loop()
     case 'O': objEditor.edit(); break;
     case 'P': cordEditor.edit(); break;    
     case 'E': paramEditor.edit(); break;
+    case 'M': midiEditor.edit(); break;
     case 'D': deleteEditor.edit(); break;
     case 'F': fileEditor.edit(); break;
   }

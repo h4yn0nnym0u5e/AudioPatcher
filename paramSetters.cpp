@@ -11,7 +11,7 @@ extern M5w_8angle ctrl;
 // #define BOX_DEF(width,lines) (320/2 - (width)/2),(240/2 - (27+(lines)*16+16)/2),(width),(27+(lines)*16+16)
 
 //===========================================================================================
-ParamEditor* pe;
+SettingsEditor* se;
 const float LOG_NOTE_A = 0.781359714f;
 const ParamEntry freqLimits{nullptr,-1.0f,1.0f}; // special, for setting hook control
 
@@ -102,6 +102,25 @@ int testExit(uint32_t& exitAt)
   }
   return result;
 }
+
+//===========================================================================================
+void SettingsEditor::Init(const char* title)
+{
+  int row = 0;
+  
+  display.ShowTitle(title,5,5);
+  for (size_t i=0; i < paramCount; i++)
+  {
+    if (0 != params[i].xoff) /// if we have an X offset
+      row--; // we're on the same row as before
+    ShowLabel(i,row,5,27);
+    ShowValue(row);
+    if (!ctrl.isHooking(i)) // specialized enterEditMode() may have hooked already - don't re-do
+      HookControl(ctrl,i,params[i],aray[i]);
+    row++;            
+  }
+}
+
 //===========================================================================================
 // Strong definitions of setup controls
 //===========================================================================================
@@ -136,7 +155,7 @@ void ContextChorus::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-const ParamEntry ContextChorus::params[2] = 
+const ParamEntry ContextChorus::_params[2] = 
 {
   {"length [ms]", 10.0f, 200.0f},
   {"     voices", 1, 20},
@@ -186,10 +205,10 @@ int editChorus(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 //===========================================================================================
 void ContextMixer4::setParam(int i, AudioObjInstance* aoi)
 {
-  aoi->streamP.Mixer4->gain(i,aray[i].value.f); 
+  aoi->streamP.Mixer4->gain(i,gains[i].value.f); 
 }
 
-const ParamEntry ContextMixer4::params[4] = 
+const ParamEntry ContextMixer4::_params[4] = 
 {
   {"ch1", 0.0f, 1.0f},
   {"ch2", 0.0f, 1.0f},
@@ -209,13 +228,13 @@ void ContextMixerStereo::setParam(int i, AudioObjInstance* aoi)
 {
   int ch = i / 2;
   if (0 == (i & 1))
-    aoi->streamP.MixerStereo->gain(ch,aray[i].value.f); 
+    aoi->streamP.MixerStereo->gain(ch,gainOrPan[i].value.f); 
   else
-    aoi->streamP.MixerStereo->pan(ch,aray[i].value.f); 
+    aoi->streamP.MixerStereo->pan(ch,gainOrPan[i].value.f); 
   
 }
 
-const ParamEntry ContextMixerStereo::params[8] = 
+const ParamEntry ContextMixerStereo::_params[8] = 
 {
   {"ch1", 0.0f, 1.0f}, {"pan1", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
   {"ch2", 0.0f, 1.0f}, {"pan2", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
@@ -230,6 +249,19 @@ int editMixerStereo(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 
 
 //===========================================================================================
+const ParamChoice velocityShapes[] 
+  {{"linear", 0},
+   {"curved", 1},
+   {"max" ,   2}
+  };
+
+const ParamEntry ContextWaveformModulated::MIDIparams[] 
+{
+  {"octave", 0, 9}, // middle C = 261.63Hz = note#60 = octave 4
+  {"detune", -6.00f, +6.00f}, // semitones / cents
+  {"velocity",PARAM_ENTRY_CHOICES(velocityShapes)},
+};
+
 const ParamChoice waveShapes[12] = 
   {{"sine",0},
    {"saw" , 1},
@@ -249,7 +281,7 @@ const ParamChoice waveShapes[12] =
 ParamChoice modTypes[] = {{"frequency",0},{"phase",1}};
 
 
-const ParamEntry ContextWaveformModulated::params[6] = 
+const ParamEntry ContextWaveformModulated::_params[6] = 
 {
   {" waveform", PARAM_ENTRY_CHOICES(waveShapes)},
   {"frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
@@ -301,14 +333,14 @@ void enterEditMode<ContextWaveformModulated>(ContextWaveformModulated* myContext
 template <> // template specialization for setting WaveformModulated; needed for frequency setting
 void updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myContext, AudioObjInstance* aoi)
 {
-  for (size_t i=0; i < ContextWaveformModulated::paramCount; i++)
+  for (size_t i=0; i < myContext->paramCount; i++)
   {
     if (1 == i) // frequency
     {
       enc0.available();
       if (ScaleFreq(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),enc0.getValue(),0.999f))
       {
-        pe->display.ShowValue(myContext->params[i],myContext->aray[i],i);
+        se->ShowValue(i);
         myContext->setParam(i,aoi);
       }      
     }
@@ -316,7 +348,7 @@ void updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myCo
     {
       if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
       {
-        pe->display.ShowValue(myContext->params[i],myContext->aray[i],i);
+        se->ShowValue(i);
         myContext->setParam(i,aoi);
       }
     }
@@ -329,7 +361,7 @@ int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode, void* param
 }
 
 //===========================================================================================
-const ParamEntry ContextWaveformDc::params[] = {
+const ParamEntry ContextWaveformDc::_params[] = {
   {"value", -1.0f, 1.0f},
 };
 
@@ -348,7 +380,7 @@ int editWaveformDc(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
-const ParamEntry ContextNoise::params[] = {
+const ParamEntry ContextNoise::_params[] = {
   {"amplitude", 0.0f, 1.0f}
 };
 
@@ -432,7 +464,7 @@ int editNoisePink(AudioObjInstance* aoi, AudioEditMode mode, void* params)
   };
   
      
- const ParamEntry ContextControlSGTL5000::params[] = 
+ const ParamEntry ContextControlSGTL5000::_params[] = 
 {
   {"        volume", 0.0f, 1.0f},
   {"  input select", PARAM_ENTRY_CHOICES(inputsSGTL5000)},
@@ -518,7 +550,7 @@ void ContextStateVariable::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-const ParamEntry ContextStateVariable::params[3] = {
+const ParamEntry ContextStateVariable::_params[3] = {
         {"frequency", 3.0f, 13.2877123795495f, 'l'}, // 8.0 .. 10,000.0 Hz
         {"resonance", 0.7f, 5.0f},
         {"  octaves", 0.0f, 7.0f}
@@ -530,7 +562,7 @@ int editStateVariable(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
-const ParamEntry ContextWaveform::params[] = {
+const ParamEntry ContextWaveform::_params[] = {
   {"  waveform", PARAM_ENTRY_CHOICES(waveShapes)},
   {" frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
   {" amplitude", 0.0f, 1.0f},
@@ -578,14 +610,14 @@ void enterEditMode<ContextWaveform>(ContextWaveform* myContext, AudioObjInstance
 template <> // template specialization for setting Waveform; needed for frequency setting
 void updateFromControls<ContextWaveform>(ContextWaveform* myContext, AudioObjInstance* aoi)
 {
-  for (size_t i=0; i < ContextWaveform::paramCount; i++)
+  for (size_t i=0; i < myContext->paramCount; i++)
   {
     if (1 == i) // frequency
     {
       enc0.available();
       if (ScaleFreq(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),enc0.getValue(),0.999f))
       {
-        pe->display.ShowValue(myContext->params[i],myContext->aray[i],i);
+        se->ShowValue(i);
         myContext->setParam(i,aoi);
       }      
     }
@@ -593,7 +625,7 @@ void updateFromControls<ContextWaveform>(ContextWaveform* myContext, AudioObjIns
     {
       if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
       {
-        pe->display.ShowValue(myContext->params[i],myContext->aray[i],i);
+        se->ShowValue(i);
         myContext->setParam(i,aoi);
       }
     }
@@ -622,7 +654,7 @@ int editWaveform(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 #endif // defined(AUDIO_BIQUAD_HAS_PASSTHRU)      
   };
   
-const ParamEntry ContextBiquad::params[] = {
+const ParamEntry ContextBiquad::_params[] = {
   {"    stage", 0,3},
   {" response", PARAM_ENTRY_CHOICES(responsesBiquad)},
   {"frequency", 8.0f, 13.2877123795495f, 'l'},
@@ -649,14 +681,14 @@ void ContextBiquad::setParam(int i, AudioObjInstance* aoi)
   int stge = s.stage.value.i;
 
   if (prevStage != stge // selected a different filter stage...
-   && nullptr != pe)    // ...and we're editing
+   && nullptr != se)    // ...and we're editing
   {
     for (size_t i=0; i < paramCount; i++) // display the values
     {
       if (0 != i) // not the stage number!
         stageSettings[prevStage][i] = aray[i].value; // store edited values
       aray[i].value = stageSettings[stge][i];      // copy new values
-      pe->display.ShowValue(params[i],aray[i],i);  // display them
+      se->ShowValue(i);  // display them
       if (0 != i)
         HookControl(ctrl,i,params[i],aray[i]);
     }
@@ -721,7 +753,7 @@ int editBiquad(AudioObjInstance* aoi, AudioEditMode mode, void* params)
           
         for (int j=0;j<4;j++)
         {
-          for (int i=0;i<myContext->paramCount;i++)
+          for (size_t i=0;i<myContext->paramCount;i++)
             myContext->aray[i].value = myContext->stageSettings[j][i];
           editGetParams<ContextBiquad>(aoi,&working);
           working.buffer   += working.sz;
@@ -729,7 +761,7 @@ int editBiquad(AudioObjInstance* aoi, AudioEditMode mode, void* params)
           *working.buffer   = 0;
           working.sz = orig->sz - working.sz - 1;
         }
-        for (int i=0;i<myContext->paramCount;i++)
+        for (size_t i=0;i<myContext->paramCount;i++)
           myContext->aray[i].value = myContext->stageSettings[myContext->prevStage][i];
       }
       result = 1;
@@ -743,14 +775,14 @@ int editBiquad(AudioObjInstance* aoi, AudioEditMode mode, void* params)
           
         for (int j=0;j<4;j++)
         {
-          editSetParams<ContextBiquad>(aoi,&working); // get set of values from passed string
-          int jj = myContext->s.stage.value.i;        // defensive - stages could be out of order!
-          for (int i=0;i<myContext->paramCount;i++)   // copy this set of values to stage settings
+          editSetParams<ContextBiquad>(aoi,&working);   // get set of values from passed string
+          int jj = myContext->s.stage.value.i;          // defensive - stages could be out of order!
+          for (size_t i=0;i<myContext->paramCount;i++)  // copy this set of values to stage settings
             myContext->stageSettings[jj][i] =  myContext->aray[i].value;
           working.buffer   += working.sz;         // point to next set of values
           working.sz = orig->sz - working.sz - 1; // and how many characters now remain
         }
-        for (int i=0;i<myContext->paramCount;i++)
+        for (size_t i=0;i<myContext->paramCount;i++)
           myContext->aray[i].value = myContext->stageSettings[myContext->prevStage][i];
       }
       result = 1;

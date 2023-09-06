@@ -141,6 +141,27 @@ class ParamEditor : public BaseEditor
     void exit(void); 
 };
 
+
+class MIDIEditor : public BaseEditor
+{
+    LimitedEncoder& enc0; // we only select objects to modify
+    bool inTarget; // true if target object's editor is active
+    LimitedEncoderStash* enc0Stash;
+    
+  public:    
+    MIDIEditor(LimitedEncoder& e0,  
+            AudioPatcherDisplay& d,
+            std::vector<AudioObjInstancePtr>& o,
+            std::vector<PatchcordInstance_t*>& p
+            )
+            : BaseEditor(d,o,p),
+            enc0(e0), inTarget(false), enc0Stash(nullptr)
+            {}
+    void edit(void);
+    void enter(void);
+    void exit(void); 
+};
+
 class FileEditor : public BaseEditor
 {
     LimitedEncoder& enc0, &enc1, &enc2;
