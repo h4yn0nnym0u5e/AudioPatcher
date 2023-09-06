@@ -3,10 +3,6 @@
 #include "paramsetters.h"
 #include "limitedEncoder.h"
 
-#if !defined(COUNT_OF)
-#define COUNT_OF(a) (sizeof a / sizeof a[0])
-#endif // !defined(COUNT_OF)
-
 extern LimitedEncoder encM,enc0,enc1,enc2;
 extern M5w_8angle ctrl;
 #define M5ANGLE_MIN   20
@@ -109,26 +105,6 @@ int testExit(uint32_t& exitAt)
 //===========================================================================================
 // Strong definitions of setup controls
 //===========================================================================================
-class ContextChorus 
-{
-  public:
-    ContextChorus() : mem{0}, tmp{0} {}
-    ~ContextChorus() { if (nullptr != mem.ptr) free(mem.ptr); }
-    static const ParamEntry params[2];
-    union {struct {ParamValue length,  voices;} s
-                {             {50.0f}, {2}      }; 
-                   ParamValue aray[2];
-          };
-    struct memRecord {short* ptr; size_t sz; } mem,tmp;
-    void allocMem(memRecord&,size_t,AudioObjInstance*);
-    void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{260};
-    static const int paramCount{COUNT_OF(params)};
-
-    void enterEditMode(AudioObjInstance* aoi);
-    void exitEditMode(AudioObjInstance* aoi);
-};
-
 void ContextChorus::allocMem(memRecord& mem, size_t newsize, AudioObjInstance* aoi)
 {
   if (nullptr != mem.ptr)
@@ -208,23 +184,10 @@ int editChorus(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
-class ContextMixer4  
-{
-  public:
-    ContextMixer4(){}
-    static const ParamEntry params[4];
-    ParamValue aray[4]{{0.55f},{0.55f},{0.55f},{0.55f}};
-    static const int boxWidth{120};
-    
-    void setParam(int i, AudioObjInstance* aoi);
-    static const int paramCount{COUNT_OF(params)};
-};
-
 void ContextMixer4::setParam(int i, AudioObjInstance* aoi)
 {
   aoi->streamP.Mixer4->gain(i,aray[i].value.f); 
 }
-
 
 const ParamEntry ContextMixer4::params[4] = 
 {
@@ -242,24 +205,6 @@ int editMixer4(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 
 
 //===========================================================================================
-#define EDIT_MIXER_STEREO_PAN_OFF ((int) (8*12+20))
-class ContextMixerStereo  
-{
-  public:
-    ContextMixerStereo(){}
-    static const ParamEntry params[8];
-    ParamValue aray[8]{
-        {0.55f},{0.0f},
-        {0.55f},{0.0f},
-        {0.55f},{0.0f},
-        {0.55f},{0.0f},
-    };
-    static const int boxWidth{EDIT_MIXER_STEREO_PAN_OFF + 120 + 12};
-    
-    void setParam(int i, AudioObjInstance* aoi);
-    static const int paramCount{COUNT_OF(params)};
-};
-
 void ContextMixerStereo::setParam(int i, AudioObjInstance* aoi)
 {
   int ch = i / 2;
@@ -285,7 +230,7 @@ int editMixerStereo(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 
 
 //===========================================================================================
-const ParamChoice waveShapes[] = 
+const ParamChoice waveShapes[12] = 
   {{"sine",0},
    {"saw" , 1},
    {"square" , 2},
@@ -303,20 +248,6 @@ const ParamChoice waveShapes[] =
   
 ParamChoice modTypes[] = {{"frequency",0},{"phase",1}};
 
-
-class ContextWaveformModulated 
-{ 
-  public:
-    ContextWaveformModulated() {}
-    static const ParamEntry params[6];
-    union { struct {ParamValue waveform,frequency,amplitude,offset,modType,modDepth;} s {{0},{7.0f},{0.5f},{0.0f},{0},{1.0f}};
-            ParamValue aray[COUNT_OF(params)];
-          };
-    static const int boxWidth{260};
-          
-    void setParam(int i, AudioObjInstance* aoi);
-    static const int paramCount{COUNT_OF(params)};       
-};
 
 const ParamEntry ContextWaveformModulated::params[6] = 
 {
@@ -398,18 +329,6 @@ int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode, void* param
 }
 
 //===========================================================================================
-class ContextWaveformDc 
-{
-  public:
-    ContextWaveformDc(){}
-    static const ParamEntry params[1];
-    ParamValue amplitude{0.0f}, *aray{&amplitude};
-
-    void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{160};
-    static const int paramCount{COUNT_OF(params)};   
-};
-
 const ParamEntry ContextWaveformDc::params[] = {
   {"value", -1.0f, 1.0f},
 };
@@ -429,22 +348,9 @@ int editWaveformDc(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
-class ContextNoise 
-{
-  public:
-    ContextNoise(){}
-    static const ParamEntry params[1];
-    ParamValue amplitude{0.0f}, *aray{&amplitude};
-
-    void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{180};
-    static const int paramCount{COUNT_OF(params)};   
-};
-
 const ParamEntry ContextNoise::params[] = {
-  {"amplitude", 0.0f, 1.0f},
+  {"amplitude", 0.0f, 1.0f}
 };
-
 
 void ContextNoise::setParam(int i, AudioObjInstance* aoi)
 {
@@ -472,17 +378,17 @@ int editNoisePink(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
-FLASHMEM const ParamChoice inputsSGTL5000[] = 
+ const ParamChoice inputsSGTL5000[2]  
   {{"line", AUDIO_INPUT_LINEIN},
    {"mic" , AUDIO_INPUT_MIC},
   };
   
-FLASHMEM const ParamChoice avcSGTL5000[] = 
+ const ParamChoice avcSGTL5000[] = 
   {{"off", 0},
    {"on" , 1},
   };
   
-FLASHMEM const ParamChoice inputLevelsSGTL5000[] = 
+ const ParamChoice inputLevelsSGTL5000[] = 
   {  // Vpk-pk
     {"0.24", 15},
     {"0.29", 14},
@@ -502,7 +408,7 @@ FLASHMEM const ParamChoice inputLevelsSGTL5000[] =
     {"3.12", 0},
   };
 
-FLASHMEM const ParamChoice outputLevelsSGTL5000[] = 
+ const ParamChoice outputLevelsSGTL5000[] = 
   {  // Vpk-pk
     {"1.16", 31},
     {"1.22", 30},
@@ -525,21 +431,8 @@ FLASHMEM const ParamChoice outputLevelsSGTL5000[] =
     {"3.16", 13}, 
   };
   
-class ContextControlSGTL5000 
-{ 
-  public:
-    ContextControlSGTL5000(){}
-    static const ParamEntry params[6];
-    union { struct {ParamValue volume,  inputSelect,micGain,autoVolume,lineInLevel,lineOutLevel;} s
-                 {             {0.25f}, {0},        {20},   {0},       {10},       {11}           };
-            ParamValue aray[COUNT_OF(params)];};
-
-    void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{260};
-    static const int paramCount{COUNT_OF(params)};          
-};
-          
-const ParamEntry ContextControlSGTL5000::params[] = 
+     
+ const ParamEntry ContextControlSGTL5000::params[] = 
 {
   {"        volume", 0.0f, 1.0f},
   {"  input select", PARAM_ENTRY_CHOICES(inputsSGTL5000)},
@@ -554,7 +447,7 @@ void ContextControlSGTL5000::setParam(int i, AudioObjInstance* aoi)
   switch (i)
   { // volume,inputSelect,micGain,lineInLevel,lineOutLevel,autoVolume
     case 0: aoi->streamP.ControlSGTL5000->volume(s.volume.value.f); break;
-    case 1: aoi->streamP.ControlSGTL5000->inputSelect(inputsSGTL5000[s.inputSelect.value.i].value); break;
+    case 1: aoi->streamP.ControlSGTL5000->inputSelect((int) inputsSGTL5000[s.inputSelect.value.i].value); break;
     case 2: aoi->streamP.ControlSGTL5000->micGain(s.micGain.value.i); break;
     
     case 4: aoi->streamP.ControlSGTL5000->lineInLevel(inputLevelsSGTL5000[s.lineInLevel.value.i].value); break;
@@ -581,24 +474,12 @@ int editControlSGTL5000(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
-FLASHMEM const ParamChoice ladderInterpolation[] = 
+ const ParamChoice ladderInterpolation[] = 
   {  
     {"FIR poly", LADDER_FILTER_INTERPOLATION_FIR_POLY},
     {"linear", LADDER_FILTER_INTERPOLATION_LINEAR}
   };
   
-class ContextLadder {
-  public:
-  ContextLadder(){}
-    static const ParamEntry params[6];
-    union {struct {ParamValue frequency, resonance,octaves,drive,  gain,   interpolation;} s
-                   {          {11.0f},   {0.5f},   {2.0f}, {1.0f}, {0.2f}, {1}    };
-                   ParamValue aray[6];};
-    void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{260};
-    static const int paramCount{COUNT_OF(params)};
-};
-
 void ContextLadder::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
@@ -612,7 +493,7 @@ void ContextLadder::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-const ParamEntry ContextLadder::params[6] = {
+const ParamEntry ContextLadder::_params[6]  {
         {"    frequency", 3.0f, 13.2877123795495f, 'l'}, // 8.0 .. 10,000.0 Hz
         {"    resonance", 0.0f, 1.8f},
         {"      octaves", 0.0f, 7.0f},
@@ -627,18 +508,6 @@ int editLadder(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
-class ContextStateVariable {
-  public:
-  ContextStateVariable(){}
-    static const ParamEntry params[3];
-    union {struct {ParamValue frequency,resonance,octaves;} s
-                   {          {8.0f}, {0.7f},   {1.0f}    };
-                   ParamValue aray[3];};
-    void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{260};
-    static const int paramCount{COUNT_OF(params)};
-};
-
 void ContextStateVariable::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
@@ -661,19 +530,6 @@ int editStateVariable(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
-class ContextWaveform {
-  public:
-    ContextWaveform(){}
-    static const ParamEntry params[5];
-    union { struct {ParamValue waveform,frequency,amplitude,pulseWidth,offset;} s
-                 {             {0},     {7.0f},   {0.5f},   {0.333f},  {0.0f}    };
-            ParamValue aray[COUNT_OF(params)];
-          };
-    void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{260};
-    static const int paramCount{COUNT_OF(params)};
-};
-
 const ParamEntry ContextWaveform::params[] = {
   {"  waveform", PARAM_ENTRY_CHOICES(waveShapes)},
   {" frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
@@ -750,7 +606,7 @@ int editWaveform(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
-ParamChoice responsesBiquad[] = 
+ const ParamChoice responsesBiquad[] = 
   {{"  (off) "   , 0},
      
    {"low pass"   , 1},
@@ -766,31 +622,6 @@ ParamChoice responsesBiquad[] =
 #endif // defined(AUDIO_BIQUAD_HAS_PASSTHRU)      
   };
   
-class ContextBiquad 
-{
-  public:
-    ContextBiquad()
-    {
-      for (size_t i = 0;i<4;i++)
-      {
-        for (size_t j=1;j<COUNT_OF(params);j++)
-          stageSettings[i][j] = aray[j].value;
-        stageSettings[i][0].i = i; // set stage numbers correctly
-      }
-    }
-    static const ParamEntry params[6];
-    
-    union {struct {ParamValue  stage,response,frequency,     Q,        gain,   slope;} s 
-                        {           {0},  {1},     {9.64385618f}, {0.707f}, {0.8f}, {1.0f} };   
-              ParamValue aray[COUNT_OF(params)];
-          };
-    ValUnion stageSettings[4][COUNT_OF(params)];
-    int prevStage{0};
-    void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{260};
-    static const int paramCount{COUNT_OF(params)};   
-};
-
 const ParamEntry ContextBiquad::params[] = {
   {"    stage", 0,3},
   {" response", PARAM_ENTRY_CHOICES(responsesBiquad)},
@@ -923,10 +754,7 @@ int editBiquad(AudioObjInstance* aoi, AudioEditMode mode, void* params)
           myContext->aray[i].value = myContext->stageSettings[myContext->prevStage][i];
       }
       result = 1;
-      break;
-
-      
-      
+      break;     
   }
   
   return result;
