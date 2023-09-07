@@ -682,10 +682,13 @@ FLASHMEM void MIDIEditor::edit(void)
       if (1 == state)
       {
         state = 0;
-        inTarget = true;
-        enc0Stash = new LimitedEncoderStash(enc0);
-        aoi->objP->editFn(aoi,AudioEditMode::MIDIenter, nullptr);      
-        lockModeEncoder();
+        // see if object provides any MIDI parameters
+        if (aoi->objP->editFn(aoi,AudioEditMode::MIDIenter, nullptr))
+        {
+          inTarget = true;
+          enc0Stash = new LimitedEncoderStash(enc0);
+          lockModeEncoder();
+        }
       }
     }
   }
@@ -941,8 +944,22 @@ FLASHMEM void FileEditor::save(void)
     {
       AudioObjInstance* aoi = objVec.at(i).p;
       gsp.sz = 190;
-      if (aoi->objP->editFn(aoi,AudioEditMode::getParams, &gsp)) // see if object has settings, if so..
+      if (aoi->objP->editFn(aoi,AudioEditMode::getParams, &gsp)) // see if object has settings, if so...
+      {
         saveTo.printf("~%d: %s\n", i, gsp.buffer); // ... save those, too
+        Serial.printf("~%d: %s\n", i, gsp.buffer);
+      }
+    }
+
+    for (size_t i = 0;i<objVec.size() - 1;i++)
+    {
+      AudioObjInstance* aoi = objVec.at(i).p;
+      gsp.sz = 190;
+      if (aoi->objP->editFn(aoi,AudioEditMode::getMIDIparams, &gsp)) // see if object has MIDI settings, if so...
+      {
+        saveTo.printf("@%d: %s\n", i, gsp.buffer); // ... save those, too
+        Serial.printf("@%d: %s\n", i, gsp.buffer);
+      }
     }
 
     Serial.print("truncating at "); Serial.flush();
@@ -950,7 +967,7 @@ FLASHMEM void FileEditor::save(void)
     Serial.print(sz); Serial.flush();
     saveTo.truncate(sz);
     
-    Serial.print("closing\n"); Serial.flush();
+    Serial.print(" ... closing\n"); Serial.flush();
     saveTo.close();
     Serial.print("Saved\n"); Serial.flush();
     
@@ -1073,17 +1090,42 @@ FLASHMEM void FileEditor::load(void)
     do
     {
       int id,off;
-      sscanf(buffer,"~%d:%n",&id,&off);
-      if (id > 0 && (uint32_t) id < objVec.size())
+      if (1 == sscanf(buffer,"~%d:%n",&id,&off))
       {
-        AudioObjInstance* aoi = objVec.at(id).p;
-        getSetParams gsp{buffer+off,strlen(buffer+off)};
-        aoi->objP->editFn(aoi,AudioEditMode::setParams, &gsp);
+        if (id > 0 && (uint32_t) id < objVec.size())
+        {
+          AudioObjInstance* aoi = objVec.at(id).p;
+          getSetParams gsp{buffer+off,strlen(buffer+off)};
+          aoi->objP->editFn(aoi,AudioEditMode::setParams, &gsp);
+        }
+        got = loadFrom.readBytesUntil('\n',buffer,199);
+        if (0 == got)
+          break;
+        Serial.println(buffer);
       }
-      got = loadFrom.readBytesUntil('\n',buffer,199);
-      if (0 == got)
+      else
         break;
-      Serial.println(buffer);      
+    } while (1);
+    
+    // now get any MIDI parameter settings
+    do
+    {
+      int id,off;
+      if (1 == sscanf(buffer,"@%d:%n",&id,&off))
+      {
+        if (id > 0 && (uint32_t) id < objVec.size())
+        {
+          AudioObjInstance* aoi = objVec.at(id).p;
+          getSetParams gsp{buffer+off,strlen(buffer+off)};
+          aoi->objP->editFn(aoi,AudioEditMode::setMIDIparams, &gsp);
+        }
+        got = loadFrom.readBytesUntil('\n',buffer,199);
+        if (0 == got)
+          break;
+        Serial.println(buffer);
+      }
+      else
+        break;
     } while (1);
     
     loadFrom.close();

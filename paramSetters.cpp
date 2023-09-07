@@ -120,7 +120,67 @@ void SettingsEditor::Init(const char* title)
     row++;            
   }
 }
+//===========================================================================================
+int editGetParamsAny(const ParamEntry* params, const ParamValue* aray, const size_t paramCount, getSetParams* p)
+{
+  size_t left = p->sz;
+  char* ptr = p->buffer;
+  int off = 0;
+  
+  for (size_t i=0; i < paramCount && off >= 0 && left >= 15; i++)
+  {
+    switch (params[i].ValType)
+    {
+      case 'l':
+      case 'f': off = sprintf(ptr,"%f,",aray[i].value.f); break;
+      case 'c':
+      case 'i': off = sprintf(ptr,"%d,",aray[i].value.i); break;
+    }
 
+    ptr += off;
+    left -= off;            
+  }
+  p->sz = ptr - p->buffer; // amount of buffer used
+
+  return paramCount != 0;
+}
+
+int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const size_t paramCount, getSetParams* p)
+{
+  char* ptr = p->buffer;
+  int off = 0;
+  
+  for (size_t i=0; i < paramCount && off >= 0; i++)
+  {
+    ValUnion value;
+    
+    switch (params[i].ValType)
+    {
+      case 'f':
+      case 'l':
+        sscanf(ptr,"%f,%n",&value.f,&off);
+        if (value.f < params[i].min.f || value.f > params[i].max.f)
+          value.f = (params[i].min.f + params[i].max.f) / 2.0f;
+        Serial.printf("%s = %.3f ... ",params[i].label,value.f);
+        aray[i].value.f = value.f;
+        break;
+        
+      case 'i':
+      case 'c':
+        sscanf(ptr,"%d,%n",&value.i,&off);
+        if (value.i < params[i].min.i || value.i > params[i].max.i)
+          value.i = (params[i].min.i + params[i].max.i) / 2;
+        Serial.printf("%s = %d ... ",params[i].label,value.i);
+        aray[i].value.i = value.i;
+        break;
+    }
+
+    ptr += off;
+  }
+  Serial.println();
+  p->sz = ptr - p->buffer;
+  return 1;
+}
 //===========================================================================================
 // Strong definitions of setup controls
 //===========================================================================================

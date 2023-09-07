@@ -86,74 +86,47 @@ void updateFromControls(AudioObjInstance* aoi)
 
 
 //=====================================================================================
+extern int editGetParamsAny(const ParamEntry* params, const ParamValue* aray, const size_t paramCount, getSetParams* p);
 template <class Tctxt>
 int editGetParams(AudioObjInstance* aoi, getSetParams* p)
 {
   Tctxt* myContext = (Tctxt*) aoi->context;
-  size_t left = p->sz;
-  char* ptr = p->buffer;
-  int off = 0;
-  
-  for (size_t i=0; i < myContext->paramCount && off >= 0 && left >= 15; i++)
-  {
-    switch (myContext->params[i].ValType)
-    {
-      case 'l':
-      case 'f': off = sprintf(ptr,"%f,",myContext->aray[i].value.f); break;
-      case 'c':
-      case 'i': off = sprintf(ptr,"%d,",myContext->aray[i].value.i); break;
-    }
-
-    ptr += off;
-    left -= off;            
-  }
-  p->sz = ptr - p->buffer; // amount of buffer used
-
-  return 1;
+  return editGetParamsAny(myContext->params, myContext->aray, myContext->paramCount, p);
 }
 
+template <class Tctxt>
+int editGetMIDIparams(AudioObjInstance* aoi, getSetParams* p)
+{
+  Tctxt* myContext = (Tctxt*) aoi->context;
+  return editGetParamsAny(myContext->MIDIparams, myContext->MIDIvalues, myContext->MIDIparamCount, p);
+}
 
 //=====================================================================================
+extern int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const size_t paramCount, getSetParams* p);
+
 // Set object's parameters from supplied string
 template <class Tctxt>
 int editSetParams(AudioObjInstance* aoi, getSetParams* p)
 {
   Tctxt* myContext = (Tctxt*) aoi->context;
-  char* ptr = p->buffer;
-  int off = 0;
-  for (size_t i=0; i < myContext->paramCount && off >= 0; i++)
-  {
-    ValUnion value;
-    
-    switch (myContext->params[i].ValType)
-    {
-      case 'f':
-      case 'l':
-        sscanf(ptr,"%f,%n",&value.f,&off);
-        if (value.f < myContext->params[i].min.f || value.f > myContext->params[i].max.f)
-          value.f = (myContext->params[i].min.f + myContext->params[i].max.f) / 2.0f;
-        Serial.printf("%s = %.3f ... ",myContext->params[i].label,value.f);
-        myContext->aray[i].value.f = value.f;
-        break;
-        
-      case 'i':
-      case 'c':
-        sscanf(ptr,"%d,%n",&value.i,&off);
-        if (value.i < myContext->params[i].min.i || value.i > myContext->params[i].max.i)
-          value.i = (myContext->params[i].min.i + myContext->params[i].max.i) / 2;
-        Serial.printf("%s = %d ... ",myContext->params[i].label,value.i);
-        myContext->aray[i].value.i = value.i;
-        break;
-    }
+  int result = editSetParamsAny(myContext->params, myContext->aray, myContext->paramCount, p);
+
+  // set the actual stream object's parameters, too
+  for (size_t i=0; i < myContext->paramCount; i++)
     myContext->setParam(i,aoi);
 
-    ptr += off;
-  }
-  Serial.println();
-  p->sz = ptr - p->buffer;
-  return 1;
+  return result;
 }
 
+// Set object's MIDI parameters from supplied string
+template <class Tctxt>
+int editSetMIDIparams(AudioObjInstance* aoi, getSetParams* p)
+{
+  Tctxt* myContext = (Tctxt*) aoi->context;
+  int result = editSetParamsAny(myContext->MIDIparams, myContext->MIDIvalues, myContext->MIDIparamCount, p);
+
+  return result;
+}
 
 //=====================================================================================
 template <class Tctxt>
@@ -269,6 +242,21 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
     case AudioEditMode::setParams: // load the object's settings from a string
       {
         editSetParams<Tctxt>(aoi,(getSetParams*) params);
+        result = 1;
+      }
+      break;
+      
+    //---------------------------------------------------------------------------------------------------
+    case AudioEditMode::getMIDIparams: // create a string with the object's MIDI settings
+      {
+        result = editGetMIDIparams<Tctxt>(aoi,(getSetParams*) params);
+      }
+      break;
+
+    // patch L: ~2: 4,8.774944,0.226114,0.294576,0.000000,      
+    case AudioEditMode::setMIDIparams: // load the object's MIDI settings from a string
+      {
+        editSetMIDIparams<Tctxt>(aoi,(getSetParams*) params);
         result = 1;
       }
       break;
