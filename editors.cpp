@@ -583,17 +583,33 @@ FLASHMEM void CordEditor::greyOut(srctype s)
 //======================================================================
 FLASHMEM void ParamEditor::enter(void)
 {
+  enc0Stash = new LimitedEncoderStash(enc0);
+  enc1Stash = new LimitedEncoderStash(enc1);
+  enc2Stash = new LimitedEncoderStash(enc2);
+
   display.ShowBottomText("",ILI9341_BLACK);
   enc0.setLimits(0,objVec.size()-1);
   epIdx = enc0.getValue();
   highlightObjnum(epIdx,ILI9341_WHITE);
   inTarget = false;
+
+  enc1.setLimits(-1,1);
+  enc2.setLimits(-1,1);
+
+  enc1.setValue(0);
+  enc2.setValue(0);
 }
 
 
 FLASHMEM void ParamEditor::exit(void)
 {
-  highlightObjnum(epIdx,ILI9341_BLACK);  
+  highlightObjnum(epIdx,ILI9341_BLACK);
+  delete enc0Stash; enc0Stash = nullptr;
+  delete enc1Stash; enc1Stash = nullptr;
+  delete enc2Stash; enc2Stash = nullptr;
+
+  // might have moved - sort into correct order for saving
+  std::stable_sort(objVec.begin(),objVec.end());
 }
 
 
@@ -612,6 +628,25 @@ FLASHMEM void ParamEditor::edit(void)
       highlightObjnum(epIdx,ILI9341_WHITE);
     }
 
+    // move an audio object
+    if (enc1.available() || enc2.available())
+    {
+      AudioObjInstance* aoi = objVec.at(epIdx).p;
+      int dx = enc1.getValue();
+      int dy = enc2.getValue();
+      
+      enc1.setValue(0);
+      enc2.setValue(0);
+
+      aoi->x += dx * CURSOR_STEP;
+      aoi->y += dy * CURSOR_STEP;
+      if (!display.canvasMakeVisible(*aoi,CANVAS_STEP,CANVAS_STEP)) // didn't blank...
+        display.canvasMoveBy(0,0); //...but want to force a re-draw - do a dummy move
+      
+      drawAll();
+      highlightObjnum(epIdx,ILI9341_WHITE);      
+    }
+
     if (enc0.getButton())
       state = 1;
     else
@@ -620,7 +655,7 @@ FLASHMEM void ParamEditor::edit(void)
       {
         state = 0;
         inTarget = true;
-        enc0Stash = new LimitedEncoderStash(enc0);
+        enc0Stash2 = new LimitedEncoderStash(enc0);
         aoi->objP->editFn(aoi,AudioEditMode::enter, nullptr);      
         lockModeEncoder();
       }
@@ -634,8 +669,8 @@ FLASHMEM void ParamEditor::edit(void)
       inTarget = false; // target has yielded UI control
       if (nullptr != enc0Stash)
       {
-        delete enc0Stash;
-        enc0Stash = nullptr;
+        delete enc0Stash2;
+        enc0Stash2 = nullptr;
       }
       unlockModeEncoder();
     }
@@ -1018,6 +1053,7 @@ FLASHMEM void FileEditor::load(void)
   if (loadFrom)
   {
     int got;
+    int ndCount = 0; // count of nondeletable objects
     
     loadFrom.setTimeout(1);
 
@@ -1057,6 +1093,13 @@ FLASHMEM void FileEditor::load(void)
           objEditor.create(id,x,y);
           AudioObjInstance* aoi = objVec.back().p;
           aoi->perVoice = perVoice == OBJ_PER_VOICE_CHAR;
+        }
+        else // just restore positions
+        { // this won't work if the ordering is different - leave for now
+          AudioObjInstance* aoi = objVec.at(ndCount).p;
+          aoi->x = x;
+          aoi->y = y;
+          ndCount++;
         }
       }
       else

@@ -125,18 +125,20 @@ class DeleteEditor : public BaseEditor
 
 class ParamEditor : public BaseEditor
 {
-    LimitedEncoder& enc0; // we only select objects to modify
+    LimitedEncoder& enc0, &enc1, &enc2; // we only select objects to modify
     bool inTarget; // true if target object's editor is active
-    LimitedEncoderStash* enc0Stash;
+    LimitedEncoderStash* enc0Stash, *enc1Stash, *enc2Stash,
+                         *enc0Stash2;
     
   public:    
-    ParamEditor(LimitedEncoder& e0,  
+    ParamEditor(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2,  
             AudioPatcherDisplay& d,
             std::vector<AudioObjInstancePtr>& o,
             std::vector<PatchcordInstance_t*>& p
             )
             : BaseEditor(d,o,p),
-            enc0(e0), inTarget(false), enc0Stash(nullptr)
+            enc0(e0), enc1(e1), enc2(e2), inTarget(false), 
+            enc0Stash(nullptr), enc1Stash(nullptr), enc2Stash(nullptr)
             {}
     void edit(void);
     void enter(void);
