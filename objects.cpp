@@ -2,21 +2,25 @@
 #include "display.h"
 
 //===========================================================================================
+void editTogglePerVoice(AudioObjInstance* aoi)
+{
+  if (!aoi->noDelete) // make sure it's a deletable object
+  {
+    aoi->perVoice = !aoi->perVoice;
+    display.DrawPerVoice(*aoi);
+  }
+}
+
+//===========================================================================================
 // Weak definitions of setup controls
 extern "C" { 
   int editDoNothing(AudioObjInstance* aoi, AudioEditMode mode, void* params) 
   { 
-    /*
-    if (AudioEditMode::constructor == mode || AudioEditMode::destructor == mode)
+    if (AudioEditMode::MIDIenter == mode)
     {
-      Serial.printf("%s a %s, at %08X; systemState = %d @%08X\n",
-                  mode==AudioEditMode::destructor?"Destroyed":"Constructed",
-                  aoi->objP->name,
-                  (uint32_t) aoi,
-                  systemState,(uint32_t) &display
-                  ); 
+      editTogglePerVoice(aoi);
     }
-    */
+
     return 0; 
   }
 }

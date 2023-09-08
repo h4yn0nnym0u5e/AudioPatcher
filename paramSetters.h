@@ -204,7 +204,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
     //---------------------------------------------------------------------------------------------------
     case AudioEditMode::MIDIenter: // start editing an object's MIDI settings
       {
-        if (nullptr != myContext->MIDIparams) // does it even have any MIDI settings?
+        if (nullptr != myContext && nullptr != myContext->MIDIparams) // does it even have any MIDI settings?
         {
           int cols = 1;
           
@@ -222,11 +222,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
         }
         else // no parameters, might toggle per-voice
         {
-          if (!aoi->noDelete) // make sure it's a deletable object
-          {
-            aoi->perVoice = !aoi->perVoice;
-            display.DrawPerVoice(*aoi);
-          }
+
         }
       }
       break;      

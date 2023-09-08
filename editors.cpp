@@ -893,7 +893,7 @@ FLASHMEM int FileEditor::getLast(void)
 }
 
 
- void FileEditor::save(void)
+FLASHMEM void FileEditor::save(void)
 {
   char buffer[200];
   File saveTo;
@@ -958,8 +958,8 @@ FLASHMEM int FileEditor::getLast(void)
       gsp.sz = 190;
       if (aoi->objP->editFn(aoi,AudioEditMode::getMIDIparams, &gsp)) // see if object has MIDI settings, if so...
       {
-        saveTo.printf("@%d:%s\n", i, gsp.buffer); // ... save those, too
-        Serial.printf("@%d:%s\n", i, gsp.buffer);
+        saveTo.printf("@%d: %s\n", i, gsp.buffer); // ... save those, too
+        Serial.printf("@%d: %s\n", i, gsp.buffer);
       }
     }
 
