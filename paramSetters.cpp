@@ -3,7 +3,6 @@
 #include "paramsetters.h"
 #include "limitedEncoder.h"
 
-extern LimitedEncoder encM,enc0,enc1,enc2;
 extern M5w_8angle ctrl;
 #define M5ANGLE_MIN   20
 #define M5ANGLE_MAX 4080
@@ -120,6 +119,12 @@ void SettingsEditor::Init(const char* title)
     row++;            
   }
 }
+
+void SettingsEditor::ShowVoiceFlag(bool flag)
+{
+  display.ShowVoiceFlag(flag);
+}
+
 //===========================================================================================
 int editGetParamsAny(const ParamEntry* params, const ParamValue* aray, const size_t paramCount, getSetParams* p)
 {

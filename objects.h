@@ -169,6 +169,7 @@ class AudioObjInstance
     int16_t y;
     uint32_t inputAvailFlags; // let's be optimistic!
     bool noDelete;
+    bool perVoice; // create copy of this object when new voice is triggered
 };
 
 struct AudioObjInstancePtr {AudioObjInstance* p; };

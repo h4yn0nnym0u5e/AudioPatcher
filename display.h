@@ -49,12 +49,12 @@ class AudioPatcherDisplay
     int16_t canvas_y;
     uint16_t modeColour;
     uint16_t* screenBuffer = nullptr;
-    struct {int16_t x,y,h,w;} savedArea;
+    struct {int16_t x,y,w,h;} savedArea;
     static const int16_t CURSOR_SIZE = 10;
     static const int16_t OBJECT_SIZE = 48;
     
     void GetCursorSaveParams(const int16_t x, const int16_t y, int16_t& cxr, int16_t& cyr, int16_t& cw, int16_t& ch);
-    bool objIsOnScreen(int16_t x, int16_t y); // call after canvas co-ordinate transformation
+    bool objIsOnScreen(int16_t x, int16_t y, int16_t w = OBJECT_SIZE, int16_t h = OBJECT_SIZE); // call after canvas co-ordinate transformation
   public:  
     void Init(void);
     void Clear(void);
@@ -68,7 +68,9 @@ class AudioPatcherDisplay
     void canvasGetLimits(int16_t& xmax, int16_t& ymax);
     
     // dependent on display's window on patcher canvas:
-    void DrawAudioObject(AudioObjStatic_t& o, int16_t x, int16_t y, bool greyed = false);
+    bool DrawAudioObject(AudioObjStatic_t& o, int16_t x, int16_t y, bool greyed = false); // return true if we drew it
+    void DrawAudioObject(AudioObjInstance& aoi, bool greyed = false);
+    void DrawPerVoice(AudioObjInstance& aoi, bool greyed = false);
     void EraseAudioObject(AudioObjStatic_t& o, int16_t x, int16_t y);
     void HighlightAudioObject(int16_t x, int16_t y, bool on = true);
     void HighlightAudioObject(int16_t x, int16_t y, uint16_t colour);
@@ -98,6 +100,7 @@ class AudioPatcherDisplay
     void InitArea(int16_t x, int16_t y, int16_t w, int16_t h);
     void RestoreArea(void);
     void ShowTitle(const char* t, int16_t xoff, int16_t yoff);
+    void ShowVoiceFlag(bool flag);
     void ShowLabel(const ParamEntry& p, ParamValue& v, int16_t n, int16_t xoff, int16_t yoff);
     void ShowValue(const ParamEntry& p, ParamValue& v, int16_t n);
 };

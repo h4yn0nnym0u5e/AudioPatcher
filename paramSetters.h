@@ -3,7 +3,9 @@
 
 #include "paramEntry.h"
 #include "display.h"
-#include "M5wire.h"
+#include "LimitedEncoder.h"
+
+extern LimitedEncoder encM,enc0,enc1,enc2;
 
 #if !defined(COUNT_OF)
 #define COUNT_OF(a) (sizeof a / sizeof a[0])
@@ -48,6 +50,7 @@ class SettingsEditor
     void Init(const char* title);
     void ShowLabel(int i, int row, int xoff, int yoff) { display.ShowLabel(params[i],aray[i],row,xoff,yoff); }
     void ShowValue(int i) { display.ShowValue(params[i],aray[i],i); }
+    void ShowVoiceFlag(bool);
 };
 
 //==========================================================================
@@ -98,7 +101,11 @@ template <class Tctxt>
 int editGetMIDIparams(AudioObjInstance* aoi, getSetParams* p)
 {
   Tctxt* myContext = (Tctxt*) aoi->context;
-  return editGetParamsAny(myContext->MIDIparams, myContext->MIDIvalues, myContext->MIDIparamCount, p);
+  int result;
+  
+  result = editGetParamsAny(myContext->MIDIparams, myContext->MIDIvalues, myContext->MIDIparamCount, p);
+
+  return result;
 }
 
 //=====================================================================================
@@ -123,8 +130,9 @@ template <class Tctxt>
 int editSetMIDIparams(AudioObjInstance* aoi, getSetParams* p)
 {
   Tctxt* myContext = (Tctxt*) aoi->context;
+  
   int result = editSetParamsAny(myContext->MIDIparams, myContext->MIDIvalues, myContext->MIDIparamCount, p);
-
+  
   return result;
 }
 
@@ -208,7 +216,17 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
                                   myContext->MIDIparamCount, myContext->MIDIparams,myContext->MIDIvalues);
   
           se->Init(aoi->objP->name);
+          se->ShowVoiceFlag(aoi->perVoice);
+          enc0.setValue(aoi->perVoice);
           next = 0;
+        }
+        else // no parameters, might toggle per-voice
+        {
+          if (!aoi->noDelete) // make sure it's a deletable object
+          {
+            aoi->perVoice = !aoi->perVoice;
+            display.DrawPerVoice(*aoi);
+          }
         }
       }
       break;      
@@ -218,6 +236,12 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
       {
         next = millis() + 10;
         updateFromControls(aoi);
+        if (enc0.available())
+        {
+          aoi->perVoice = enc0.getValue() & 1;
+          se->ShowVoiceFlag(aoi->perVoice);
+        }
+          
       }
       result = testExit(exitAt);
       break;      
@@ -227,6 +251,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
         ctrl.clearHook(i);
       delete se;
       se = nullptr;
+      display.DrawPerVoice(*aoi); // in case it was changed
       break;  
 
           

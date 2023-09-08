@@ -37,7 +37,7 @@ FLASHMEM void BaseEditor::drawAll(void)
   display.SaveStatus();
   
   for (auto obj : objVec)
-    display.DrawAudioObject(*obj.p->objP,obj.p->x,obj.p->y);
+    display.DrawAudioObject(*obj.p);
 
   for (auto cord : cordVec)
     display.DrawPatchcord(cord);    
@@ -83,7 +83,7 @@ FLASHMEM void ObjEditor::edit(void)
                                
       AudioObjInstance* ao = objVec.back().p;;
       display.CursorClear();
-      display.DrawAudioObject(*ao->objP,ao->x,ao->y);
+      display.DrawAudioObject(*ao);
       display.CursorRestore();
       std::stable_sort(objVec.begin(),objVec.end());
     }
@@ -573,7 +573,7 @@ FLASHMEM void CordEditor::greyOut(srctype s)
     bool grey = false;
     if (s == noSrc && 0 == obj.p->objP->outputs) grey = true;
     if (s == noDst && (0 == obj.p->objP->inputs || 0 == obj.p->inputAvailFlags))  grey = true;
-    display.DrawAudioObject(*obj.p->objP,obj.p->x,obj.p->y,grey);
+    display.DrawAudioObject(*obj.p,grey);
   }
   display.RestoreStatus();
 }
@@ -893,7 +893,7 @@ FLASHMEM int FileEditor::getLast(void)
 }
 
 
-FLASHMEM void FileEditor::save(void)
+ void FileEditor::save(void)
 {
   char buffer[200];
   File saveTo;
@@ -909,8 +909,9 @@ FLASHMEM void FileEditor::save(void)
     for (auto obj : objVec)  
     {   
       snprintf(buffer,50,
-              "#%d: %s @ %d,%d%s\n",
+              "#%d:%c %s @ %d,%d%s\n",
                     count++,
+                    obj.p->perVoice?OBJ_PER_VOICE_CHAR:' ',
                     obj.p->objP->name,
                     obj.p->x,obj.p->y,
                     obj.p->noDelete?" *":""
@@ -957,8 +958,8 @@ FLASHMEM void FileEditor::save(void)
       gsp.sz = 190;
       if (aoi->objP->editFn(aoi,AudioEditMode::getMIDIparams, &gsp)) // see if object has MIDI settings, if so...
       {
-        saveTo.printf("@%d: %s\n", i, gsp.buffer); // ... save those, too
-        Serial.printf("@%d: %s\n", i, gsp.buffer);
+        saveTo.printf("@%d:%s\n", i, gsp.buffer); // ... save those, too
+        Serial.printf("@%d:%s\n", i, gsp.buffer);
       }
     }
 
@@ -1035,24 +1036,28 @@ FLASHMEM void FileEditor::load(void)
     do // load objects
     {
       int n,id,x,y,nd;
-      char objname[30];
+      char objname[30],perVoice;
       
       got = loadFrom.readBytesUntil('\n',buffer,199);
       if (0 == got)
         break;
       buffer[got] = 0;
       Serial.print(buffer);
-      if (4 == sscanf(buffer,"#%d: %s @ %d,%d",&n,objname,&x,&y))
+      if (5 == sscanf(buffer,"#%d:%c %s @ %d,%d",&n,&perVoice,objname,&x,&y))
       {
         if (objname[0] < '0' || objname[0] > '9') // name is text
           id = objNameToID(objname);
         else
           sscanf(objname,"%d",&id);
         nd = buffer[strlen(buffer)-1] == '*';
-        Serial.printf(" ... %d %s (%d,%d) %s\n",n,objList[id].name,x,y,nd?"protected":"");
+        Serial.printf(" ... %d <%c> %s (%d,%d) %s\n",n,perVoice,objList[id].name,x,y,nd?"protected":"");
         
         if (!nd) // can add this object, it's not a non-destructible one
+        {
           objEditor.create(id,x,y);
+          AudioObjInstance* aoi = objVec.back().p;
+          aoi->perVoice = perVoice == OBJ_PER_VOICE_CHAR;
+        }
       }
       else
         break;  

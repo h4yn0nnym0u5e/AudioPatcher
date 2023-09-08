@@ -119,7 +119,7 @@ void setup()
   for (auto obj : objVec)
   {
     Serial.printf("%s\n",obj.p->objP->name);
-    display.DrawAudioObject(*obj.p->objP,obj.p->x,obj.p->y);
+    display.DrawAudioObject(*obj.p);
   }
 
   for (int i=5;i<4;i++)

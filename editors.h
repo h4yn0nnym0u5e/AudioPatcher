@@ -10,6 +10,8 @@
 extern void lockModeEncoder(void);
 extern void unlockModeEncoder(void);
 
+#define OBJ_PER_VOICE_CHAR '+'
+
 class BaseEditor
 {
   protected:

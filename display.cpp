@@ -34,7 +34,7 @@ void AudioPatcherDisplay::RestoreArea(void)
 {
   if (nullptr != screenBuffer)
   {
-    tft.writeRect(savedArea.x,savedArea.y,savedArea.h,savedArea.w,screenBuffer);
+    tft.writeRect(savedArea.x,savedArea.y,savedArea.w,savedArea.h,screenBuffer);
   }
 }
 
@@ -54,6 +54,14 @@ void AudioPatcherDisplay::ShowTitle(const char* t, int16_t xoff, int16_t yoff)
   tft.setCursor(savedArea.x + xoff,savedArea.y + yoff); // assume we're operating in the area we saved
   tft.print(t);
   tft.setTextColor(ILI9341_LIGHTGREY,EDIT_BKGND);
+}
+
+void AudioPatcherDisplay::ShowVoiceFlag(bool flag)
+{
+  int16_t colour = flag?0xA514:ILI9341_BLACK;
+  const int16_t cr = 4;
+  
+  tft.fillCircle(savedArea.x + savedArea.w - 5 - cr,savedArea.y + 5 + cr, cr, colour); // assume we're operating in the area we saved
 }
 
 void AudioPatcherDisplay::ShowLabel(const ParamEntry& p, ParamValue& v, int16_t n, int16_t xoff, int16_t yoff)
@@ -135,13 +143,13 @@ struct AudioObjectSizes_t {
 
 
 //=================================================================================================
-bool AudioPatcherDisplay::objIsOnScreen(int16_t x, int16_t y)
+bool AudioPatcherDisplay::objIsOnScreen(int16_t x, int16_t y, int16_t w, int16_t h)
 {
   return
       x < tft.width() // check object is visible
-   && 0 < x + OBJECT_SIZE
+   && 0 < x + w
    && y < tft.height()
-   && 0 < y + OBJECT_SIZE;  
+   && 0 < y + h;  
 }
 
 //=================================================================================================
@@ -172,8 +180,9 @@ void getOutputPositions(AudioObjStatic_t& o, int16_t x, int16_t y,
 
 
 //=================================================================================================
-void AudioPatcherDisplay::DrawAudioObject(AudioObjStatic_t& o, int16_t x, int16_t y, bool greyed)
+bool AudioPatcherDisplay::DrawAudioObject(AudioObjStatic_t& o, int16_t x, int16_t y, bool greyed)
 { 
+  bool result = false;
   x -= canvas_x; y -= canvas_y;
 
   if (objIsOnScreen(x,y))
@@ -214,7 +223,28 @@ void AudioPatcherDisplay::DrawAudioObject(AudioObjStatic_t& o, int16_t x, int16_
         cb += cs;
       }
     }
+
+    result = true;
   }
+  return result;
+}
+
+void AudioPatcherDisplay::DrawPerVoice(AudioObjInstance& aoi, bool greyed)
+{ 
+    uint16_t ec = greyed?ILI9341_DARKGREY:AudioObjectColours[aoi.objP->category].body; // assume not per-voice
+    int16_t x = aoi.x - canvas_x + OBJECT_SIZE - 11, y = aoi.y - canvas_y + 6;
+    
+    if (aoi.perVoice)
+      ec = greyed?ILI9341_LIGHTGREY:AudioObjectColours[aoi.objP->category].border;
+    
+    if (objIsOnScreen(x,y))
+      tft.fillCircle(x,y, 3, ec);
+}
+
+void AudioPatcherDisplay::DrawAudioObject(AudioObjInstance& aoi, bool greyed)
+{ 
+  if (DrawAudioObject(*aoi.objP,aoi.x,aoi.y,greyed))
+    DrawPerVoice(aoi,greyed); 
 }
 
 

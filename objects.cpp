@@ -39,7 +39,7 @@ AudioObjStatic_t objList[] =
 
 //===========================================================================================
 AudioObjInstance::AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, bool _noD) 
-  : objP(&o), context(nullptr), x(_x),y(_y), inputAvailFlags(0), noDelete(_noD) 
+  : objP(&o), context(nullptr), x(_x),y(_y), inputAvailFlags(0), noDelete(_noD), perVoice(false) 
 {
   // set all inputs (0..N-1) as available
   if (0 != objP->inputs)
