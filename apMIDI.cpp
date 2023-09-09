@@ -50,6 +50,10 @@ void myNoteOn(byte channel, byte note, byte velocity)
         obj.p->streamP.Waveform->frequency(freq);
         obj.p->streamP.Waveform->amplitude(velocity / 127.0f);
         break;        
+        
+      case AUDIO_EFFECT_ENVELOPE_ID:
+        obj.p->streamP.Envelope->noteOn();
+        break;
     }
   }
 }
@@ -65,8 +69,12 @@ void myNoteOff(byte channel, byte note, byte velocity)
 
       case AUDIO_SYNTH_WAVEFORM_ID:
         Serial.printf("Note off\n");
-        obj.p->streamP.Waveform->amplitude(0.0f);
+        //obj.p->streamP.Waveform->amplitude(0.0f);
         break;        
+        
+      case AUDIO_EFFECT_ENVELOPE_ID:
+        obj.p->streamP.Envelope->noteOff();
+        break;
     }
   }
   

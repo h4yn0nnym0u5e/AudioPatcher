@@ -222,7 +222,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
         }
         else // no parameters, might toggle per-voice
         {
-
+          editTogglePerVoice(aoi);
         }
       }
       break;      

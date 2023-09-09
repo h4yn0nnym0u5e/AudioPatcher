@@ -196,5 +196,6 @@ class PatchcordInstance_t
 
 bool operator<(const AudioObjInstancePtr& lhs, const AudioObjInstancePtr& rhs);
 extern int objNameToID(const char* s);
+extern void editTogglePerVoice(AudioObjInstance* aoi);
 
 #endif // !defined(_OBJECTS_H_)
