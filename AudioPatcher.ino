@@ -39,10 +39,7 @@ std::vector<AudioObjInstancePtr> objVec = {
 #define AUDIO_ENTRY(typ,shrt,id, ...) {&the##shrt},
   MY_AUDIO_IO
 #undef AUDIO_ENTRY
-//  {new AudioObjInstance{objList[AUDIO_EFFECT_DELAY_ID],5,5}},
-//  {new AudioObjInstance{objList[AUDIO_MIXER4_ID],110,5}},
-//  {new AudioObjInstance{objList[AUDIO_FILTER_LADDER_ID],110,55}},
-  {new AudioObjInstance{objList[AUDIO_EFFECT_CHORUS_ID],165+55,110}},
+  {new AudioObjInstance{objList[AUDIO_EFFECT_CHORUS_ID],165+55-4,110}},
   };
 std::vector<PatchcordInstance_t*> cordVec; 
 
@@ -104,10 +101,7 @@ void setup()
   Serial.printf("8Encoder at address 0x%02X; version %d\n",encr.getAddress(),encr.getVersion());
   
   AudioObjInstancePtr aoi = {new AudioObjInstance(objList[AUDIO_SYNTH_WAVEFORM_ID],110,110)};
-  //AudioObjInstancePtr aoi2 = {new AudioObjInstance(objList[AUDIO_SYNTH_NOISE_WHITE_ID],165,55)};
   objVec.insert(std::next(objVec.begin(),2),aoi);
-  //objVec.insert(std::next(objVec.begin(),3),aoi2);
-  //objVec.insert(std::next(objVec.begin(),3),{new AudioObjInstance(objList[AUDIO_ANALYZE_FFT1024_ID],220,55)});
   
   theInputI2S.x = -40;
   theInputI2S.y = 100;
@@ -132,11 +126,6 @@ void setup()
   dumpObjVec();
   
   // make some real connections  
-  /*
-  cordVec.push_back(new PatchcordInstance_t{objVec.at(8).p,0,&theOutputI2S,0}); 
-  cordVec.push_back(new PatchcordInstance_t(objVec.at(8).p,0,&theOutputI2S,1));
-  cordVec.push_back(new PatchcordInstance_t(objVec.at(5).p,0,objVec.at(8).p,0));
-*/
   cordVec.push_back(new PatchcordInstance_t{objVec.at(3).p,0,&theOutputI2S,0}); 
   cordVec.push_back(new PatchcordInstance_t(objVec.at(3).p,0,&theOutputI2S,1));
   cordVec.push_back(new PatchcordInstance_t(objVec.at(2).p,0,objVec.at(3).p,0));
@@ -176,7 +165,7 @@ MIDIEditor midiEditor(enc0,display,objVec,cordVec);
 DeleteEditor deleteEditor(enc0,enc1,enc2,display,objVec,cordVec);
 FileEditor fileEditor(enc0,enc1,enc2,display,objVec,cordVec);
 
-PatcherMIDI patcherMIDI(objVec);
+PatcherMIDI patcherMIDI(objVec, cordVec);
 /********************************************************************************************************/
 // "Lock" the mode encoder, e.g. while sub-editor is active
 // Allows re-use followed by restoration of old state

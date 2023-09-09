@@ -76,16 +76,7 @@ void updateFromControls(Tctxt* myContext, AudioObjInstance* aoi)
   }
 }
 
-void updateFromControls(AudioObjInstance* aoi)
-{
-  for (size_t i=0; i < se->paramCount; i++)
-  {
-    if (Scale(se->params[i],se->aray[i],ctrl.getPot16(i),0.999f))
-    {
-      se->ShowValue(i);
-    }
-  }
-}
+extern void updateFromControls(AudioObjInstance* aoi);
 
 
 //=====================================================================================
@@ -110,18 +101,18 @@ int editGetMIDIparams(AudioObjInstance* aoi, getSetParams* p)
 
 //=====================================================================================
 extern int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const size_t paramCount, getSetParams* p);
+extern int editSetStreamParams(AudioObjInstance& aoi);
 
+//=====================================================================================
 // Set object's parameters from supplied string
 template <class Tctxt>
 int editSetParams(AudioObjInstance* aoi, getSetParams* p)
 {
   Tctxt* myContext = (Tctxt*) aoi->context;
   int result = editSetParamsAny(myContext->params, myContext->aray, myContext->paramCount, p);
-
-  // set the actual stream object's parameters, too
-  for (size_t i=0; i < myContext->paramCount; i++)
-    myContext->setParam(i,aoi);
-
+  
+  editSetStreamParams(*aoi);
+  
   return result;
 }
 
@@ -158,8 +149,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
       {        
         myContext = new Tctxt;
         aoi->context = myContext;
-        for (size_t i=0; i < myContext->paramCount; i++)
-          myContext->setParam(i,aoi); // send initial settings to AudioStream object
+        editSetStreamParams(*aoi);
       }
       break;
       

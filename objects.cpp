@@ -89,6 +89,27 @@ bool operator<(const AudioObjInstancePtr& lhs, const AudioObjInstancePtr& rhs)
   return (lhs.p->x*10000 + lhs.p->y) < (rhs.p->x*10000 + rhs.p->y);
 }
 
+
+void AudioObjInstance::copySettingsTo(AudioObjInstance& aoi)
+{
+  aoi.context = context;
+  aoi.noDelete = noDelete;
+  aoi.perVoice = perVoice;
+  // don't copy available inputs, that's not a setting as such
+
+  // Copy the parameter settings to the AudioStream objects
+  // This may briefly set e.g. the wrong frequency / amplitude
+  // for a Waveform, but we have to assume an envelope
+  editSetStreamParams(aoi);
+}
+
+
+bool AudioObjInstance::isCopyOf(AudioObjInstance& aoi)
+{
+  return    x == aoi.x      // same ...
+      &&    y == aoi.y      // ...place, and...
+      && objP == aoi.objP;  // ...same type
+}
 //===========================================================================================
 PatchcordInstance_t::~PatchcordInstance_t()
 {

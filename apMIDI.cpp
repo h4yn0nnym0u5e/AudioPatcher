@@ -3,6 +3,10 @@
 static USBHost myUSB;
 static MIDIDevice midi1(myUSB);
 static PatcherMIDI* pm;
+
+static std::vector<PatcherVoice*> sounding;
+static std::vector<PatcherVoice*> releasing;
+//=================================================================
 static const float notesFromC0orMIDI_12[] 
   {
     16.3515978312875f, // C
@@ -19,7 +23,6 @@ static const float notesFromC0orMIDI_12[]
     30.8677063285078f  // B
   };
 
-
 static float noteToFreq(byte note)
 {
   float result = notesFromC0orMIDI_12[note % 12];
@@ -32,8 +35,7 @@ static float noteToFreq(byte note)
   return result;    
 }
 
-
-
+//=================================================================
 void myNoteOn(byte channel, byte note, byte velocity)
 {
   float freq = noteToFreq(note);
@@ -81,6 +83,7 @@ void myNoteOff(byte channel, byte note, byte velocity)
 }
 
 
+//=================================================================
 void PatcherMIDI::init(void)
 {
   pm = this;
@@ -94,3 +97,99 @@ void PatcherMIDI::update(void)
 {
   midi1.read();
 }
+
+//=================================================================
+PatcherVoice::PatcherVoice(std::vector<AudioObjInstancePtr>& objVec,
+                           std::vector<PatchcordInstance_t*>& cordVec)
+{
+  // clone the per-voice objects
+  for (auto obj : objVec)
+    if (obj.p->perVoice)
+    {
+      AudioObjInstance* aoi = new AudioObjInstance(*obj.p->objP, obj.p->x, obj.p->y); 
+      voiceVec.push_back({aoi});
+      obj.p->copySettingsTo(*aoi);
+    }
+
+  // clone the patchcords
+  for (auto cord : cordVec)
+  {
+    AudioObjInstance* src = nullptr, *dst = nullptr;
+    int dstPort = -1;
+
+    // look for internal connections
+    for (auto obj : voiceVec)
+    {
+      if (obj.p->isCopyOf(*cord->src))
+        src = obj.p;
+      if (obj.p->isCopyOf(*cord->dst))
+      {
+        dst = obj.p;
+        dstPort = cord->dst_port;
+      }
+
+      // can exit early if both connections found
+      if (nullptr != src && nullptr != dst)
+        break;
+    }
+
+    // cord doesn't connect to any per-voice 
+    // object, so it's of no interest to us
+    if (nullptr == src && nullptr == dst)
+      continue;
+
+    // if we don't have a source, we must have a destination, so
+    // the destination is a clone and the source is the
+    // same as for the overall design, e.g. an LFO
+    if (nullptr == src)
+      src = cord->src;
+
+    // if we don't have an internal destination, we're 
+    // looking for a mixer with an unused input: this
+    // is the only legal option
+    if (nullptr == dst)
+    {
+      if (AudioCategory_mixer == cord->dst->objP->category
+       && 0 != cord->dst->inputAvailFlags)
+      {
+        dst = cord->dst;
+
+        dstPort = 0;
+        for (uint32_t avail = cord->dst->inputAvailFlags; 
+             0 == (avail & 1);
+             avail >>= 1)
+          dstPort++;
+      }
+    }
+
+    // can we clone this cord? Do it!
+    if (nullptr != src && nullptr != dst && dstPort >= 0)
+    {
+      voiceCordVec.push_back(new PatchcordInstance_t(src,cord->src_port,dst,dstPort)); 
+    }
+  }
+}
+
+PatcherVoice::~PatcherVoice()
+{
+    // delete our patchcords: go backwards
+    // so we don't change the index of cords we
+    // haven't checked yet
+    for (int i=voiceCordVec.size() - 1;i>=0;i--)
+    {
+      auto cord = voiceCordVec.at(i);
+      delete cord;
+      voiceCordVec.erase(std::next(voiceCordVec.begin(),i));
+    }  
+
+    // similarly for the cloned objects
+    for (int i=voiceVec.size() - 1;i>=0;i--)
+    {
+      auto obj = voiceVec.at(i);
+      delete obj.p;
+      voiceVec.erase(std::next(voiceVec.begin(),i));
+    }  
+}
+
+void PatcherVoice::noteOn(byte channel, byte note, byte velocity){}
+void PatcherVoice::noteOff(byte channel, byte note, byte velocity){}

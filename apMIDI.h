@@ -9,11 +9,27 @@
 class PatcherMIDI
 {
   public:
-    PatcherMIDI(std::vector<AudioObjInstancePtr>& o)
-      : objVec(o)
+    PatcherMIDI(std::vector<AudioObjInstancePtr>& o,
+                std::vector<PatchcordInstance_t*>& p )
+      : objVec(o), cordVec(p)
       {}
     std::vector<AudioObjInstancePtr>& objVec;
+    std::vector<PatchcordInstance_t*>& cordVec;
     void init(void);
     void update(void);      
+};
+
+class PatcherVoice
+{
+  std::vector<AudioObjInstancePtr> voiceVec;
+  std::vector<PatchcordInstance_t*> voiceCordVec;
+  byte triggerNote;
+
+  public:
+    PatcherVoice(std::vector<AudioObjInstancePtr>& objVec,
+                 std::vector<PatchcordInstance_t*>& cordVec);
+    ~PatcherVoice();
+    void noteOn(byte channel, byte note, byte velocity);
+    void noteOff(byte channel, byte note, byte velocity);
 };
 #endif // !defined(_AP_MIDI_H_)

@@ -170,6 +170,8 @@ class AudioObjInstance
     uint32_t inputAvailFlags; // let's be optimistic!
     bool noDelete;
     bool perVoice; // create copy of this object when new voice is triggered
+    void copySettingsTo(AudioObjInstance& aoi);
+    bool isCopyOf(AudioObjInstance& aoi);
 };
 
 struct AudioObjInstancePtr {AudioObjInstance* p; };
@@ -197,5 +199,6 @@ class PatchcordInstance_t
 bool operator<(const AudioObjInstancePtr& lhs, const AudioObjInstancePtr& rhs);
 extern int objNameToID(const char* s);
 extern void editTogglePerVoice(AudioObjInstance* aoi);
+extern int editSetStreamParams(AudioObjInstance& aoi);
 
 #endif // !defined(_OBJECTS_H_)

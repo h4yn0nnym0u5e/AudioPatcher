@@ -103,6 +103,21 @@ int testExit(uint32_t& exitAt)
 }
 
 //===========================================================================================
+void updateFromControls(AudioObjInstance* aoi)
+{
+  if (nullptr != se)
+  {
+    for (size_t i=0; i < se->paramCount; i++)
+    {
+      if (Scale(se->params[i],se->aray[i],ctrl.getPot16(i),0.999f))
+      {
+        se->ShowValue(i);
+      }
+    }
+  }
+}
+
+//===========================================================================================
 void SettingsEditor::Init(const char* title)
 {
   int row = 0;
@@ -186,6 +201,21 @@ int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const size_t pa
   p->sz = ptr - p->buffer;
   return 1;
 }
+
+//=====================================================================================
+// Set AudioStream object's parameters from the stored ones
+int editSetStreamParams(AudioObjInstance& aoi)
+{
+  ContextBase* myContext = (ContextBase*) aoi.context;
+  
+  // set the actual stream object's parameters
+  for (size_t i=0; i < myContext->paramCount; i++)
+    myContext->setParam(i,&aoi);
+
+  return (int) myContext->paramCount;
+}
+
+
 //===========================================================================================
 // Strong definitions of setup controls
 //===========================================================================================
