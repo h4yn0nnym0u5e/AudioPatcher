@@ -92,6 +92,8 @@ bool operator<(const AudioObjInstancePtr& lhs, const AudioObjInstancePtr& rhs)
 
 void AudioObjInstance::copySettingsTo(AudioObjInstance& aoi)
 {
+  aoi.x = x;
+  aoi.y = y;
   aoi.context = context;
   aoi.noDelete = noDelete;
   aoi.perVoice = perVoice;

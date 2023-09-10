@@ -282,6 +282,7 @@ void PatcherVoice::noteOn(byte channel, byte note, byte velocity)
 {
   MIDIevent me{channel,midi::NoteOn,{note},{velocity}};
   sendMIDIevent(me);
+  Serial.println("Note on");
   triggerNote = note;
   triggerVelocity = velocity;
 }
@@ -290,6 +291,7 @@ void PatcherVoice::noteOff(byte channel, byte note, byte velocity)
 {
   MIDIevent me{channel,midi::NoteOff,{note},{velocity}};
   sendMIDIevent(me);
+  Serial.println("Note off");
 }
 
 bool PatcherVoice::isActive(void)
