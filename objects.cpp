@@ -43,8 +43,8 @@ AudioObjStatic_t objList[] =
 #undef AUDIO_ENTRY
 
 //===========================================================================================
-AudioObjInstance::AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, bool _noD) 
-  : objP(&o), context(nullptr), x(_x),y(_y), inputAvailFlags(0), noDelete(_noD), perVoice(false) 
+AudioObjInstance::AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, bool _noD, bool _isAcopy) 
+  : objP(&o), context(nullptr), x(_x),y(_y), inputAvailFlags(0), noDelete(_noD), perVoice(false), isAcopy(_isAcopy) 
 {
   // set all inputs (0..N-1) as available
   if (0 != objP->inputs)
@@ -74,7 +74,7 @@ AudioObjInstance::~AudioObjInstance()
   {
     switch (objP->id)
     {
-#define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,cons) case id##_ID: edit##shrt(this,AudioEditMode::destructor, nullptr); delete streamP.shrt; break;
+#define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,cons) case id##_ID: delete streamP.shrt; edit##shrt(this,AudioEditMode::destructor, nullptr); break;
       AUDIO_ENTRIES
       MY_AUDIO_IO
 #undef AUDIO_ENTRY 

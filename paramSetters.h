@@ -1,9 +1,11 @@
 #if !defined(_PARAMSETTERS_H_)
 #define _PARAMSETTERS_H_
 
+#include <MIDI.h>
 #include "paramEntry.h"
 #include "display.h"
 #include "LimitedEncoder.h"
+#include "apMIDI.h"
 
 extern LimitedEncoder encM,enc0,enc1,enc2;
 
@@ -129,6 +131,11 @@ int editSetMIDIparams(AudioObjInstance* aoi, getSetParams* p)
 
 //=====================================================================================
 template <class Tctxt>
+void processMIDIevent(AudioObjInstance* aoi, MIDIevent* ev){} // no special action for most AudioStream classes
+template <class Tctxt>
+int isActive(AudioObjInstance* aoi){ return 0; } // most AudioStream classes don't have "active" state
+//=====================================================================================
+template <class Tctxt>
 void enterEditMode(Tctxt* myContext, AudioObjInstance* aoi){} // no special action for most AudioStream classes
 //=====================================================================================
 template <class Tctxt>
@@ -146,15 +153,24 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
   switch (mode)
   {
     case AudioEditMode::constructor: // construction
-      {        
-        myContext = new Tctxt;
-        aoi->context = myContext;
-        editSetStreamParams(*aoi);
+      { 
+        if (!aoi->isAcopy) // making a real object
+        {       
+          myContext = new Tctxt;
+          aoi->context = myContext;
+          editSetStreamParams(*aoi);
+        }
+        // if we make a copy, the caller must deal with that,
+        // e.g. by setting the stream parameters, position etc
       }
       break;
       
     case AudioEditMode::destructor:
-      delete myContext;
+      if (!aoi->isAcopy) // only delete context if it's the real deal
+      {
+        Serial.println("delete context");
+        delete myContext;
+      }
       break;
 
     //---------------------------------------------------------------------------------------------------
@@ -271,7 +287,16 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
         result = 1;
       }
       break;
-      
+
+    case AudioEditMode::processMIDIevent:
+      processMIDIevent<Tctxt>(aoi,(MIDIevent*) params);
+      break;      
+
+    case AudioEditMode::checkIfActive:
+      result = isActive<Tctxt>(aoi);
+      break;      
+
+    //---------------------------------------------------------------------------------------------------
     default:
       break;      
   }
@@ -319,6 +344,18 @@ class ContextChorus  : public ContextBase
 
     void enterEditMode(AudioObjInstance* aoi);
     void exitEditMode(AudioObjInstance* aoi);
+};
+
+class ContextEnvelope : public ContextBase
+{
+  public:
+    ContextEnvelope() : ContextBase(COUNT_OF(_params), &s.delay, _params) {}
+    static const ParamEntry _params[7];
+    struct {ParamValue delay,  attack, hold,   decay,   sustain, release,  releaseNoteOn;} s
+                {      {0.0f}, {3.392f},{1.322f}, {5.129f}, {0.5f},  {8.229f}, {2.322f}      };
+
+    void setParam(int i, AudioObjInstance* aoi);
+    static const int boxWidth{270};
 };
 
 class ContextBiquad : public ContextBase
@@ -409,13 +446,18 @@ class ContextNoise : public ContextBase
 class ContextWaveform : public ContextBase 
 {
   public:
-    ContextWaveform() : ContextBase(COUNT_OF(_params), &s.waveform, _params) {}
+    ContextWaveform() : ContextBase(COUNT_OF(_params), &s.waveform, _params,
+                                            COUNT_OF(MIDIparams), &m.octave, MIDIparams) {}
     static const ParamEntry _params[5];
     struct {ParamValue waveform,frequency,amplitude,pulseWidth,offset;} s
                  {             {0},     {7.0f},   {0.5f},   {0.333f},  {0.0f}    };
 
     void setParam(int i, AudioObjInstance* aoi);
     static const int boxWidth{260};
+
+    //------ MIDI settings ----------
+    static const ParamEntry MIDIparams[4];
+    struct {ParamValue octave,detune,velocity,tuning;} m {{4},{0.00f},{0},{0}};
 };
 
 class ContextWaveformDc : public ContextBase
@@ -441,8 +483,8 @@ class ContextWaveformModulated : public ContextBase
     void setParam(int i, AudioObjInstance* aoi);
 
     //------ MIDI settings ----------
-    static const ParamEntry MIDIparams[3];
-    ParamValue MIDIvalues[COUNT_OF(MIDIparams)]{{4},{0.00f},{0}};
+    static const ParamEntry MIDIparams[4];
+    ParamValue MIDIvalues[COUNT_OF(MIDIparams)]{{4},{0.00f},{0},{0}};
 };
 
 class ContextControlSGTL5000 : public ContextBase

@@ -138,7 +138,11 @@ struct AudioObj_t
   AudioID id;     //!< the object's ID number
 };
 
-enum class AudioEditMode {destructor = -1, constructor, enter,edit,exit, MIDIenter,MIDIedit,MIDIexit, getParams,setParams, getMIDIparams,setMIDIparams};
+enum class AudioEditMode {destructor = -1, constructor, 
+                          enter,edit,exit, 
+                          MIDIenter,MIDIedit,MIDIexit, 
+                          getParams,setParams, 
+                          getMIDIparams,setMIDIparams,processMIDIevent,checkIfActive};
 struct getSetParams {char* buffer; size_t sz;};
 class AudioObjInstance; // forward declaration needed for editFn()
 struct AudioObjStatic_t
@@ -159,8 +163,9 @@ struct AudioObjStatic_t
 class AudioObjInstance
 {
   public:
-    AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, bool _noD);
-    AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y) : AudioObjInstance(o,_x,_y,false) {}
+    AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, bool _noD, bool _isAcopy = false);
+    AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y) : AudioObjInstance(o,_x,_y,false,false) {}
+    AudioObjInstance(AudioObjStatic_t& o) : AudioObjInstance(o,-9999,-9999,false,true) {}
     ~AudioObjInstance();
     AudioObjStatic_t* objP;
     AudioObjPtr_u streamP;
@@ -170,6 +175,7 @@ class AudioObjInstance
     uint32_t inputAvailFlags; // let's be optimistic!
     bool noDelete;
     bool perVoice; // create copy of this object when new voice is triggered
+    bool isAcopy; // true if this object is a copy of one from the main design
     void copySettingsTo(AudioObjInstance& aoi);
     bool isCopyOf(AudioObjInstance& aoi);
 };

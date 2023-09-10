@@ -7,7 +7,7 @@ static PatcherMIDI* pm;
 static std::vector<PatcherVoice*> sounding;
 static std::vector<PatcherVoice*> releasing;
 //=================================================================
-static const float notesFromC0orMIDI_12[] 
+const float PatcherVoice::notesFromC0orMIDI_12[] 
   {
     16.3515978312875f, // C
     17.3239144360545f, // C#
@@ -23,9 +23,27 @@ static const float notesFromC0orMIDI_12[]
     30.8677063285078f  // B
   };
 
-static float noteToFreq(byte note)
+// Reproduce most of the Hammond tonewheel ratios
+static const float HAMMOND_BASE = 1200.0f / 60.0f * 2.0f;
+const float notesHammond[] 
+  {
+    85.0f /104.0f * HAMMOND_BASE, // C
+    71.0f /82.0f * HAMMOND_BASE, // C#
+    67.0f /73.0f * HAMMOND_BASE, // D
+    70.0f /72.0f * HAMMOND_BASE, // D#
+    69.0f /67.0f * HAMMOND_BASE, // E
+    54.0f /99.0f * HAMMOND_BASE, // F
+    37.0f /64.0f * HAMMOND_BASE, // F#
+    49.0f /80.0f * HAMMOND_BASE, // G
+    48.0f /74.0f * HAMMOND_BASE, // G#
+    66.0f /96.0f * HAMMOND_BASE, // A
+    67.0f /92.0f * HAMMOND_BASE, // A#
+    54.0f /70.0f * HAMMOND_BASE  // B
+  };
+
+float PatcherVoice::noteToFreq(byte note, const float* table)
 {
-  float result = notesFromC0orMIDI_12[note % 12];
+  float result = table[note % 12];
 
   if (note >= 12)
     result *= 1 << ((note - 12) / 12);
@@ -38,7 +56,8 @@ static float noteToFreq(byte note)
 //=================================================================
 void myNoteOn(byte channel, byte note, byte velocity)
 {
-  float freq = noteToFreq(note);
+
+  float freq = PatcherVoice::noteToFreq(note);
   
   for (auto obj : pm->objVec)
   {
@@ -89,24 +108,82 @@ void PatcherMIDI::init(void)
   pm = this;
   myUSB.begin();
 
+/*
   midi1.setHandleNoteOn(myNoteOn);
   midi1.setHandleNoteOff(myNoteOff);
+  */
 }
 
 void PatcherMIDI::update(void)
 {
-  midi1.read();
+  // deal with new MIDI events
+  if (midi1.read())
+  {
+    switch (midi1.getType())
+    {
+      case midi::NoteOn: 
+        {
+          Serial.println("\nCreate voice:");
+          PatcherVoice* newVoice = new PatcherVoice{objVec,cordVec}; // create the voice
+          sounding.push_back(newVoice);  // add it to the list
+          newVoice->noteOn(midi1.getChannel(),midi1.getData1(), midi1.getData2()); // start it sounding
+        }
+        break;
+
+      case midi::NoteOff:
+        {
+          byte note = midi1.getData1();          
+        
+          for (size_t i=0; i < sounding.size(); i++)
+          {
+            PatcherVoice* obj = sounding.at(i);  
+          
+            if (note == obj->getNote())
+            {
+              obj->noteOff(midi1.getChannel(),note, midi1.getData2());
+              releasing.push_back(obj);
+              sounding.erase(sounding.begin() + i);
+            }
+          }
+        }
+        break; 
+
+      default:
+        {
+          MIDIevent me {midi1.getChannel(),midi1.getType(),midi1.getData1(),midi1.getData2()};
+          for (auto obj : sounding)
+            obj->sendMIDIevent(me);
+        }
+        break;
+    }
+  }
+
+  // now see if any releasing voices have finished
+  for (int i = releasing.size() - 1; i >= 0; i--)
+  {
+    PatcherVoice* obj = releasing.at(i);
+    if (!obj->isActive())
+    {
+      Serial.println("\nDelete voice:");
+      delete obj;
+      releasing.erase(releasing.begin() + i);
+    }
+  }
 }
 
 //=================================================================
+// Create a new sub-patch from the design. Usually triggered
+// by a MIDI note on, but might not be so we don't actually
+// do the note on function in here
 PatcherVoice::PatcherVoice(std::vector<AudioObjInstancePtr>& objVec,
                            std::vector<PatchcordInstance_t*>& cordVec)
+            : triggerNote(-1), triggerVelocity(-1), patchOK(true)
 {
   // clone the per-voice objects
   for (auto obj : objVec)
     if (obj.p->perVoice)
     {
-      AudioObjInstance* aoi = new AudioObjInstance(*obj.p->objP, obj.p->x, obj.p->y); 
+      AudioObjInstance* aoi = new AudioObjInstance(*obj.p->objP); 
       voiceVec.push_back({aoi});
       obj.p->copySettingsTo(*aoi);
     }
@@ -165,8 +242,10 @@ PatcherVoice::PatcherVoice(std::vector<AudioObjInstancePtr>& objVec,
     // can we clone this cord? Do it!
     if (nullptr != src && nullptr != dst && dstPort >= 0)
     {
-      voiceCordVec.push_back(new PatchcordInstance_t(src,cord->src_port,dst,dstPort)); 
+      voiceCordVec.push_back(new PatchcordInstance_t(src,cord->src_port,dst,dstPort));
     }
+    else
+      patchOK = false; // at least one patchcord failure
   }
 }
 
@@ -179,7 +258,7 @@ PatcherVoice::~PatcherVoice()
     {
       auto cord = voiceCordVec.at(i);
       delete cord;
-      voiceCordVec.erase(std::next(voiceCordVec.begin(),i));
+      voiceCordVec.erase(voiceCordVec.begin()+i);
     }  
 
     // similarly for the cloned objects
@@ -187,9 +266,42 @@ PatcherVoice::~PatcherVoice()
     {
       auto obj = voiceVec.at(i);
       delete obj.p;
-      voiceVec.erase(std::next(voiceVec.begin(),i));
+      voiceVec.erase(voiceVec.begin()+i);
     }  
 }
 
-void PatcherVoice::noteOn(byte channel, byte note, byte velocity){}
-void PatcherVoice::noteOff(byte channel, byte note, byte velocity){}
+void PatcherVoice::sendMIDIevent(MIDIevent& me)
+{
+  // send the message to all objects
+  for (auto obj : voiceVec)
+    obj.p->objP->editFn(obj.p,AudioEditMode::processMIDIevent,&me);  
+}
+
+
+void PatcherVoice::noteOn(byte channel, byte note, byte velocity)
+{
+  MIDIevent me{channel,midi::NoteOn,{note},{velocity}};
+  sendMIDIevent(me);
+  triggerNote = note;
+  triggerVelocity = velocity;
+}
+  
+void PatcherVoice::noteOff(byte channel, byte note, byte velocity)
+{
+  MIDIevent me{channel,midi::NoteOff,{note},{velocity}};
+  sendMIDIevent(me);
+}
+
+bool PatcherVoice::isActive(void)
+{
+  bool result = false;
+
+  for (auto obj : voiceVec)
+    if (0 != obj.p->objP->editFn(obj.p,AudioEditMode::checkIfActive,nullptr)) // found an active object?
+    {
+      result = true; // still active then, look no further
+      break;
+    }
+  
+  return result;
+}

@@ -350,11 +350,17 @@ const ParamChoice velocityShapes[]
    {"max" ,   2}
   };
 
+const ParamChoice tuningTypes[] 
+  {{"equal", 0},
+   {"Hammond", 1},
+  };
+
 const ParamEntry ContextWaveformModulated::MIDIparams[] 
 {
-  {"octave", 0, 9}, // middle C = 261.63Hz = note#60 = octave 4
-  {"detune", -6.00f, +6.00f}, // semitones / cents
+  {"  octave", 0, 9}, // middle C = 261.63Hz = note#60 = octave 4
+  {"  detune", -6.00f, +6.00f}, // semitones / cents
   {"velocity",PARAM_ENTRY_CHOICES(velocityShapes)},
+  {"  tuning",PARAM_ENTRY_CHOICES(tuningTypes)},
 };
 
 const ParamChoice waveShapes[12] = 
@@ -657,6 +663,14 @@ int editStateVariable(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
+const ParamEntry ContextWaveform::MIDIparams[] 
+{
+  {"  octave", 0, 9}, // middle C = 261.63Hz = note#60 = octave 4
+  {"  detune", -6.00f, +6.00f}, // semitones / cents
+  {"velocity",PARAM_ENTRY_CHOICES(velocityShapes)},
+  {"  tuning",PARAM_ENTRY_CHOICES(tuningTypes)},
+};
+
 const ParamEntry ContextWaveform::_params[] = {
   {"  waveform", PARAM_ENTRY_CHOICES(waveShapes)},
   {" frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
@@ -726,6 +740,36 @@ void updateFromControls<ContextWaveform>(ContextWaveform* myContext, AudioObjIns
     }
   }
 }
+
+template <>
+void processMIDIevent<ContextWaveform>(AudioObjInstance* aoi, MIDIevent* ev)
+{
+  ContextWaveform* ctxt = (ContextWaveform*) aoi->context;
+  
+  if (midi::NoteOn == ev->type) // note on
+  {
+    float freq;
+    byte note = ev->note;
+    
+    note += 12*(ctxt->m.octave.value.i - 4);
+
+    if (0 == ctxt->m.tuning.value.i) // magic: equal temperament
+    {
+      freq = PatcherVoice::noteToFreq(note);
+      freq *= pow(2.0f,ctxt->m.detune.value.f);
+      // TODO: add in current pitch bend here
+    }
+    else
+    {
+      note += (int) ctxt->m.detune.value.f; // just use another "tonewheel"
+      freq = PatcherVoice::noteToFreq(note,notesHammond);
+    }
+    
+    aoi->streamP.Waveform->frequency(freq);
+    aoi->streamP.Waveform->amplitude(ev->velocity / 127.0f);
+  }
+}
+
   
 int editWaveform(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
@@ -885,4 +929,51 @@ int editBiquad(AudioObjInstance* aoi, AudioEditMode mode, void* params)
   }
   
   return result;
+}
+
+//===========================================================================================
+void ContextEnvelope::setParam(int i, AudioObjInstance* aoi)
+{
+  switch (i)
+  {
+    case 0: aoi->streamP.Envelope->delay(pow(2,s.delay.value.f)); break;
+    case 1: aoi->streamP.Envelope->attack(pow(2,s.attack.value.f)); break;
+    case 2: aoi->streamP.Envelope->hold(pow(2,s.hold.value.f)); break;
+    case 3: aoi->streamP.Envelope->decay(pow(2,s.decay.value.f)); break;
+    case 4: aoi->streamP.Envelope->sustain(s.sustain.value.f); break;
+    case 5: aoi->streamP.Envelope->release(pow(2,s.release.value.f)); break;
+    case 6: aoi->streamP.Envelope->releaseNoteOn(pow(2,s.releaseNoteOn.value.f)); break;
+  }
+}
+
+const ParamEntry ContextEnvelope::_params[7] = {
+        {"    delay", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
+        {"   attack", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
+        {"     hold", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
+        {"    decay", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
+        {"  sustain", 0.0f, 1.0f}, 
+        {"  release", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
+        {"relNoteOn", 0.0f, 13.2877123795495f, 'l'} // 1.0 .. 10,000.0ms
+    };
+
+int editEnvelope(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  return editObjType<AudioEffectEnvelope, ContextEnvelope>(aoi,mode,params);
+}
+
+template <>
+void processMIDIevent<ContextEnvelope>(AudioObjInstance* aoi, MIDIevent* ev)
+{
+  if (midi::NoteOff == ev->type) // note off
+    aoi->streamP.Envelope->noteOff();
+  if (midi::NoteOn  == ev->type) // note on
+    aoi->streamP.Envelope->noteOn();
+}
+
+// \return 0 for idle, 2 for active, 3 for sustain, should never be 3
+template <>
+int isActive<ContextEnvelope>(AudioObjInstance* aoi)
+{
+  return (aoi->streamP.Envelope->isSustain()?1:0)
+       + (aoi->streamP.Envelope->isActive() ?2:0);
 }
