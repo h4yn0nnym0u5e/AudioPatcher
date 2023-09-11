@@ -371,14 +371,18 @@ void ContextMixerStereo::setParam(int i, AudioObjInstance* aoi)
   
 }
 
-const ParamPage ContextMixerStereo::_pages[2] {{0,4},{4,4}};
+const ParamPage ContextMixerStereo::_pages[2] {{0,8},{8,8}};
 
-const ParamEntry ContextMixerStereo::_params[8] = 
+const ParamEntry ContextMixerStereo::_params[16] = 
 {
   {"ch1", 0.0f, 1.0f}, {"pan1", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
   {"ch2", 0.0f, 1.0f}, {"pan2", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
   {"ch3", 0.0f, 1.0f}, {"pan3", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
   {"ch4", 0.0f, 1.0f}, {"pan4", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
+  {"ch5", 0.0f, 1.0f}, {"pan5", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
+  {"ch6", 0.0f, 1.0f}, {"pan6", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
+  {"ch7", 0.0f, 1.0f}, {"pan7", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
+  {"ch8", 0.0f, 1.0f}, {"pan8", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
 };
 
 int editMixerStereo(AudioObjInstance* aoi, AudioEditMode mode, void* params)

@@ -205,13 +205,17 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
     case AudioEditMode::enter: // start editing an object's settings
       {
         int cols = 1;
-        
+        int rows = myContext->paramCount;
+
+        if (nullptr != myContext->pages)    // paged parameters?
+          rows = myContext->pages[0].count; // first page must be [equal] biggest
+                  
         result = 1; // claimed
         enterEditMode(myContext,aoi);
         if (myContext->paramCount > 1 && 0 != myContext->params[1].xoff) // multi-column - assume just 2!
           cols = 2;
           
-        se = new SettingsEditor(display,BOX_DEF(Tctxt::boxWidth,myContext->paramCount / cols),
+        se = new SettingsEditor(display,BOX_DEF(Tctxt::boxWidth,rows / cols),
                                 myContext->paramCount, myContext->params,myContext->aray,myContext->pages);
         se->Init(aoi->objP->name);
         next = 0;
@@ -241,12 +245,13 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
         if (nullptr != myContext && nullptr != myContext->MIDIparams) // does it even have any MIDI settings?
         {
           int cols = 1;
-          
+          int rows = myContext->MIDIparamCount;
+
           result = 1; // claimed
           if (myContext->MIDIparamCount > 1 && 0 != myContext->MIDIparams[1].xoff) // multi-column - assume just 2!
             cols = 2;
             
-          se = new SettingsEditor(display,BOX_DEF(Tctxt::boxWidth,myContext->MIDIparamCount / cols),
+          se = new SettingsEditor(display,BOX_DEF(Tctxt::boxWidth,rows / cols),
                                   myContext->MIDIparamCount, myContext->MIDIparams,myContext->MIDIvalues,nullptr);
   
           se->Init(aoi->objP->name);
@@ -444,14 +449,18 @@ class ContextMixer4 : public ContextBase
     void setParam(int i, AudioObjInstance* aoi);
 };
 
-#define EDIT_MIXER_STEREO_PAN_OFF ((int) (8*12+20))
+#define EDIT_MIXER_STEREO_PAN_OFF ((int) (8*12+20)) // x-offset of pan label
 class ContextMixerStereo : public ContextBase   
 {    
     static const ParamPage _pages[2];
   public:
     ContextMixerStereo() : ContextBase(COUNT_OF(_params), gainOrPan, _params, _pages) {}
-    static const ParamEntry _params[8];
-    ParamValue gainOrPan[8]{
+    static const ParamEntry _params[16];
+    ParamValue gainOrPan[16]{
+        {0.55f},{0.0f},
+        {0.55f},{0.0f},
+        {0.55f},{0.0f},
+        {0.55f},{0.0f},
         {0.55f},{0.0f},
         {0.55f},{0.0f},
         {0.55f},{0.0f},
