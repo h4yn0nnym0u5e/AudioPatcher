@@ -33,9 +33,9 @@ class SettingsEditor
     SettingsEditor(AudioPatcherDisplay& d, 
     int16_t x, int16_t y, int16_t w, int16_t h,
     size_t n,
-    const ParamEntry* ppe, ParamValue* ppv) 
+    const ParamEntry* ppe, ParamValue* ppv, const ParamPage* ppg) 
     : display(d.getInstance()),
-      paramCount(n), params(ppe), aray(ppv),
+      paramCount(n), currentPage(0), params(ppe), aray(ppv), pages(ppg),
       workArea{.x=x, .y=y, .w=w, .h=h}
     {
       display.SaveArea(x,y,w,h);
@@ -45,13 +45,17 @@ class SettingsEditor
     
     AudioPatcherDisplay& display;
     size_t paramCount;
+    int8_t currentPage;
     const ParamEntry* params;
     ParamValue* aray;
+    const ParamPage* pages;
     struct {int16_t x,y,w,h;} workArea;
 
     void Init(const char* title);
     void ShowLabel(int i, int row, int xoff, int yoff) { display.ShowLabel(params[i],aray[i],row,xoff,yoff); }
     void ShowValue(int i) { display.ShowValue(params[i],aray[i],i); }
+    void ShowPage(void);
+    bool ChangePage(int newPage);
     void ShowVoiceFlag(bool);
 };
 
@@ -68,12 +72,37 @@ extern int testExit(uint32_t& exitAt);
 template <class Tctxt>
 void updateFromControls(Tctxt* myContext, AudioObjInstance* aoi)
 {
-  for (size_t i=0; i < se->paramCount; i++)
+  size_t pOff = 0, pCount = se->paramCount;
+  
+  if (encM.available()) // attempt to change page
   {
-    if (Scale(se->params[i],se->aray[i],ctrl.getPot16(i),0.999f))
+    int oldPage = se->currentPage;
+    int newPage = oldPage + encM.getValue();
+    encM.setValue(0);
+    if (se->ChangePage(newPage))
     {
-      se->ShowValue(i);
-      myContext->setParam(i,aoi);
+      // unhook from old parameter values
+      for (int i=0; i < se->pages[oldPage].count; i++)
+        ctrl.clearHook(i);
+
+      se->ShowPage();
+    }
+  }
+
+  if (nullptr != se->pages)
+  {
+    pOff = se->pages[se->currentPage].start;
+    pCount = se->pages[se->currentPage].count;
+  }
+    
+  for (size_t i=0; i < pCount; i++)
+  {
+    int pNum = i + pOff;
+    
+    if (Scale(se->params[pNum],se->aray[pNum],ctrl.getPot16(i),0.999f))
+    {
+      se->ShowValue(pNum);
+      myContext->setParam(pNum,aoi);
     }
   }
 }
@@ -168,7 +197,6 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
     case AudioEditMode::destructor:
       if (!aoi->isAcopy) // only delete context if it's the real deal
       {
-        Serial.println("delete context");
         delete myContext;
       }
       break;
@@ -184,7 +212,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
           cols = 2;
           
         se = new SettingsEditor(display,BOX_DEF(Tctxt::boxWidth,myContext->paramCount / cols),
-                                myContext->paramCount, myContext->params,myContext->aray);
+                                myContext->paramCount, myContext->params,myContext->aray,myContext->pages);
         se->Init(aoi->objP->name);
         next = 0;
       }
@@ -219,7 +247,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
             cols = 2;
             
           se = new SettingsEditor(display,BOX_DEF(Tctxt::boxWidth,myContext->MIDIparamCount / cols),
-                                  myContext->MIDIparamCount, myContext->MIDIparams,myContext->MIDIvalues);
+                                  myContext->MIDIparamCount, myContext->MIDIparams,myContext->MIDIvalues,nullptr);
   
           se->Init(aoi->objP->name);
           se->ShowVoiceFlag(aoi->perVoice);
@@ -306,9 +334,9 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 class ContextBase
 {
   public:
-    ContextBase(int nParam, ParamValue* ppv, const ParamEntry* ppe,
+    ContextBase(int nParam, ParamValue* ppv, const ParamEntry* ppe, const ParamPage* ppg = nullptr,
                 int nMIDI = 0, ParamValue* pmv = nullptr, const ParamEntry* pme = nullptr) 
-      : paramCount(nParam),    params(ppe),     aray(ppv),
+      : paramCount(nParam),    params(ppe),     aray(ppv),      pages(ppg),
         MIDIparamCount(nMIDI), MIDIparams(pme), MIDIvalues(pmv)
       {}
     virtual ~ContextBase(){}
@@ -318,6 +346,7 @@ class ContextBase
     const size_t paramCount;
     const ParamEntry* params;
     ParamValue* aray;
+    const ParamPage* pages;
 
     //------ MIDI settings ----------
     const size_t MIDIparamCount;
@@ -417,9 +446,10 @@ class ContextMixer4 : public ContextBase
 
 #define EDIT_MIXER_STEREO_PAN_OFF ((int) (8*12+20))
 class ContextMixerStereo : public ContextBase   
-{
+{    
+    static const ParamPage _pages[2];
   public:
-    ContextMixerStereo() : ContextBase(COUNT_OF(_params), gainOrPan, _params) {}
+    ContextMixerStereo() : ContextBase(COUNT_OF(_params), gainOrPan, _params, _pages) {}
     static const ParamEntry _params[8];
     ParamValue gainOrPan[8]{
         {0.55f},{0.0f},
@@ -446,7 +476,7 @@ class ContextNoise : public ContextBase
 class ContextWaveform : public ContextBase 
 {
   public:
-    ContextWaveform() : ContextBase(COUNT_OF(_params), &s.waveform, _params,
+    ContextWaveform() : ContextBase(COUNT_OF(_params), &s.waveform, _params, nullptr,
                                             COUNT_OF(MIDIparams), &m.octave, MIDIparams) {}
     static const ParamEntry _params[5];
     struct {ParamValue waveform,frequency,amplitude,pulseWidth,offset;} s
@@ -474,7 +504,7 @@ class ContextWaveformDc : public ContextBase
 class ContextWaveformModulated : public ContextBase
 { 
   public:
-    ContextWaveformModulated() : ContextBase(COUNT_OF(_params), &s.waveform, _params,
+    ContextWaveformModulated() : ContextBase(COUNT_OF(_params), &s.waveform, _params, nullptr, 
                                             COUNT_OF(MIDIparams), MIDIvalues, MIDIparams) {}
     static const ParamEntry _params[6];
     struct {ParamValue waveform,frequency,amplitude,offset,modType,modDepth;} s {{0},{7.0f},{0.5f},{0.0f},{0},{1.0f}};

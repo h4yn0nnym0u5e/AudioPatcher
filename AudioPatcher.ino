@@ -169,6 +169,7 @@ PatcherMIDI patcherMIDI(objVec, cordVec);
 /********************************************************************************************************/
 // "Lock" the mode encoder, e.g. while sub-editor is active
 // Allows re-use followed by restoration of old state
+// We also set it to a value of 0 and limits of ±1
 LimitedEncoderStash* modeEncoderStash;
 bool modeEncoderLocked;
 
@@ -178,6 +179,8 @@ void lockModeEncoder(void)
   {
     modeEncoderStash = new LimitedEncoderStash(encM);
     modeEncoderLocked = true;
+    encM.setLimits(-1,1);
+    encM.setValue(0);
   }
 }
 
@@ -244,36 +247,33 @@ void loop()
   }
     
   // Change mode of operation
-  if (encM.available() || !initialised)
+  if ((!modeEncoderLocked && encM.available()) || !initialised)
   {
-    if (!modeEncoderLocked)
+    char oldMode = editMode[0];
+    editMode[0] = modes[encM.getValue()];
+
+    if (oldMode != editMode[0])
     {
-      char oldMode = editMode[0];
-      editMode[0] = modes[encM.getValue()];
-  
-      if (oldMode != editMode[0])
+      display.ShowMode(editMode);
+      switch (oldMode)
       {
-        display.ShowMode(editMode);
-        switch (oldMode)
-        {
-          default: break;
-          case 'O': objEditor.exit(); break;  
-          case 'P': cordEditor.exit(); break;
-          case 'E': paramEditor.exit(); break;
-          case 'M': midiEditor.exit(); break;
-          case 'D': deleteEditor.exit(); break;
-          case 'F': fileEditor.exit(); break;
-        }
-        switch (editMode[0])
-        {
-          default: break;
-          case 'O': objEditor.enter(); break;  
-          case 'P': cordEditor.enter(); break;
-          case 'E': paramEditor.enter(); break;
-          case 'M': midiEditor.enter(); break;
-          case 'D': deleteEditor.enter(); break;
-          case 'F': fileEditor.enter(); break;
-        }
+        default: break;
+        case 'O': objEditor.exit(); break;  
+        case 'P': cordEditor.exit(); break;
+        case 'E': paramEditor.exit(); break;
+        case 'M': midiEditor.exit(); break;
+        case 'D': deleteEditor.exit(); break;
+        case 'F': fileEditor.exit(); break;
+      }
+      switch (editMode[0])
+      {
+        default: break;
+        case 'O': objEditor.enter(); break;  
+        case 'P': cordEditor.enter(); break;
+        case 'E': paramEditor.enter(); break;
+        case 'M': midiEditor.enter(); break;
+        case 'D': deleteEditor.enter(); break;
+        case 'F': fileEditor.enter(); break;
       }
     }
   }

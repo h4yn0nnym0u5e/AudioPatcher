@@ -19,7 +19,7 @@ extern "C" {
     if (AudioEditMode::MIDIenter == mode)
     {
       editTogglePerVoice(aoi);
-      Serial.printf("Toggle\n");
+      //Serial.printf("Toggle\n");
     }
 
     return 0; 
@@ -63,13 +63,13 @@ AudioObjInstance::AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, 
       streamP.streamObj = nullptr;
       break;     
   }
-  Serial.printf("Created %s at %08X\n",o.name,(uint32_t) streamP.streamObj);
+  //Serial.printf("Created %s at %08X\n",o.name,(uint32_t) streamP.streamObj);
 }
 
 
 AudioObjInstance::~AudioObjInstance() 
 {
-  Serial.printf("Destroyed %s at %08X\n",objP->name,(uint32_t) streamP.streamObj);
+  //Serial.printf("Destroyed %s at %08X\n",objP->name,(uint32_t) streamP.streamObj);
   if (nullptr != streamP.streamObj)
   {
     switch (objP->id)

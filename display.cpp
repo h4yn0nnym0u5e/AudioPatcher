@@ -53,7 +53,6 @@ void AudioPatcherDisplay::ShowTitle(const char* t, int16_t xoff, int16_t yoff)
   tft.setTextColor(0xA514);
   tft.setCursor(savedArea.x + xoff,savedArea.y + yoff); // assume we're operating in the area we saved
   tft.print(t);
-  tft.setTextColor(ILI9341_LIGHTGREY,EDIT_BKGND);
 }
 
 void AudioPatcherDisplay::ShowVoiceFlag(bool flag)
@@ -67,6 +66,8 @@ void AudioPatcherDisplay::ShowVoiceFlag(bool flag)
 void AudioPatcherDisplay::ShowLabel(const ParamEntry& p, ParamValue& v, int16_t n, int16_t xoff, int16_t yoff)
 {
   int xxoff = xoff + p.xoff;
+  tft.setTextSize(2);
+  tft.setTextColor(ILI9341_LIGHTGREY,EDIT_BKGND);
   tft.setCursor(savedArea.x + xxoff,savedArea.y + n*16 + yoff); // assume we're operating in the area we saved
   tft.print(p.label);
   tft.print(":");

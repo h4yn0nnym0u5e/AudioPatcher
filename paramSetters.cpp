@@ -120,20 +120,62 @@ void updateFromControls(AudioObjInstance* aoi)
 //===========================================================================================
 void SettingsEditor::Init(const char* title)
 {
-  int row = 0;
-  
   display.ShowTitle(title,5,5);
-  for (size_t i=0; i < paramCount; i++)
+  ShowPage();
+}
+
+
+void SettingsEditor::ShowPage(void)
+{
+  int row = 0;
+  size_t first = 0, nCtrl = paramCount;
+
+  if (nullptr != pages)
   {
-    if (0 != params[i].xoff) /// if we have an X offset
+    first = pages[currentPage].start;
+    nCtrl = pages[currentPage].count;
+  }
+  
+  for (size_t i = 0; i < nCtrl; i++)
+  {
+    if (0 != params[i+first].xoff) /// if we have an X offset
       row--; // we're on the same row as before
-    ShowLabel(i,row,5,27);
-    ShowValue(row);
+    ShowLabel(i+first,row,5,27);
+    ShowValue(i+first);
     if (!ctrl.isHooking(i)) // specialized enterEditMode() may have hooked already - don't re-do
-      HookControl(ctrl,i,params[i],aray[i]);
+      HookControl(ctrl,i,params[i+first],aray[i+first]);
     row++;            
   }
 }
+
+// Change currentPage to a new parameters page number, if possible
+// Does not update screen
+// \return true if valid page number
+bool SettingsEditor::ChangePage(int newPage)
+{
+  bool result = false;
+  
+  if (nullptr != pages && newPage >= 0)
+  {
+    int i = 0;
+    size_t firstParam = 0;
+
+    while (i < newPage && firstParam < paramCount)
+    {
+      firstParam += pages[i].count;
+      i++;
+    }
+
+    if (i == newPage && firstParam < paramCount)
+    {
+      currentPage = newPage;
+      result = true;
+    }
+  }
+  
+  return result;
+}
+
 
 void SettingsEditor::ShowVoiceFlag(bool flag)
 {
@@ -328,6 +370,8 @@ void ContextMixerStereo::setParam(int i, AudioObjInstance* aoi)
     aoi->streamP.MixerStereo->pan(ch,gainOrPan[i].value.f); 
   
 }
+
+const ParamPage ContextMixerStereo::_pages[2] {{0,4},{4,4}};
 
 const ParamEntry ContextMixerStereo::_params[8] = 
 {

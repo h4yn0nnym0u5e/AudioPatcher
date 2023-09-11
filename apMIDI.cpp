@@ -123,7 +123,6 @@ void PatcherMIDI::update(void)
     {
       case midi::NoteOn: 
         {
-          Serial.println("\nCreate voice:");
           PatcherVoice* newVoice = new PatcherVoice{objVec,cordVec}; // create the voice
           sounding.push_back(newVoice);  // add it to the list
           newVoice->noteOn(midi1.getChannel(),midi1.getData1(), midi1.getData2()); // start it sounding
@@ -164,7 +163,6 @@ void PatcherMIDI::update(void)
     PatcherVoice* obj = releasing.at(i);
     if (!obj->isActive())
     {
-      Serial.println("\nDelete voice:");
       delete obj;
       releasing.erase(releasing.begin() + i);
     }
@@ -282,7 +280,6 @@ void PatcherVoice::noteOn(byte channel, byte note, byte velocity)
 {
   MIDIevent me{channel,midi::NoteOn,{note},{velocity}};
   sendMIDIevent(me);
-  Serial.println("Note on");
   triggerNote = note;
   triggerVelocity = velocity;
 }
@@ -291,7 +288,6 @@ void PatcherVoice::noteOff(byte channel, byte note, byte velocity)
 {
   MIDIevent me{channel,midi::NoteOff,{note},{velocity}};
   sendMIDIevent(me);
-  Serial.println("Note off");
 }
 
 bool PatcherVoice::isActive(void)

@@ -34,4 +34,11 @@ class ParamValue
     int16_t labelEndX, labelEndY, valueEndX;
 };
 
+class ParamPage
+{
+  public:
+    int8_t start; // first parameter to show on this page
+    int8_t count; // number of parameters to show on this page
+};
+
 #endif // !defined(_PARAMENTRY_H_)
