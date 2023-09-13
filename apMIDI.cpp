@@ -70,65 +70,12 @@ float PatcherVoice::noteToFreq(byte note, const float* table)
   return result;    
 }
 
-//=================================================================
-void myNoteOn(byte channel, byte note, byte velocity)
-{
-
-  float freq = PatcherVoice::noteToFreq(note);
-  
-  for (auto obj : pm->objVec)
-  {
-    switch (obj.p->objP->id) 
-    {
-      default:
-        break;
-
-      case AUDIO_SYNTH_WAVEFORM_ID:
-        Serial.printf("Note on: %d -> %.3f\n",note,freq);
-        obj.p->streamP.Waveform->frequency(freq);
-        obj.p->streamP.Waveform->amplitude(velocity / 127.0f);
-        break;        
-        
-      case AUDIO_EFFECT_ENVELOPE_ID:
-        obj.p->streamP.Envelope->noteOn();
-        break;
-    }
-  }
-}
-
-void myNoteOff(byte channel, byte note, byte velocity)
-{
-  for (auto obj : pm->objVec)
-  {
-    switch (obj.p->objP->id) 
-    {
-      default:
-        break;
-
-      case AUDIO_SYNTH_WAVEFORM_ID:
-        Serial.printf("Note off\n");
-        //obj.p->streamP.Waveform->amplitude(0.0f);
-        break;        
-        
-      case AUDIO_EFFECT_ENVELOPE_ID:
-        obj.p->streamP.Envelope->noteOff();
-        break;
-    }
-  }
-  
-}
-
 
 //=================================================================
 void PatcherMIDI::init(void)
 {
   pm = this;
   myUSB.begin();
-
-/*
-  midi1.setHandleNoteOn(myNoteOn);
-  midi1.setHandleNoteOff(myNoteOff);
-  */
 }
 
 void PatcherMIDI::update(void)
@@ -140,9 +87,11 @@ void PatcherMIDI::update(void)
     {
       case midi::NoteOn: 
         {
+          uint32_t t = micros();
           PatcherVoice* newVoice = new PatcherVoice{objVec,cordVec}; // create the voice
           sounding.push_back(newVoice);  // add it to the list
           newVoice->noteOn(midi1.getChannel(),midi1.getData1(), midi1.getData2()); // start it sounding
+          Serial.printf("Took %uus to instantiate note\n",micros() - t);
         }
         break;
 
@@ -180,8 +129,10 @@ void PatcherMIDI::update(void)
     PatcherVoice* obj = releasing.at(i);
     if (!obj->isActive())
     {
+      uint32_t t = micros();
       delete obj;
       releasing.erase(releasing.begin() + i);
+      Serial.printf("Took %uus to de-instantiate note\n",micros() - t);
     }
   }
 }
