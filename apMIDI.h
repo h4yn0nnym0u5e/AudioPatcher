@@ -52,4 +52,5 @@ class PatcherVoice
 };
 
 extern const float notesHammond[];
+extern const float velocity2amplitude[128];
 #endif // !defined(_AP_MIDI_H_)

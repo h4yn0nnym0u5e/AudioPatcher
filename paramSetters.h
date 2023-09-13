@@ -525,7 +525,7 @@ class ContextWaveformModulated : public ContextBase
 { 
   public:
     ContextWaveformModulated() : ContextBase(COUNT_OF(_params), &s.waveform, _params, nullptr, 
-                                            COUNT_OF(MIDIparams), MIDIvalues, MIDIparams) {}
+                                            COUNT_OF(MIDIparams), &m.octave, MIDIparams) {}
     static const ParamEntry _params[6];
     struct {ParamValue waveform,frequency,amplitude,offset,modType,modDepth;} s {{0},{7.0f},{0.5f},{0.0f},{0},{1.0f}};
     static const int boxWidth{260};
@@ -534,7 +534,8 @@ class ContextWaveformModulated : public ContextBase
 
     //------ MIDI settings ----------
     static const ParamEntry MIDIparams[4];
-    ParamValue MIDIvalues[COUNT_OF(MIDIparams)]{{4},{0.00f},{0},{0}};
+    struct {ParamValue octave, detune,  velocity, tuning; } m 
+                    {  {4},    {0.00f}, {0},      {0}};
 };
 
 //-----------------------------------------------------------------------------------------

@@ -444,7 +444,8 @@ int editMixerStereo(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 const ParamChoice velocityShapes[] 
   {{"linear", 0},
    {"curved", 1},
-   {"max" ,   2}
+   {"as set", 2},
+   {"max", 3}
   };
 
 const ParamChoice tuningTypes[] 
@@ -863,7 +864,24 @@ void processMIDIevent<ContextWaveform>(AudioObjInstance* aoi, MIDIevent* ev)
     }
     
     aoi->streamP.Waveform->frequency(freq);
-    aoi->streamP.Waveform->amplitude(ev->velocity / 127.0f);
+    switch (velocityShapes[ctxt->m.velocity.value.i].value)
+    {
+      case 0: // linear     
+        aoi->streamP.Waveform->amplitude(ev->velocity / 127.0f);
+        break;
+        
+      case 1: // curved     
+        aoi->streamP.Waveform->amplitude(velocity2amplitude[ev->velocity]);
+        break;
+        
+      case 2: // as set     
+        aoi->streamP.Waveform->amplitude(ctxt->s.amplitude.value.f);
+        break;
+        
+      case 3: // maximum     
+        aoi->streamP.Waveform->amplitude(1.0f);
+        break;
+    }
   }
 }
 
