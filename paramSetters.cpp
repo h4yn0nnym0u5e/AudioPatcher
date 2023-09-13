@@ -266,6 +266,18 @@ int editSetStreamParams(AudioObjInstance& aoi)
 }
 
 
+//=====================================================================================
+void ContextBase::copyParamsTo(ContextBase& dst)
+{
+  memcpy(dst.aray, aray, paramCount * sizeof aray[0]);
+  memcpy(dst.MIDIvalues, MIDIvalues, MIDIparamCount * sizeof MIDIvalues[0]);
+}
+
+void CopyContext(void* src, void* dst)
+{
+  ((ContextBase*) src)->copyParamsTo(*(ContextBase*) dst);
+}
+
 //===========================================================================================
 // Strong definitions of setup controls
 //===========================================================================================
@@ -415,7 +427,7 @@ const ParamEntry ContextMixerStereo::_params[20] =
   {"ch6", 0.0f, 1.0f}, {"pan6", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
   {"ch7", 0.0f, 1.0f}, {"pan7", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
   {"ch8", 0.0f, 1.0f}, {"pan8", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
-  {"     gain", 0.0f, 1.0f, 'n'},
+  {"     gain", 0.0f, 1.0f, 'n'}, // 
   {"soft knee", 0.0f, 1.0f},
   {"  pan law", 0.01f, 1.0f},
   {nullptr, 0, 0} // used to blank the last (unused) line

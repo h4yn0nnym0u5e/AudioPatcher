@@ -184,22 +184,17 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
   {
     case AudioEditMode::constructor: // construction
       { 
+        myContext = new Tctxt;
+        aoi->context = myContext;
         if (!aoi->isAcopy) // making a real object
-        {       
-          myContext = new Tctxt;
-          aoi->context = myContext;
           editSetStreamParams(*aoi);
-        }
         // if we make a copy, the caller must deal with that,
         // e.g. by setting the stream parameters, position etc
       }
       break;
       
     case AudioEditMode::destructor:
-      if (!aoi->isAcopy) // only delete context if it's the real deal
-      {
-        delete myContext;
-      }
+      delete myContext;
       break;
 
     //---------------------------------------------------------------------------------------------------
@@ -347,6 +342,7 @@ class ContextBase
       {}
     virtual ~ContextBase(){}
     virtual void setParam(int i, AudioObjInstance* aoi){}
+    virtual void copyParamsTo(ContextBase& dst);
 
     // ------ stream object settings ----------
     const size_t paramCount;

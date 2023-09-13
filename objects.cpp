@@ -94,7 +94,6 @@ void AudioObjInstance::copySettingsTo(AudioObjInstance& aoi)
 {
   aoi.x = x;
   aoi.y = y;
-  aoi.context = context;
   aoi.noDelete = noDelete;
   aoi.perVoice = perVoice;
   // don't copy available inputs, that's not a setting as such
@@ -102,6 +101,7 @@ void AudioObjInstance::copySettingsTo(AudioObjInstance& aoi)
   // Copy the parameter settings to the AudioStream objects
   // This may briefly set e.g. the wrong frequency / amplitude
   // for a Waveform, but we have to assume an envelope
+  CopyContext(context,aoi.context);
   editSetStreamParams(aoi);
 }
 

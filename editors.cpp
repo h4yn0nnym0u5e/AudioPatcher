@@ -48,7 +48,7 @@ FLASHMEM void BaseEditor::drawAll(void)
 //======================================================================
 FLASHMEM void ObjEditor::ShowSelection(int v)
 {
-    Serial.printf("%d : %s\n",v,objList[v].name);
+    //Serial.printf("%d : %s\n",v,objList[v].name);
     display.ShowSelection(objList[v].name,objList[v].category);
 }
 

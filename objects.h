@@ -206,5 +206,6 @@ bool operator<(const AudioObjInstancePtr& lhs, const AudioObjInstancePtr& rhs);
 extern int objNameToID(const char* s);
 extern void editTogglePerVoice(AudioObjInstance* aoi);
 extern int editSetStreamParams(AudioObjInstance& aoi);
+extern void CopyContext(void* src, void* dst);
 
 #endif // !defined(_OBJECTS_H_)
