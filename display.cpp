@@ -65,38 +65,50 @@ void AudioPatcherDisplay::ShowVoiceFlag(bool flag)
 
 void AudioPatcherDisplay::ShowLabel(const ParamEntry& p, ParamValue& v, int16_t n, int16_t xoff, int16_t yoff)
 {
-  int xxoff = xoff + p.xoff;
-  tft.setTextSize(2);
-  tft.setTextColor(ILI9341_LIGHTGREY,EDIT_BKGND);
-  tft.setCursor(savedArea.x + xxoff,savedArea.y + n*16 + yoff); // assume we're operating in the area we saved
-  tft.print(p.label);
-  tft.print(":");
-  
-  tft.getCursor(&v.labelEndX,&v.labelEndY);
+  if (nullptr != p.label)
+  {
+    int xxoff = xoff + p.xoff;
+    tft.setTextSize(2);
+    tft.setTextColor(ILI9341_LIGHTGREY,EDIT_BKGND);
+    tft.setCursor(savedArea.x + xxoff,savedArea.y + n*16 + yoff); // assume we're operating in the area we saved
+    tft.print(p.label);
+    tft.print(":");
+    
+    tft.getCursor(&v.labelEndX,&v.labelEndY);
+  }
+}
+
+void AudioPatcherDisplay::FillRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t colour) 
+{ 
+  tft.fillRect(x,y,w,h,colour); 
 }
 
 
 void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t n)
 {
-  tft.setCursor(v.labelEndX,v.labelEndY);
-  tft.setTextSize(2);
-  tft.setTextColor(ILI9341_LIGHTGREY,EDIT_BKGND);
-  switch (p.ValType)
+  if (nullptr != p.label)
   {
-    default: tft.print("???"); break;
-    case 'i': tft.print(v.value.i); break;
-    case 'f': tft.printf("%.2f",v.value.f); break;
-    case 'c': tft.print(p.choices[v.value.i].text); break;
-    case 'l': tft.printf("%.2f",pow(2.0f,v.value.f)); break;
+    tft.setCursor(v.labelEndX,v.labelEndY);
+    tft.setTextSize(2);
+    tft.setTextColor(ILI9341_LIGHTGREY,EDIT_BKGND);
+    switch (p.ValType)
+    {
+      default: tft.print("???"); break;
+      case 'i': tft.print(v.value.i); break;
+      case 'n':
+      case 'f': tft.printf("%.2f",v.value.f); break;
+      case 'c': tft.print(p.choices[v.value.i].text); break;
+      case 'l': tft.printf("%.2f",pow(2.0f,v.value.f)); break;
+    }
+  
+    int16_t x,y;
+    tft.getCursor(&x,&y);
+    if (v.valueEndX > x)
+    {
+      tft.fillRect(x,v.labelEndY,v.valueEndX - x, 16, EDIT_BKGND);
+    }
+    v.valueEndX = x;  
   }
-
-  int16_t x,y;
-  tft.getCursor(&x,&y);
-  if (v.valueEndX > x)
-  {
-    tft.fillRect(x,v.labelEndY,v.valueEndX - x, 16, EDIT_BKGND);
-  }
-  v.valueEndX = x;  
 }
 
 void AudioPatcherDisplay::Splash(void)

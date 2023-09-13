@@ -101,6 +101,7 @@ class AudioPatcherDisplay
     void RestoreArea(void);
     void ShowTitle(const char* t, int16_t xoff, int16_t yoff);
     void ShowVoiceFlag(bool flag);
+    void FillRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t colour);
     void ShowLabel(const ParamEntry& p, ParamValue& v, int16_t n, int16_t xoff, int16_t yoff);
     void ShowValue(const ParamEntry& p, ParamValue& v, int16_t n);
 };

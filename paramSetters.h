@@ -52,6 +52,7 @@ class SettingsEditor
     struct {int16_t x,y,w,h;} workArea;
 
     void Init(const char* title);
+    void BlankRow(int row, int16_t yoff) { display.FillRect(workArea.x+1, workArea.y+yoff+row*16, workArea.w-2, 16, EDIT_BKGND); }
     void ShowLabel(int i, int row, int xoff, int yoff) { display.ShowLabel(params[i],aray[i],row,xoff,yoff); }
     void ShowValue(int i) { display.ShowValue(params[i],aray[i],i); }
     void ShowPage(void);
@@ -380,6 +381,8 @@ class ContextChorus  : public ContextBase
     void exitEditMode(AudioObjInstance* aoi);
 };
 
+
+//-----------------------------------------------------------------------------------------
 class ContextEnvelope : public ContextBase
 {
   public:
@@ -392,6 +395,7 @@ class ContextEnvelope : public ContextBase
     static const int boxWidth{270};
 };
 
+//-----------------------------------------------------------------------------------------
 class ContextBiquad : public ContextBase
 {
   public:
@@ -407,14 +411,15 @@ class ContextBiquad : public ContextBase
     }
     static const ParamEntry _params[6];
     
-struct {ParamValue  stage,response,frequency,     Q,        gain,   slope;} s 
-                        {           {0},  {1},     {9.64385618f}, {0.707f}, {0.8f}, {1.0f} };   
+    struct {ParamValue  stage,response,frequency,     Q,        gain,   slope;} s 
+            {           {0},  {1},     {9.64385618f}, {0.707f}, {0.8f}, {1.0f} };   
     ValUnion stageSettings[4][COUNT_OF(_params)];
     int prevStage{0};
     void setParam(int i, AudioObjInstance* aoi);
     static const int boxWidth{260};
 };
 
+//-----------------------------------------------------------------------------------------
 class ContextLadder : public ContextBase
 {
     static const ParamEntry _params[6];
@@ -438,6 +443,7 @@ class ContextStateVariable : public ContextBase
     static const int boxWidth{260};
 };
 
+//-----------------------------------------------------------------------------------------
 class ContextMixer4 : public ContextBase  
 {
   public:
@@ -449,14 +455,15 @@ class ContextMixer4 : public ContextBase
     void setParam(int i, AudioObjInstance* aoi);
 };
 
+//-----------------------------------------------------------------------------------------
 #define EDIT_MIXER_STEREO_PAN_OFF ((int) (8*12+20)) // x-offset of pan label
 class ContextMixerStereo : public ContextBase   
 {    
-    static const ParamPage _pages[2];
+    static const ParamPage _pages[3];
   public:
     ContextMixerStereo() : ContextBase(COUNT_OF(_params), gainOrPan, _params, _pages) {}
-    static const ParamEntry _params[16];
-    ParamValue gainOrPan[16]{
+    static const ParamEntry _params[20];
+    ParamValue gainOrPan[20]{
         {0.55f},{0.0f},
         {0.55f},{0.0f},
         {0.55f},{0.0f},
@@ -465,12 +472,17 @@ class ContextMixerStereo : public ContextBase
         {0.55f},{0.0f},
         {0.55f},{0.0f},
         {0.55f},{0.0f},
+        {0.55f}, // master gain
+        {0.70f}, // soft knee point
+        {0.22f}, // pan law
+        {0}
     };
     static const int boxWidth{EDIT_MIXER_STEREO_PAN_OFF + 120 + 12};
     
     void setParam(int i, AudioObjInstance* aoi);
 };
 
+//-----------------------------------------------------------------------------------------
 class ContextNoise : public ContextBase
 {
   public:
@@ -482,6 +494,7 @@ class ContextNoise : public ContextBase
     static const int boxWidth{180};
 };
 
+//-----------------------------------------------------------------------------------------
 class ContextWaveform : public ContextBase 
 {
   public:
@@ -499,6 +512,7 @@ class ContextWaveform : public ContextBase
     struct {ParamValue octave,detune,velocity,tuning;} m {{4},{0.00f},{0},{0}};
 };
 
+//-----------------------------------------------------------------------------------------
 class ContextWaveformDc : public ContextBase
 {
   public:
@@ -510,6 +524,7 @@ class ContextWaveformDc : public ContextBase
     static const int boxWidth{160};
 };
 
+//-----------------------------------------------------------------------------------------
 class ContextWaveformModulated : public ContextBase
 { 
   public:
@@ -526,6 +541,7 @@ class ContextWaveformModulated : public ContextBase
     ParamValue MIDIvalues[COUNT_OF(MIDIparams)]{{4},{0.00f},{0},{0}};
 };
 
+//-----------------------------------------------------------------------------------------
 class ContextControlSGTL5000 : public ContextBase
 { 
   public:

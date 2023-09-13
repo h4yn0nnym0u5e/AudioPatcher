@@ -64,7 +64,8 @@ bool Scale(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filter = 1.0
   bool result = false;
   switch(pe.ValType)
   { 
-    case 'l':     
+    case 'n':
+    case 'l':
     case 'f': result = ScaleF(pe,pv,raw, filter); break;
     
     case 'c':
@@ -77,6 +78,7 @@ void HookControl(M5w_8angle& ctrl, int ch, const ParamEntry& pe, ParamValue& pv)
 {
   switch (pe.ValType)
   {
+    case 'n':
     case 'l':
     case 'f': ctrl.setHook(ch,map(pv.value.f,pe.min.f,pe.max.f,M5ANGLE_MIN,M5ANGLE_MAX)); break;
     
@@ -140,9 +142,12 @@ void SettingsEditor::ShowPage(void)
   {
     if (0 != params[i+first].xoff) /// if we have an X offset
       row--; // we're on the same row as before
+    else
+      BlankRow(row,27);      
     ShowLabel(i+first,row,5,27);
     ShowValue(i+first);
-    if (!ctrl.isHooking(i)) // specialized enterEditMode() may have hooked already - don't re-do
+    if (!ctrl.isHooking(i) // specialized enterEditMode() may have hooked already - don't re-do
+     && nullptr != params[i+first].label) // don't do for null parameter
       HookControl(ctrl,i,params[i+first],aray[i+first]);
     row++;            
   }
@@ -193,6 +198,7 @@ int editGetParamsAny(const ParamEntry* params, const ParamValue* aray, const siz
   {
     switch (params[i].ValType)
     {
+      case 'n':
       case 'l':
       case 'f': off = sprintf(ptr,"%f,",aray[i].value.f); break;
       case 'c':
@@ -218,6 +224,7 @@ int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const size_t pa
     
     switch (params[i].ValType)
     {
+      case 'n':
       case 'f':
       case 'l':
         sscanf(ptr,"%f,%n",&value.f,&off);
@@ -252,7 +259,8 @@ int editSetStreamParams(AudioObjInstance& aoi)
   
   // set the actual stream object's parameters
   for (size_t i=0; i < myContext->paramCount; i++)
-    myContext->setParam(i,&aoi);
+    if (myContext->params[i].ValType != 'n') // unless the flag says not to...
+      myContext->setParam(i,&aoi);        // ...set the value
 
   return (int) myContext->paramCount;
 }
@@ -363,17 +371,41 @@ int editMixer4(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 //===========================================================================================
 void ContextMixerStereo::setParam(int i, AudioObjInstance* aoi)
 {
-  int ch = i / 2;
-  if (0 == (i & 1))
-    aoi->streamP.MixerStereo->gain(ch,gainOrPan[i].value.f); 
-  else
-    aoi->streamP.MixerStereo->pan(ch,gainOrPan[i].value.f); 
+  switch (i)
+  {
+    default:
+      break;
+      
+    case 0 ... 15:
+      {
+        int ch = i / 2;
+        if (0 == (i & 1))
+          aoi->streamP.MixerStereo->gain(ch,gainOrPan[i].value.f); 
+        else
+          aoi->streamP.MixerStereo->pan(ch,gainOrPan[i].value.f); 
+      }
+      break;
+
+    case 16: // master gain
+      aoi->streamP.MixerStereo->gain(gainOrPan[i].value.f);
+      for (int j=0; j < 8; j++)
+        gainOrPan[j*2].value.f = gainOrPan[i].value.f;
+      break;
+
+    case 17: // soft knee behaviour
+      aoi->streamP.MixerStereo->setSoftKnee(gainOrPan[i].value.f);
+      break;
+      
+    case 18: // master gain
+      aoi->streamP.MixerStereo->setPanLaw(gainOrPan[i].value.f);
+      break;
+  }
   
 }
 
-const ParamPage ContextMixerStereo::_pages[2] {{0,8},{8,8}};
+const ParamPage ContextMixerStereo::_pages[3] {{0,8},{8,8},{16,4}};
 
-const ParamEntry ContextMixerStereo::_params[16] = 
+const ParamEntry ContextMixerStereo::_params[20] = 
 {
   {"ch1", 0.0f, 1.0f}, {"pan1", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
   {"ch2", 0.0f, 1.0f}, {"pan2", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
@@ -383,6 +415,11 @@ const ParamEntry ContextMixerStereo::_params[16] =
   {"ch6", 0.0f, 1.0f}, {"pan6", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
   {"ch7", 0.0f, 1.0f}, {"pan7", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
   {"ch8", 0.0f, 1.0f}, {"pan8", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
+  {"     gain", 0.0f, 1.0f, 'n'},
+  {"soft knee", 0.0f, 1.0f},
+  {"  pan law", 0.01f, 1.0f},
+  {nullptr, 0, 0} // used to blank the last (unused) line
+  
 };
 
 int editMixerStereo(AudioObjInstance* aoi, AudioEditMode mode, void* params)
