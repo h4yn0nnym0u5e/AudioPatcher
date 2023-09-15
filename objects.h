@@ -2,6 +2,7 @@
 #define _OBJECTS_H_
 
 #include <Audio.h>
+#include <effect_hammond_vibrato.h>
 extern int systemState;
 
 /*
@@ -29,6 +30,7 @@ extern int systemState;
   AUDIO_ENTRY(AudioEffectFreeverb,Freeverb,AUDIO_EFFECT_FREEVERB,1,1,effect,frvb,) \
   AUDIO_ENTRY(AudioEffectFreeverbStereo,FreeverbStereo,AUDIO_EFFECT_FREEVERB_STEREO,1,2,effect,frvS,) \
   AUDIO_ENTRY(AudioEffectGranular,Granular,AUDIO_EFFECT_GRANULAR,1,1,effect,gran,) \
+  AUDIO_ENTRY(AudioEffectHammondVibrato,HammondVibrato,AUDIO_EFFECT_HAMMOND_VIBRATO,1,1,effect,hvib,) \
   AUDIO_ENTRY(AudioEffectMidSide,MidSide,AUDIO_EFFECT_MID_SIDE,2,2,effect,mdsd,) \
   AUDIO_ENTRY(AudioEffectMultiply,Multiply,AUDIO_EFFECT_MULTIPLY,2,1,effect,mply,) \
   AUDIO_ENTRY(AudioEffectRectifier,Rectifier,AUDIO_EFFECT_RECTIFIER,1,1,effect,rect,) \

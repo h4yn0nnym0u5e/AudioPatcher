@@ -381,6 +381,11 @@ int editMixer4(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 
 
 //===========================================================================================
+const ParamChoice panLawTypes[] 
+  {{"analogue", 0},
+   {"DAW", 1},
+  };
+
 void ContextMixerStereo::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
@@ -408,8 +413,20 @@ void ContextMixerStereo::setParam(int i, AudioObjInstance* aoi)
       aoi->streamP.MixerStereo->setSoftKnee(gainOrPan[i].value.f);
       break;
       
-    case 18: // master gain
+    case 18: // pan law
       aoi->streamP.MixerStereo->setPanLaw(gainOrPan[i].value.f);
+      break;
+      
+    case 19: // pan type
+      switch (panLawTypes[gainOrPan[i].value.i].value)
+      {
+        case 0:
+          aoi->streamP.MixerStereo->setPanType(AudioMixerStereo::PanLawType::analogue);
+          break;
+        case 1:
+          aoi->streamP.MixerStereo->setPanType(AudioMixerStereo::PanLawType::DAW);
+          break;
+      }
       break;
   }
   
@@ -430,13 +447,61 @@ const ParamEntry ContextMixerStereo::_params[20] =
   {"     gain", 0.0f, 1.0f, 'n'}, // 
   {"soft knee", 0.0f, 1.0f},
   {"  pan law", 0.01f, 1.0f},
-  {nullptr, 0, 0} // used to blank the last (unused) line
+  { "pan type", PARAM_ENTRY_CHOICES(panLawTypes)} 
   
 };
 
 int editMixerStereo(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioMixerStereo, ContextMixerStereo>(aoi,mode,params);    
+}
+
+
+//===========================================================================================
+void ContextMixer::setParam(int i, AudioObjInstance* aoi)
+{
+  switch (i)
+  {
+    default:
+      break;
+      
+    case 0 ... 7:
+      aoi->streamP.Mixer->gain(i,gainEtc[i].value.f); 
+      break;
+
+    case 8: // master gain
+      aoi->streamP.Mixer->gain(gainEtc[i].value.f);
+      for (int j=0; j < 8; j++)
+        gainEtc[j].value.f = gainEtc[i].value.f;
+      break;
+
+    case 9: // soft knee behaviour
+      aoi->streamP.MixerStereo->setSoftKnee(gainEtc[i].value.f);
+      break;      
+  }
+  
+}
+
+const ParamPage ContextMixer::_pages[2] {{0,8},{8,2}};
+
+const ParamEntry ContextMixer::_params[10] = 
+{
+  {"ch1", 0.0f, 1.0f}, 
+  {"ch2", 0.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
+  {"ch3", 0.0f, 1.0f}, 
+  {"ch4", 0.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF}, 
+  {"ch5", 0.0f, 1.0f},
+  {"ch6", 0.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF}, 
+  {"ch7", 0.0f, 1.0f}, 
+  {"ch8", 0.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
+  
+  {"     gain", 0.0f, 1.0f, 'n'}, // 
+  {"soft knee", 0.0f, 1.0f}
+};
+
+int editMixer(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  return editObjType<AudioMixer, ContextMixer>(aoi,mode,params);    
 }
 
 
@@ -525,7 +590,7 @@ void enterEditMode<ContextWaveformModulated>(ContextWaveformModulated* myContext
   ParamValue pv{frac};    
   HookControl(ctrl,1,freqLimits,pv); // frequency pot is #1: set hook
 
-  Serial.printf("Hook set to %f; encoder to %d\n",pv.value.f,iprt);
+  // Serial.printf("Hook set to %f; encoder to %d\n",pv.value.f,iprt);
 }
   
 
@@ -797,7 +862,7 @@ void enterEditMode<ContextWaveform>(ContextWaveform* myContext, AudioObjInstance
   int iprt = floor(myContext->s.frequency.value.f - LOG_NOTE_A);
   float frac = myContext->s.frequency.value.f - iprt - LOG_NOTE_A;
 
-  Serial.printf("freq is %f -> %f Hz\n",myContext->s.frequency.value.f,pow(2,myContext->s.frequency.value.f));
+  // Serial.printf("freq is %f -> %f Hz\n",myContext->s.frequency.value.f,pow(2,myContext->s.frequency.value.f));
   
   enc0.setLimits(-3,12);
   if (frac > 0.5f)
@@ -1091,4 +1156,51 @@ int isActive<ContextEnvelope>(AudioObjInstance* aoi)
 {
   return (aoi->streamP.Envelope->isSustain()?1:0)
        + (aoi->streamP.Envelope->isActive() ?2:0);
+}
+
+//===========================================================================================
+ const ParamChoice modesHammondVibrato[] = 
+  {{"(off)",   0},
+   {"vibrato", 1},
+   {"chorus",  2},
+  };
+  
+void ContextHammondVibrato::setParam(int i, AudioObjInstance* aoi)
+{
+  switch (i)
+  {
+    case 0: 
+      switch (modesHammondVibrato[s.mode.value.i].value)
+      {
+        case 0:
+          aoi->streamP.HammondVibrato->enable(false); 
+          break;
+
+        case 1:
+          aoi->streamP.HammondVibrato->enable(true); 
+          aoi->streamP.HammondVibrato->vibrato_mode(); 
+          break;
+
+        case 2:
+          aoi->streamP.HammondVibrato->enable(false); 
+          aoi->streamP.HammondVibrato->chorus_mode(); 
+          break;
+
+      }
+      break;
+      
+    case 1: 
+      aoi->streamP.HammondVibrato->set_depth(s.depth.value.i); 
+      break;
+  }
+}
+
+const ParamEntry ContextHammondVibrato::_params[2] = {
+        {" mode", PARAM_ENTRY_CHOICES(modesHammondVibrato)},
+        {"depth", 1, 3 }, 
+    };
+
+int editHammondVibrato(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  return editObjType<ContextHammondVibrato, ContextHammondVibrato>(aoi,mode,params);
 }

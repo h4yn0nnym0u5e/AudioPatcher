@@ -47,15 +47,15 @@ const float notesHammond[]
     85.0f /104.0f * HAMMOND_BASE, // C
     71.0f /82.0f * HAMMOND_BASE, // C#
     67.0f /73.0f * HAMMOND_BASE, // D
-    70.0f /72.0f * HAMMOND_BASE, // D#
-    69.0f /67.0f * HAMMOND_BASE, // E
-    54.0f /99.0f * HAMMOND_BASE, // F
-    37.0f /64.0f * HAMMOND_BASE, // F#
-    49.0f /80.0f * HAMMOND_BASE, // G
-    48.0f /74.0f * HAMMOND_BASE, // G#
-    66.0f /96.0f * HAMMOND_BASE, // A
-    67.0f /92.0f * HAMMOND_BASE, // A#
-    54.0f /70.0f * HAMMOND_BASE  // B
+    105.0f /108.0f * HAMMOND_BASE, // D#
+    103.0f /100.0f * HAMMOND_BASE, // E
+    84.0f /77.0f * HAMMOND_BASE, // F
+    74.0f /64.0f * HAMMOND_BASE, // F#
+    98.0f /80.0f * HAMMOND_BASE, // G
+    96.0f /74.0f * HAMMOND_BASE, // G#
+    88.0f /64.0f * HAMMOND_BASE, // A
+    67.0f /46.0f * HAMMOND_BASE, // A#
+    108.0f /70.0f * HAMMOND_BASE // B
   };
 
 float PatcherVoice::noteToFreq(byte note, const float* table)
@@ -87,11 +87,11 @@ void PatcherMIDI::update(void)
     {
       case midi::NoteOn: 
         {
-          uint32_t t = micros();
+          //uint32_t t = micros();
           PatcherVoice* newVoice = new PatcherVoice{objVec,cordVec}; // create the voice
           sounding.push_back(newVoice);  // add it to the list
           newVoice->noteOn(midi1.getChannel(),midi1.getData1(), midi1.getData2()); // start it sounding
-          Serial.printf("Took %uus to instantiate note\n",micros() - t);
+          //Serial.printf("Took %uus to instantiate note\n",micros() - t);
         }
         break;
 
@@ -129,10 +129,10 @@ void PatcherMIDI::update(void)
     PatcherVoice* obj = releasing.at(i);
     if (!obj->isActive())
     {
-      uint32_t t = micros();
+      //uint32_t t = micros();
       delete obj;
       releasing.erase(releasing.begin() + i);
-      Serial.printf("Took %uus to de-instantiate note\n",micros() - t);
+      //Serial.printf("Took %uus to de-instantiate note\n",micros() - t);
     }
   }
 }

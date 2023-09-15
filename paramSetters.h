@@ -388,7 +388,20 @@ class ContextEnvelope : public ContextBase
                 {      {0.0f}, {3.392f},{1.322f}, {5.129f}, {0.5f},  {8.229f}, {2.322f}      };
 
     void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{270};
+    static const int boxWidth{240};
+};
+
+//-----------------------------------------------------------------------------------------
+class ContextHammondVibrato : public ContextBase
+{
+  public:
+    ContextHammondVibrato() : ContextBase(COUNT_OF(_params), &s.mode, _params) {}
+    static const ParamEntry _params[2];
+    struct {ParamValue mode, depth;} s
+                {      {1},  {1}     };
+
+    void setParam(int i, AudioObjInstance* aoi);
+    static const int boxWidth{180};
 };
 
 //-----------------------------------------------------------------------------------------
@@ -428,6 +441,7 @@ class ContextLadder : public ContextBase
     static const int boxWidth{270};
 };
 
+//-----------------------------------------------------------------------------------------
 class ContextStateVariable : public ContextBase 
 {
   public:
@@ -452,6 +466,27 @@ class ContextMixer4 : public ContextBase
 };
 
 //-----------------------------------------------------------------------------------------
+class ContextMixer : public ContextBase   
+{    
+    static const ParamPage _pages[2];
+  public:
+    ContextMixer() : ContextBase(COUNT_OF(_params), gainEtc, _params, _pages) {}
+    static const ParamEntry _params[10];
+    ParamValue gainEtc[10]{
+        {0.55f}, {0.55f}, 
+        {0.55f}, {0.55f},
+        {0.55f}, {0.55f}, 
+        {0.55f}, {0.55f},
+        
+        {0.55f}, // master gain
+        {0.70f}, // soft knee point
+    };
+    static const int boxWidth{240 + 12};
+    
+    void setParam(int i, AudioObjInstance* aoi);
+};
+
+//-----------------------------------------------------------------------------------------
 #define EDIT_MIXER_STEREO_PAN_OFF ((int) (8*12+20)) // x-offset of pan label
 class ContextMixerStereo : public ContextBase   
 {    
@@ -471,7 +506,7 @@ class ContextMixerStereo : public ContextBase
         {0.55f}, // master gain
         {0.70f}, // soft knee point
         {0.22f}, // pan law
-        {0}
+        {0} // pan type
     };
     static const int boxWidth{EDIT_MIXER_STEREO_PAN_OFF + 120 + 12};
     
