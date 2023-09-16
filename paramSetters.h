@@ -357,6 +357,23 @@ class ContextBase
 };
 
 //==========================================================================
+class ContextBitcrusher  : public ContextBase
+{
+  public:
+    ContextBitcrusher() : ContextBase(COUNT_OF(_params), &s.bits, _params) {}
+    ~ContextBitcrusher() {}
+    static const ParamEntry _params[2];
+    struct {ParamValue bits,  sampleRate;} s
+                {      {11},  {/* sample rate / */ 8}      }; 
+    void setParam(int i, AudioObjInstance* aoi);
+    static const int boxWidth{260};
+
+    void enterEditMode(AudioObjInstance* aoi);
+    void exitEditMode(AudioObjInstance* aoi);
+};
+
+
+//-----------------------------------------------------------------------------------------
 class ContextChorus  : public ContextBase
 {
   public:

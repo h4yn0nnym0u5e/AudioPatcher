@@ -89,7 +89,7 @@ void PatcherMIDI::update(void)
         {
           //uint32_t t = micros();
           PatcherVoice* newVoice = new PatcherVoice{objVec, cordVec, designObjectsFree}; // create the voice
-          designObjectsFree &= !newVoice->usesDesignObjects();
+          designObjectsFree &= !newVoice->usesDesignObjects(); // flag whether it used the design objects
           sounding.push_back(newVoice);  // add it to the list
           newVoice->noteOn(midi1.getChannel(),midi1.getData1(), midi1.getData2()); // start it sounding
           //Serial.printf("Took %uus to instantiate note\n",micros() - t);

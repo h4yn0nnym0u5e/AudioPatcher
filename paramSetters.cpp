@@ -47,10 +47,10 @@ bool ScaleFreq(const ParamEntry& pe, ParamValue& pv, int16_t raw, int16_t pow2, 
 }
 
 
-bool ScaleI(const ParamEntry& pe, ParamValue& pv, int16_t raw)
+bool ScaleIminMax(int min, int max, ParamValue& pv, int16_t raw)
 {
   bool result = false;
-  int newVal = constrain(map(raw, M5ANGLE_MIN, M5ANGLE_MAX, pe.min.i, pe.max.i), pe.min.i, pe.max.i);
+  int newVal = constrain(map(raw, M5ANGLE_MIN, M5ANGLE_MAX, min, max), min, max);
   if (newVal!= pv.value.i)
   {
     pv.value.i = newVal;
@@ -58,6 +58,13 @@ bool ScaleI(const ParamEntry& pe, ParamValue& pv, int16_t raw)
   }
   return result;
 }
+
+
+bool ScaleI(const ParamEntry& pe, ParamValue& pv, int16_t raw)
+{
+  return ScaleIminMax(pe.min.i, pe.max.i, pv, raw);;
+}
+
 
 bool Scale(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filter = 1.0f)
 {
@@ -70,6 +77,8 @@ bool Scale(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filter = 1.0
     
     case 'c':
     case 'i': result = ScaleI(pe,pv,raw); break;
+
+    case 'r': result = ScaleIminMax(1, pe.max.i, pv, raw); break;
   }
   return result;
 }
@@ -80,10 +89,12 @@ void HookControl(M5w_8angle& ctrl, int ch, const ParamEntry& pe, ParamValue& pv)
   {
     case 'n':
     case 'l':
-    case 'f': ctrl.setHook(ch,map(pv.value.f,pe.min.f,pe.max.f,M5ANGLE_MIN,M5ANGLE_MAX)); break;
+    case 'f': ctrl.setHook(ch, map(pv.value.f, pe.min.f, pe.max.f, M5ANGLE_MIN, M5ANGLE_MAX)); break;
     
     case 'c':
-    case 'i':  ctrl.setHook(ch,map(pv.value.i,pe.min.i,pe.max.i,M5ANGLE_MIN,M5ANGLE_MAX)); break;
+    case 'i':  ctrl.setHook(ch, map(pv.value.i, pe.min.i, pe.max.i, M5ANGLE_MIN, M5ANGLE_MAX)); break;
+
+    case 'r':  ctrl.setHook(ch, map(pv.value.i, 1, pe.max.i, M5ANGLE_MIN, M5ANGLE_MAX)); break;
   }
 }
 
@@ -202,6 +213,7 @@ int editGetParamsAny(const ParamEntry* params, const ParamValue* aray, const siz
       case 'l':
       case 'f': off = sprintf(ptr,"%f,",aray[i].value.f); break;
       case 'c':
+      case 'r':
       case 'i': off = sprintf(ptr,"%d,",aray[i].value.i); break;
     }
 
@@ -239,6 +251,14 @@ int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const size_t pa
         sscanf(ptr,"%d,%n",&value.i,&off);
         if (value.i < params[i].min.i || value.i > params[i].max.i)
           value.i = (params[i].min.i + params[i].max.i) / 2;
+        Serial.printf("%s = %d ... ",params[i].label,value.i);
+        aray[i].value.i = value.i;
+        break;
+        
+      case 'r':
+        sscanf(ptr,"%d,%n",&value.i,&off);
+        if (value.i < 1 || value.i > params[i].max.i)
+          value.i = (1 + params[i].max.i) / 2;
         Serial.printf("%s = %d ... ",params[i].label,value.i);
         aray[i].value.i = value.i;
         break;
@@ -280,6 +300,28 @@ void CopyContext(void* src, void* dst)
 
 //===========================================================================================
 // Strong definitions of setup controls
+//===========================================================================================
+void ContextBitcrusher::setParam(int i, AudioObjInstance* aoi)
+{
+  switch (i)
+  {
+    case 0: aoi->streamP.Bitcrusher->bits(s.bits.value.i); break;
+    case 1: aoi->streamP.Bitcrusher->sampleRate(params[i].min.f / s.sampleRate.value.i); break;
+  }
+}
+
+const ParamEntry ContextBitcrusher::_params[2] = 
+{
+  {"       bits", 1, 16},
+  {"sample rate", AUDIO_SAMPLE_RATE, 50},
+};
+
+
+int editBitcrusher(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  return editObjType<AudioEffectBitcrusher, ContextBitcrusher>(aoi,mode,params);    
+}
+
 //===========================================================================================
 void ContextChorus::allocMem(memRecord& mem, size_t newsize, AudioObjInstance* aoi)
 {

@@ -99,6 +99,7 @@ void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t 
       case 'f': tft.printf("%.2f",v.value.f); break;
       case 'c': tft.print(p.choices[v.value.i].text); break;
       case 'l': tft.printf("%.2f",pow(2.0f,v.value.f)); break;
+      case 'r': tft.printf("%.2f",p.min.f / v.value.i); break;
     }
   
     int16_t x,y;
