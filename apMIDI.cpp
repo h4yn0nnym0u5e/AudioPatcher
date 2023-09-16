@@ -88,7 +88,8 @@ void PatcherMIDI::update(void)
       case midi::NoteOn: 
         {
           //uint32_t t = micros();
-          PatcherVoice* newVoice = new PatcherVoice{objVec,cordVec}; // create the voice
+          PatcherVoice* newVoice = new PatcherVoice{objVec, cordVec, designObjectsFree}; // create the voice
+          designObjectsFree &= !newVoice->usesDesignObjects();
           sounding.push_back(newVoice);  // add it to the list
           newVoice->noteOn(midi1.getChannel(),midi1.getData1(), midi1.getData2()); // start it sounding
           //Serial.printf("Took %uus to instantiate note\n",micros() - t);
@@ -130,6 +131,11 @@ void PatcherMIDI::update(void)
     if (!obj->isActive())
     {
       //uint32_t t = micros();
+
+      // if voice was using the design objects,
+      // it won't be from now on: mark them as free
+      if (obj->usesDesignObjects())
+        designObjectsFree = true;
       delete obj;
       releasing.erase(releasing.begin() + i);
       //Serial.printf("Took %uus to de-instantiate note\n",micros() - t);
@@ -142,81 +148,100 @@ void PatcherMIDI::update(void)
 // by a MIDI note on, but might not be so we don't actually
 // do the note on function in here
 PatcherVoice::PatcherVoice(std::vector<AudioObjInstancePtr>& objVec,
-                           std::vector<PatchcordInstance_t*>& cordVec)
-            : triggerNote(-1), triggerVelocity(-1), patchOK(true)
+                           std::vector<PatchcordInstance_t*>& cordVec,
+                           bool canUseDesignObjects)
+            : triggerNote(-1), triggerVelocity(-1), 
+              patchOK(true), designObjectsUsed(false)
 {
-  // clone the per-voice objects
+  // clone the per-voice objects, or
+  // re-use the design objects
   for (auto obj : objVec)
     if (obj.p->perVoice)
     {
-      AudioObjInstance* aoi = new AudioObjInstance(*obj.p->objP); 
+      AudioObjInstance* aoi;
+      if (canUseDesignObjects)
+        aoi = obj.p;
+      else
+      {
+        aoi = new AudioObjInstance(*obj.p->objP); 
+        obj.p->copySettingsTo(*aoi);
+      }
       voiceVec.push_back({aoi});
-      obj.p->copySettingsTo(*aoi);
     }
 
-  // clone the patchcords
-  for (auto cord : cordVec)
+  // clone the patchcords, if necessary
+  if (canUseDesignObjects)
   {
-    AudioObjInstance* src = nullptr, *dst = nullptr;
-    int dstPort = -1;
-
-    // look for internal connections
-    for (auto obj : voiceVec)
+    patchOK = true;
+    designObjectsUsed = true;    
+  }
+  else
+  {
+    for (auto cord : cordVec)
     {
-      if (obj.p->isCopyOf(*cord->src))
-        src = obj.p;
-      if (obj.p->isCopyOf(*cord->dst))
+      AudioObjInstance* src = nullptr, *dst = nullptr;
+      int dstPort = -1;
+  
+      // look for internal connections
+      for (auto obj : voiceVec)
       {
-        dst = obj.p;
-        dstPort = cord->dst_port;
+        if (obj.p->isCopyOf(*cord->src))
+          src = obj.p;
+        if (obj.p->isCopyOf(*cord->dst))
+        {
+          dst = obj.p;
+          dstPort = cord->dst_port;
+        }
+  
+        // can exit early if both connections found
+        if (nullptr != src && nullptr != dst)
+          break;
       }
-
-      // can exit early if both connections found
-      if (nullptr != src && nullptr != dst)
-        break;
-    }
-
-    // cord doesn't connect to any per-voice 
-    // object, so it's of no interest to us
-    if (nullptr == src && nullptr == dst)
-      continue;
-
-    // if we don't have a source, we must have a destination, so
-    // the destination is a clone and the source is the
-    // same as for the overall design, e.g. an LFO
-    if (nullptr == src)
-      src = cord->src;
-
-    // if we don't have an internal destination, we're 
-    // looking for a mixer with an unused input: this
-    // is the only legal option
-    if (nullptr == dst)
-    {
-      if (AudioCategory_mixer == cord->dst->objP->category
-       && 0 != cord->dst->inputAvailFlags)
+  
+      // cord doesn't connect to any per-voice 
+      // object, so it's of no interest to us
+      if (nullptr == src && nullptr == dst)
+        continue;
+  
+      // if we don't have a source, we must have a destination, so
+      // the destination is a clone and the source is the
+      // same as for the overall design, e.g. an LFO
+      if (nullptr == src)
+        src = cord->src;
+  
+      // if we don't have an internal destination, we're 
+      // looking for a mixer with an unused input: this
+      // is the only legal option
+      if (nullptr == dst)
       {
-        dst = cord->dst;
-
-        dstPort = 0;
-        for (uint32_t avail = cord->dst->inputAvailFlags; 
-             0 == (avail & 1);
-             avail >>= 1)
-          dstPort++;
+        if (AudioCategory_mixer == cord->dst->objP->category
+         && 0 != cord->dst->inputAvailFlags)
+        {
+          dst = cord->dst;
+  
+          dstPort = 0;
+          for (uint32_t avail = cord->dst->inputAvailFlags; 
+               0 == (avail & 1);
+               avail >>= 1)
+            dstPort++;
+        }
       }
+  
+      // can we clone this cord? Do it!
+      if (nullptr != src && nullptr != dst && dstPort >= 0)
+      {
+        voiceCordVec.push_back(new PatchcordInstance_t(src,cord->src_port,dst,dstPort));
+      }
+      else
+        patchOK = false; // at least one patchcord failure
     }
-
-    // can we clone this cord? Do it!
-    if (nullptr != src && nullptr != dst && dstPort >= 0)
-    {
-      voiceCordVec.push_back(new PatchcordInstance_t(src,cord->src_port,dst,dstPort));
-    }
-    else
-      patchOK = false; // at least one patchcord failure
   }
 }
 
 PatcherVoice::~PatcherVoice()
 {
+  if (!designObjectsUsed) // if using design, we didn't create patchcords
+  {
     // delete our patchcords: go backwards
     // so we don't change the index of cords we
     // haven't checked yet
@@ -226,14 +251,18 @@ PatcherVoice::~PatcherVoice()
       delete cord;
       voiceCordVec.erase(voiceCordVec.begin()+i);
     }  
+  }
 
-    // similarly for the cloned objects
-    for (int i=voiceVec.size() - 1;i>=0;i--)
+  // similarly for the cloned objects
+  for (int i=voiceVec.size() - 1;i>=0;i--)
+  {
+    if (!designObjectsUsed) // only delete if we own the objects
     {
       auto obj = voiceVec.at(i);
       delete obj.p;
-      voiceVec.erase(voiceVec.begin()+i);
-    }  
+    }
+    voiceVec.erase(voiceVec.begin()+i);
+  }  
 }
 
 void PatcherVoice::sendMIDIevent(MIDIevent& me)

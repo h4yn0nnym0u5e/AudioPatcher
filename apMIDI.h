@@ -16,10 +16,11 @@ struct MIDIevent
 
 class PatcherMIDI
 {
+    bool designObjectsFree; // true if design objects can be used by PatcherVoice
   public:
     PatcherMIDI(std::vector<AudioObjInstancePtr>& o,
                 std::vector<PatchcordInstance_t*>& p )
-      : objVec(o), cordVec(p)
+      : designObjectsFree(true), objVec(o), cordVec(p)
       {}
     std::vector<AudioObjInstancePtr>& objVec;
     std::vector<PatchcordInstance_t*>& cordVec;
@@ -35,10 +36,12 @@ class PatcherVoice
     int triggerNote;
     int triggerVelocity;
     bool patchOK;
+    bool designObjectsUsed; // true if this voice uses the design objects
 
   public:
     PatcherVoice(std::vector<AudioObjInstancePtr>& objVec,
-                 std::vector<PatchcordInstance_t*>& cordVec);
+                 std::vector<PatchcordInstance_t*>& cordVec,
+                 bool canUseDesignObjects);
     ~PatcherVoice();
 
     static const float notesFromC0orMIDI_12[12];
@@ -48,6 +51,7 @@ class PatcherVoice
     void sendMIDIevent(MIDIevent& m);
     bool isActive(void);
     bool isOK(void) { return patchOK; }
+    bool usesDesignObjects(void) { return designObjectsUsed; }
     int getNote(void) { return triggerNote; }
 };
 
