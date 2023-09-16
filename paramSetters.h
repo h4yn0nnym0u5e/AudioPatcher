@@ -396,6 +396,28 @@ class ContextChorus  : public ContextBase
 
 
 //-----------------------------------------------------------------------------------------
+class ContextFlange  : public ContextBase
+{
+  public:
+    ContextFlange() : ContextBase(COUNT_OF(_params), &s.length, _params), mem{0}, tmp{0} {}
+    ~ContextFlange() 
+    { 
+      if (nullptr != mem.ptr) free(mem.ptr); 
+    }
+    static const ParamEntry _params[4];
+    struct {ParamValue length,  offset, depth,  rate;} s
+                {      {10.0f}, {0.5f}, {0.25f}, {1}      }; 
+    struct memRecord {short* ptr; size_t sz; } mem,tmp;
+    void allocMem(memRecord&,size_t,AudioObjInstance*);
+    void setParam(int i, AudioObjInstance* aoi);
+    static const int boxWidth{230};
+
+    void enterEditMode(AudioObjInstance* aoi);
+    void exitEditMode(AudioObjInstance* aoi);
+};
+
+
+//-----------------------------------------------------------------------------------------
 class ContextEnvelope : public ContextBase
 {
   public:

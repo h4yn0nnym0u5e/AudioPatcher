@@ -378,7 +378,7 @@ void ContextChorus::exitEditMode(AudioObjInstance* aoi)
 {
   if (milliseconds2bytes(s.length.value.f) <= tmp.sz) // old allocation is OK for new setting
   {
-    aoi->streamP.Chorus->begin(tmp.ptr,milliseconds2bytes(s.length.value.f)/2,s.voices.value.i);
+    aoi->streamP.Chorus->begin(tmp.ptr,milliseconds2bytes(s.length.value.f),s.voices.value.i);
     free(mem.ptr);
     mem = tmp; // back to using old memory allocation
   }
@@ -399,6 +399,110 @@ void exitEditMode<ContextChorus>(ContextChorus* myContext, AudioObjInstance* aoi
 int editChorus(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioEffectChorus, ContextChorus>(aoi,mode,params); 
+}
+
+//===========================================================================================
+/// TODO: see if we can make much of this code common with the Chorus effect
+void ContextFlange::allocMem(memRecord& mem, size_t newsize, AudioObjInstance* aoi)
+{
+  if (nullptr != mem.ptr)
+    free(mem.ptr);
+  mem.ptr = (short*) malloc(newsize); // possibly more than needed
+  mem.sz  = newsize;
+  memset(mem.ptr,0,mem.sz);
+
+  size_t bufferSamples = milliseconds2bytes(s.length.value.f) / 2;
+  aoi->streamP.Flange->begin(mem.ptr, bufferSamples*2,
+                             s.offset.value.f * bufferSamples,
+                             s.depth.value.f * bufferSamples,
+                             pow(2.0f,s.rate.value.f));
+  AudioInterrupts();  
+}
+
+void ContextFlange::setParam(int i, AudioObjInstance* aoi)
+{ 
+  switch (i)
+  {
+    case 0: 
+      {
+        size_t newsize = milliseconds2bytes(s.length.value.f);
+        if (newsize > mem.sz)
+        {
+          AudioNoInterrupts();
+          allocMem(mem,newsize,aoi);
+        }
+        else          
+          aoi->streamP.Flange->begin(mem.ptr, newsize, // not using all buffer, maybe
+                                    s.offset.value.f * newsize/2,
+                                    s.depth.value.f * newsize/2,
+                                    pow(2.0f,s.rate.value.f));
+      }
+      break;
+      
+    case 1 ... 3: 
+      {
+        size_t bufferSamples = milliseconds2bytes(s.length.value.f) / 2;
+
+        aoi->streamP.Flange->voices(s.offset.value.f * bufferSamples,
+                                    s.depth.value.f * bufferSamples,
+                                    pow(2.0f,s.rate.value.f));
+      }
+      break;
+  }
+}
+
+const ParamEntry ContextFlange::_params[4] = 
+{
+  {"length [ms]", 10.0f, 200.0f},
+  {"     offset", 0.0f,  1.0f},
+  {"      depth", 0.0f,  0.5f},
+  {"       rate",   -5.0f,  4.0f, 'l'}, // 0.03 .. 16Hz
+};
+
+void ContextFlange::enterEditMode(AudioObjInstance* aoi)
+{
+  tmp = mem;
+  AudioNoInterrupts();
+  mem.ptr = nullptr; // prevent freeing old flange memory for now
+  allocMem(mem,milliseconds2bytes(params[0].max.f),aoi);
+}
+
+template <>
+void enterEditMode<ContextFlange>(ContextFlange* myContext, AudioObjInstance* aoi)
+{
+  myContext->enterEditMode(aoi);
+}
+
+void ContextFlange::exitEditMode(AudioObjInstance* aoi)
+{
+  if (milliseconds2bytes(s.length.value.f) <= tmp.sz) // old allocation is OK for new setting
+  {
+    size_t newsize = milliseconds2bytes(s.length.value.f);
+    
+    aoi->streamP.Flange->begin(tmp.ptr, newsize, 
+                          s.offset.value.f * newsize/2,
+                          s.depth.value.f * newsize/2,
+                          pow(2.0f,s.rate.value.f));
+    free(mem.ptr);
+    mem = tmp; // back to using old memory allocation
+  }
+  else // we're gonna need a bigger buffer!
+  {
+    AudioNoInterrupts();
+    allocMem(mem,milliseconds2bytes(s.length.value.f),aoi);
+    free(tmp.ptr);
+  }  
+}
+
+template <>
+void exitEditMode<ContextFlange>(ContextFlange* myContext, AudioObjInstance* aoi)
+{
+  myContext->exitEditMode(aoi);
+}
+
+int editFlange(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  return editObjType<AudioEffectFlange, ContextFlange>(aoi,mode,params); 
 }
 
 //===========================================================================================
