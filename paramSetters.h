@@ -444,6 +444,47 @@ class ContextHammondVibrato : public ContextBase
 };
 
 //-----------------------------------------------------------------------------------------
+class ContextFreeverb : public ContextBase
+{
+  public:
+    ContextFreeverb() : ContextBase(COUNT_OF(_params), &s.roomsize, _params) {}
+    static const ParamEntry _params[2];
+    struct {ParamValue roomsize, damping;} s
+                {      {0.5f},  {0.5f}     };
+
+    void setParam(int i, AudioObjInstance* aoi);
+    static const int boxWidth{180};
+};
+
+//-----------------------------------------------------------------------------------------
+class ContextFreeverbStereo : public ContextBase
+{
+  public:
+    ContextFreeverbStereo() : ContextBase(COUNT_OF(_params), &s.roomsize, _params) {}
+    static const ParamEntry _params[2];
+    struct {ParamValue roomsize, damping;} s
+                {      {0.5f},  {0.5f}     };
+
+    void setParam(int i, AudioObjInstance* aoi);
+    static const int boxWidth{180};
+};
+
+
+//-----------------------------------------------------------------------------------------
+class ContextReverb : public ContextBase
+{
+  public:
+    ContextReverb() : ContextBase(COUNT_OF(_params), &s.reverbTime, _params) {}
+    static const ParamEntry _params[1];
+    struct {ParamValue reverbTime;} s
+                {      {1.0f},       };
+
+    void setParam(int i, AudioObjInstance* aoi);
+    static const int boxWidth{220};
+};
+
+
+//-----------------------------------------------------------------------------------------
 class ContextBiquad : public ContextBase
 {
   public:

@@ -506,6 +506,70 @@ int editFlange(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
+void ContextFreeverb::setParam(int i, AudioObjInstance* aoi)
+{
+  switch (i)
+  {
+    case 0: aoi->streamP.Freeverb->roomsize(s.roomsize.value.f); break;
+    case 1: aoi->streamP.Freeverb->damping(s.damping.value.f); break;
+  }
+}
+
+const ParamEntry ContextFreeverb::_params[2] = 
+{
+  {"room size", 0.0f, 1.0f},
+  {"  damping", 0.0f, 1.0f},
+};
+
+
+int editFreeverb(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  return editObjType<AudioEffectFreeverb, ContextFreeverb>(aoi,mode,params);    
+}
+
+//===========================================================================================
+void ContextFreeverbStereo::setParam(int i, AudioObjInstance* aoi)
+{
+  switch (i)
+  {
+    case 0: aoi->streamP.FreeverbStereo->roomsize(s.roomsize.value.f); break;
+    case 1: aoi->streamP.FreeverbStereo->damping(s.damping.value.f); break;
+  }
+}
+
+const ParamEntry ContextFreeverbStereo::_params[2] = 
+{
+  {"room size", 0.0f, 1.0f},
+  {"  damping", 0.0f, 1.0f},
+};
+
+
+int editFreeverbStereo(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  return editObjType<AudioEffectFreeverbStereo, ContextFreeverbStereo>(aoi,mode,params);    
+}
+
+//===========================================================================================
+void ContextReverb::setParam(int i, AudioObjInstance* aoi)
+{
+  switch (i)
+  {
+    case 0: aoi->streamP.Reverb->reverbTime(s.reverbTime.value.f); break;
+  }
+}
+
+const ParamEntry ContextReverb::_params[1] = 
+{
+  {"reverb time", 0.0f, 10.0f},
+};
+
+
+int editReverb(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  return editObjType<AudioEffectReverb, ContextReverb>(aoi,mode,params);    
+}
+
+//===========================================================================================
 void ContextMixer4::setParam(int i, AudioObjInstance* aoi)
 {
   aoi->streamP.Mixer4->gain(i,gains[i].value.f); 
