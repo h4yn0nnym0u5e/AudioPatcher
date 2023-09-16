@@ -925,7 +925,7 @@ void processMIDIevent<ContextWaveform>(AudioObjInstance* aoi, MIDIevent* ev)
     else
     {
       note += (int) ctxt->m.detune.value.f; // just use another "tonewheel"
-      freq = PatcherVoice::noteToFreq(note,notesHammond);
+      freq = PatcherVoice::noteToFreq(note - 12,notesHammond); // Hammond table is an octave up
     }
     
     aoi->streamP.Waveform->frequency(freq);
@@ -1182,7 +1182,7 @@ void ContextHammondVibrato::setParam(int i, AudioObjInstance* aoi)
           break;
 
         case 2:
-          aoi->streamP.HammondVibrato->enable(false); 
+          aoi->streamP.HammondVibrato->enable(true); 
           aoi->streamP.HammondVibrato->chorus_mode(); 
           break;
 
