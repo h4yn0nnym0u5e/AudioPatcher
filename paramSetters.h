@@ -431,6 +431,19 @@ class ContextEnvelope : public ContextBase
 };
 
 //-----------------------------------------------------------------------------------------
+class ContextExpEnvelope : public ContextBase
+{
+  public:
+    ContextExpEnvelope() : ContextBase(COUNT_OF(_params), &s.delay, _params) {}
+    static const ParamEntry _params[7];
+    struct {ParamValue delay,  attack,  hold,     decay,    sustain, release,  shape;} s
+                {      {0.0f}, {3.392f},{1.322f}, {5.129f}, {0.5f},  {8.229f}, {0.90f}      };
+
+    void setParam(int i, AudioObjInstance* aoi);
+    static const int boxWidth{240};
+};
+
+//-----------------------------------------------------------------------------------------
 class ContextHammondVibrato : public ContextBase
 {
   public:

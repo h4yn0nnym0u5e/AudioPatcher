@@ -148,6 +148,23 @@ void setup()
   systemState = 6;
 }
 
+/*
+ * Provide an accessible mute function, e.g. for loading a patch
+ */
+void setMuteStatus(bool mute)
+{
+  if (mute)
+  {
+    theControlSGTL5000.streamP.ControlSGTL5000->muteHeadphone();
+    theControlSGTL5000.streamP.ControlSGTL5000->muteLineout();
+  }
+  else
+  {
+    theControlSGTL5000.streamP.ControlSGTL5000->unmuteHeadphone();
+    theControlSGTL5000.streamP.ControlSGTL5000->unmuteLineout();
+  }
+}
+
 
 /********************************************************************************************************/
 const char* modes = "OPEMDF"; // objects, patchcords, editing, MIDI config, deleting, filing

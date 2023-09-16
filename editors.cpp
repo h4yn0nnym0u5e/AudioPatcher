@@ -2,6 +2,7 @@
 extern AudioObjStatic_t objList[];
 extern DeleteEditor deleteEditor;
 extern ObjEditor objEditor;
+extern void setMuteStatus(bool mute);
 
 static PatchcordInstance_t blankPatch;
 //======================================================================
@@ -1057,6 +1058,8 @@ FLASHMEM void FileEditor::load(void)
     
     loadFrom.setTimeout(1);
 
+    setMuteStatus(true);
+
     // remove existing patch: deleting the objects will
     // automagically remove the associated patchcords
     for (int i = objVec.size() - 1; i >= 0; i--)
@@ -1177,6 +1180,9 @@ FLASHMEM void FileEditor::load(void)
     } while (1);
     
     loadFrom.close();
+
+    delay(5); // allow audio system to settle
+    setMuteStatus(false);
   }
 }
 

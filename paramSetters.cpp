@@ -1369,6 +1369,57 @@ int isActive<ContextEnvelope>(AudioObjInstance* aoi)
 }
 
 //===========================================================================================
+void ContextExpEnvelope::setParam(int i, AudioObjInstance* aoi)
+{
+  switch (i)
+  {
+    case 0: aoi->streamP.ExpEnvelope->delay(pow(2,s.delay.value.f)); break;
+    case 1: aoi->streamP.ExpEnvelope->attack(pow(2,s.attack.value.f),s.shape.value.f); break;
+    case 2: aoi->streamP.ExpEnvelope->hold(pow(2,s.hold.value.f)); break;
+    case 3: aoi->streamP.ExpEnvelope->decay(pow(2,s.decay.value.f),s.shape.value.f); break;
+    case 4: aoi->streamP.ExpEnvelope->sustain(s.sustain.value.f); break;
+    case 5: aoi->streamP.ExpEnvelope->release(pow(2,s.release.value.f),s.shape.value.f); break;
+    case 6:
+      setParam(1,aoi); 
+      setParam(3,aoi); 
+      setParam(5,aoi); 
+      break;
+  }
+}
+
+const ParamEntry ContextExpEnvelope::_params[7] = {
+        {"  delay", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
+        {" attack", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
+        {"   hold", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
+        {"  decay", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
+        {"sustain", 0.0f, 1.0f}, 
+        {"release", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
+        {"  shape", 0.1f, 0.99f} // 
+    };
+
+int editExpEnvelope(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  return editObjType<AudioEffectExpEnvelope, ContextExpEnvelope>(aoi,mode,params);
+}
+
+template <>
+void processMIDIevent<ContextExpEnvelope>(AudioObjInstance* aoi, MIDIevent* ev)
+{
+  if (midi::NoteOff == ev->type) // note off
+    aoi->streamP.ExpEnvelope->noteOff();
+  if (midi::NoteOn  == ev->type) // note on
+    aoi->streamP.ExpEnvelope->noteOn();
+}
+
+// \return 0 for idle, 2 for active, 3 for sustain, should never be 3
+template <>
+int isActive<ContextExpEnvelope>(AudioObjInstance* aoi)
+{
+  return (aoi->streamP.ExpEnvelope->isSustain()?1:0)
+       + (aoi->streamP.ExpEnvelope->isActive() ?2:0);
+}
+
+//===========================================================================================
  const ParamChoice modesHammondVibrato[] = 
   {{"(off)",   0},
    {"vibrato", 1},
