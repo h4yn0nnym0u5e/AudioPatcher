@@ -882,7 +882,11 @@ FLASHMEM void DeleteEditor::highlight(int remove, int add)
       if (remove >= 0)
         display.DrawPatchcord(cordVec.at(remove)); // take highlight off old object
       if (add >= 0)
-        display.DrawPatchcord(cordVec.at(add),PATCHCORD_HIGHLIGHT); // put it on the new one     
+      {
+        if (display.canvasMakeVisible(*cordVec.at(add),CANVAS_STEP,CANVAS_STEP))
+          drawAll();
+        display.DrawPatchcord(cordVec.at(add),PATCHCORD_HIGHLIGHT); // put it on the new one
+      }
       break;
   }
 }

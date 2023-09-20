@@ -64,7 +64,9 @@ class AudioPatcherDisplay
     void canvasMoveBy(int16_t x, int16_t y);
     void canvasMoveTo(int16_t x, int16_t y);
     void canvasGetCurrent(int16_t& x, int16_t& y) { x = canvas_x; y = canvas_y; }
+    bool canvasMakeVisible(int16_t x, int16_t y, int16_t w, int16_t h, int16_t xstep, int16_t ystep);
     bool canvasMakeVisible(AudioObjInstance& obj, int16_t xstep, int16_t ystep);
+    bool canvasMakeVisible(PatchcordInstance_t& cord, int16_t xstep, int16_t ystep);
     void canvasGetLimits(int16_t& xmax, int16_t& ymax);
     
     // dependent on display's window on patcher canvas:

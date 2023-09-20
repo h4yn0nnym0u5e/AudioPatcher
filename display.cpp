@@ -538,7 +538,8 @@ void AudioPatcherDisplay::canvasGetLimits(int16_t& xmax, int16_t& ymax)
   ymax = tft.height(); 
 }
 
-bool AudioPatcherDisplay::canvasMakeVisible(AudioObjInstance& obj, int16_t xstep, int16_t ystep)
+
+bool AudioPatcherDisplay::canvasMakeVisible(int16_t x, int16_t y, int16_t w, int16_t h, int16_t xstep, int16_t ystep)
 {
   bool result = false; // assume we're not needing to move
   int16_t xmax,ymax,xmove=0,ymove=0;
@@ -546,14 +547,14 @@ bool AudioPatcherDisplay::canvasMakeVisible(AudioObjInstance& obj, int16_t xstep
   canvasGetLimits(xmax, ymax);
   ymax -= 20; // allow for status zone (magic number)
   
-  while (obj.x - canvas_x + OBJECT_SIZE - xmove > xmax) // moved object RHS is off screen
+  while (x - canvas_x + w - xmove > xmax) // moved object RHS is off screen
     xmove += xstep;
-  while (obj.x - canvas_x - xmove < 0) // moved object LHS is off screen
+  while (x - canvas_x - xmove < 0) // moved object LHS is off screen
     xmove -= xstep;
 
-  while (obj.y - canvas_y + OBJECT_SIZE - ymove > ymax) // moved object bottom is off screen
+  while (y - canvas_y + h - ymove > ymax) // moved object bottom is off screen
     ymove += ystep;
-  while (obj.y - canvas_y - ymove < 0) // moved object top is off screen
+  while (y - canvas_y - ymove < 0) // moved object top is off screen
     ymove -= xstep;
 
   // see if move is needed...
@@ -562,4 +563,31 @@ bool AudioPatcherDisplay::canvasMakeVisible(AudioObjInstance& obj, int16_t xstep
     canvasMoveBy(xmove,ymove); // ...and do it
   
   return result; // true if objects need re-drawing
+}
+
+
+bool AudioPatcherDisplay::canvasMakeVisible(AudioObjInstance& obj, int16_t xstep, int16_t ystep)
+{
+  return canvasMakeVisible(obj.x, obj.y, OBJECT_SIZE, OBJECT_SIZE, xstep, ystep); 
+}
+
+
+bool AudioPatcherDisplay::canvasMakeVisible(PatchcordInstance_t& cord, int16_t xstep, int16_t ystep)
+{
+    int16_t sx,sy,ss,dx,dy;
+
+    // find positions of input and output connector blobs
+    // these are at the top left
+    getOutputPositions(*cord.src->objP,cord.src->x,cord.src->y,&sx,&sy,&ss);
+    sy += cord.src_port * ss;
+    getInputPositions(*cord.dst->objP,cord.dst->x,cord.dst->y,&dx,&dy,&ss);
+    dy += cord.dst_port * ss;
+
+    if (sx > dx)
+      std::swap(sx,dx);
+      
+    if (sy > dy)
+      std::swap(sy,dy);
+      
+    return canvasMakeVisible(sx, sy, dx - sx, dy - sy, xstep, ystep); 
 }
