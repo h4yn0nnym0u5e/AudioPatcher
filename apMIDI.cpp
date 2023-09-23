@@ -88,7 +88,7 @@ void PatcherMIDI::update(void)
       case midi::NoteOn: 
         {
           //uint32_t t = micros();
-          PatcherVoice* newVoice = new PatcherVoice{objVec, cordVec, designObjectsFree}; // create the voice
+          PatcherVoice* newVoice = new PatcherVoice{objVec, cordVec, *this, designObjectsFree}; // create the voice
           designObjectsFree &= !newVoice->usesDesignObjects(); // flag whether it used the design objects
           sounding.push_back(newVoice);  // add it to the list
           newVoice->noteOn(midi1.getChannel(),midi1.getData1(), midi1.getData2()); // start it sounding
@@ -116,9 +116,39 @@ void PatcherMIDI::update(void)
 
       default:
         {
-          MIDIevent me {midi1.getChannel(),midi1.getType(),midi1.getData1(),midi1.getData2()};
-          for (auto obj : sounding)
-            obj->sendMIDIevent(me);
+          byte ch  = midi1.getChannel(),
+               typ = midi1.getType(),
+               d1  = midi1.getData1(),
+               d2  = midi1.getData2();
+
+          switch (typ)
+          {
+            default:
+              break;
+              
+            case midi::ControlChange:
+              CCvalues[d1] = d2;
+              break;
+
+            case midi::PitchBend:
+              pitchBend = ((int16_t) d2 << 7) | d1;
+              pitchBend -= 0x2000; // make it signed
+              break;
+          }
+
+          {
+            MIDIevent me {ch,typ,d1,d2,DummyVoice};
+            PatcherVoice::sendMIDIevent(objVec,me); // send to whole design
+          }
+
+          for (auto obj : sounding) // every PatcherVoice that's sounding
+          {           
+            if (!obj->usesDesignObjects()) // except the one using the design objects
+            {
+              MIDIevent me {ch,typ,d1,d2,*obj};
+              obj->sendMIDIevent(me);
+            }
+          }
         }
         break;
     }
@@ -149,8 +179,10 @@ void PatcherMIDI::update(void)
 // do the note on function in here
 PatcherVoice::PatcherVoice(std::vector<AudioObjInstancePtr>& objVec,
                            std::vector<PatchcordInstance_t*>& cordVec,
+                           PatcherMIDI& _pm,
                            bool canUseDesignObjects)
-            : triggerNote(-1), triggerVelocity(-1), 
+            : PatcherVoiceBase(_pm),
+              triggerNote(-1), triggerVelocity(-1), 
               patchOK(true), designObjectsUsed(false)
 {
   // clone the per-voice objects, or
@@ -265,17 +297,17 @@ PatcherVoice::~PatcherVoice()
   }  
 }
 
-void PatcherVoice::sendMIDIevent(MIDIevent& me)
+/* static */
+void PatcherVoice::sendMIDIevent(std::vector<AudioObjInstancePtr> voiceVec, MIDIevent& me)
 {
   // send the message to all objects
   for (auto obj : voiceVec)
     obj.p->objP->editFn(obj.p,AudioEditMode::processMIDIevent,&me);  
 }
 
-
 void PatcherVoice::noteOn(byte channel, byte note, byte velocity)
 {
-  MIDIevent me{channel,midi::NoteOn,{note},{velocity}};
+  MIDIevent me{channel,midi::NoteOn,{note},{velocity},*this};
   sendMIDIevent(me);
   triggerNote = note;
   triggerVelocity = velocity;
@@ -283,7 +315,7 @@ void PatcherVoice::noteOn(byte channel, byte note, byte velocity)
   
 void PatcherVoice::noteOff(byte channel, byte note, byte velocity)
 {
-  MIDIevent me{channel,midi::NoteOff,{note},{velocity}};
+  MIDIevent me{channel,midi::NoteOff,{note},{velocity},*this};
   sendMIDIevent(me);
 }
 

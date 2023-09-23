@@ -619,6 +619,9 @@ class ContextNoise : public ContextBase
 };
 
 //-----------------------------------------------------------------------------------------
+struct WaveformMIDI {ParamValue octave, detune, velocity, tuning, PBamount; };
+#define WAVEFORM_MIDI_COUNT (sizeof(WaveformMIDI) / sizeof(ParamValue)) 
+
 class ContextWaveform : public ContextBase 
 {
   public:
@@ -632,8 +635,9 @@ class ContextWaveform : public ContextBase
     static const int boxWidth{260};
 
     //------ MIDI settings ----------
-    static const ParamEntry MIDIparams[4];
-    struct {ParamValue octave,detune,velocity,tuning;} m {{4},{0.00f},{0},{0}};
+    static const ParamEntry MIDIparams[WAVEFORM_MIDI_COUNT];
+    WaveformMIDI m {{4},{0.00f},{0},{0}, {0.0f}};
+    float noteFreq; // basic note frequency before modification with pitch bend
 };
 
 //-----------------------------------------------------------------------------------------
@@ -661,9 +665,9 @@ class ContextWaveformModulated : public ContextBase
     void setParam(int i, AudioObjInstance* aoi);
 
     //------ MIDI settings ----------
-    static const ParamEntry MIDIparams[4];
-    struct {ParamValue octave, detune,  velocity, tuning; } m 
-                    {  {4},    {0.00f}, {0},      {0}};
+    static const ParamEntry MIDIparams[WAVEFORM_MIDI_COUNT];
+    WaveformMIDI m {{4},{0.00f},{0},{0},{0.0f}};
+    float noteFreq; // basic note frequency before modification with pitch bend
 };
 
 //-----------------------------------------------------------------------------------------

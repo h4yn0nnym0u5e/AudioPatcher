@@ -730,10 +730,11 @@ const ParamChoice tuningTypes[]
 
 const ParamEntry ContextWaveformModulated::MIDIparams[] 
 {
-  {"  octave", 0, 9}, // middle C = 261.63Hz = note#60 = octave 4
-  {"  detune", -6.00f, +6.00f}, // semitones / cents
-  {"velocity",PARAM_ENTRY_CHOICES(velocityShapes)},
-  {"  tuning",PARAM_ENTRY_CHOICES(tuningTypes)},
+  {"   octave", 0, 9}, // middle C = 261.63Hz = note#60 = octave 4
+  {"   detune", -6.00f, +6.00f}, // semitones / cents
+  {" velocity",PARAM_ENTRY_CHOICES(velocityShapes)},
+  {"   tuning",PARAM_ENTRY_CHOICES(tuningTypes)},
+  {"PB amount",0.0f, 12.0f},
 };
 
 const ParamChoice waveShapes[12] = 
@@ -1038,10 +1039,11 @@ int editStateVariable(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 //===========================================================================================
 const ParamEntry ContextWaveform::MIDIparams[] 
 {
-  {"  octave", 0, 9}, // middle C = 261.63Hz = note#60 = octave 4
-  {"  detune", -6.00f, +6.00f}, // semitones / cents
-  {"velocity",PARAM_ENTRY_CHOICES(velocityShapes)},
-  {"  tuning",PARAM_ENTRY_CHOICES(tuningTypes)},
+  {"   octave", 0, 9}, // middle C = 261.63Hz = note#60 = octave 4
+  {"   detune", -6.00f, +6.00f}, // semitones / cents
+  {" velocity",PARAM_ENTRY_CHOICES(velocityShapes)},
+  {"   tuning",PARAM_ENTRY_CHOICES(tuningTypes)},
+  {"PB amount",0.0f, 12.0f},
 };
 
 const ParamEntry ContextWaveform::_params[] = {
@@ -1119,44 +1121,59 @@ void processMIDIevent<ContextWaveform>(AudioObjInstance* aoi, MIDIevent* ev)
 {
   ContextWaveform* ctxt = (ContextWaveform*) aoi->context;
   
-  if (midi::NoteOn == ev->type) // note on
+  switch (ev->type)
   {
-    float freq;
-    byte note = ev->note;
-    
-    note += 12*(ctxt->m.octave.value.i - 4);
+    case midi::NoteOn:
+    {
+      float freq;
+      byte note = ev->note;
+      
+      note += 12*(ctxt->m.octave.value.i - 4);
+  
+      if (0 == ctxt->m.tuning.value.i) // magic: equal temperament
+      {
+        freq = PatcherVoice::noteToFreq(note);
+        freq *= pow(2.0f,ctxt->m.detune.value.f);
+        ctxt->noteFreq = freq;
+        freq *= ev->pvb.pm.getPitchBend(ctxt->m.PBamount.value.f);
+      }
+      else
+      {
+        note += (int) ctxt->m.detune.value.f; // just use another "tonewheel"
+        freq = PatcherVoice::noteToFreq(note - 12,notesHammond); // Hammond table is an octave up
+        ctxt->noteFreq = freq;
+      }
+      
+      aoi->streamP.Waveform->frequency(freq);
+      switch (velocityShapes[ctxt->m.velocity.value.i].value)
+      {
+        case 0: // linear     
+          aoi->streamP.Waveform->amplitude(ev->velocity / 127.0f);
+          break;
+          
+        case 1: // curved     
+          aoi->streamP.Waveform->amplitude(velocity2amplitude[ev->velocity]);
+          break;
+          
+        case 2: // as set     
+          aoi->streamP.Waveform->amplitude(ctxt->s.amplitude.value.f);
+          break;
+          
+        case 3: // maximum     
+          aoi->streamP.Waveform->amplitude(1.0f);
+          break;
+      }
+    }
+    break;
 
-    if (0 == ctxt->m.tuning.value.i) // magic: equal temperament
-    {
-      freq = PatcherVoice::noteToFreq(note);
-      freq *= pow(2.0f,ctxt->m.detune.value.f);
-      // TODO: add in current pitch bend here
-    }
-    else
-    {
-      note += (int) ctxt->m.detune.value.f; // just use another "tonewheel"
-      freq = PatcherVoice::noteToFreq(note - 12,notesHammond); // Hammond table is an octave up
-    }
-    
-    aoi->streamP.Waveform->frequency(freq);
-    switch (velocityShapes[ctxt->m.velocity.value.i].value)
-    {
-      case 0: // linear     
-        aoi->streamP.Waveform->amplitude(ev->velocity / 127.0f);
-        break;
-        
-      case 1: // curved     
-        aoi->streamP.Waveform->amplitude(velocity2amplitude[ev->velocity]);
-        break;
-        
-      case 2: // as set     
-        aoi->streamP.Waveform->amplitude(ctxt->s.amplitude.value.f);
-        break;
-        
-      case 3: // maximum     
-        aoi->streamP.Waveform->amplitude(1.0f);
-        break;
-    }
+    case midi::PitchBend:
+      if (0 == ctxt->m.tuning.value.i) // magic: equal temperament
+      {
+        float freq = ctxt->noteFreq;
+        freq *= ev->pvb.pm.getPitchBend(ctxt->m.PBamount.value.f);
+        aoi->streamP.Waveform->frequency(freq);
+      }
+      break;
   }
 }
 
