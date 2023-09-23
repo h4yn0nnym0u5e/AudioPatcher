@@ -127,6 +127,7 @@ void PatcherMIDI::update(void)
               break;
               
             case midi::ControlChange:
+              Serial.printf("CC %d = %d\n",d1,d2);
               CCvalues[d1] = d2;
               break;
 

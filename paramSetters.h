@@ -626,7 +626,7 @@ class ContextWaveform : public ContextBase
 {
   public:
     ContextWaveform() : ContextBase(COUNT_OF(_params), &s.waveform, _params, nullptr,
-                                            COUNT_OF(MIDIparams), &m.octave, MIDIparams) {}
+                                    COUNT_OF(MIDIparams), &m.octave, MIDIparams) {}
     static const ParamEntry _params[5];
     struct {ParamValue waveform,frequency,amplitude,pulseWidth,offset;} s
                  {             {0},     {7.0f},   {0.5f},   {0.333f},  {0.0f}    };
@@ -644,12 +644,18 @@ class ContextWaveform : public ContextBase
 class ContextWaveformDc : public ContextBase
 {
   public:
-    ContextWaveformDc() : ContextBase(COUNT_OF(_params), &amplitude, _params) {}
+    ContextWaveformDc() : ContextBase(COUNT_OF(_params), &amplitude, _params, nullptr, 
+                                      COUNT_OF(MIDIparams), &m.CCnum, MIDIparams) {}
     static const ParamEntry _params[1];
     ParamValue amplitude{0.0f};
 
     void setParam(int i, AudioObjInstance* aoi);
     static const int boxWidth{160};
+    
+    //------ MIDI settings ----------
+    static const ParamEntry MIDIparams[3];
+    struct {ParamValue CCnum, CCmin,  CCmax; } m 
+                    {  {1},   {0.0f}, {1.0f}}; // mod wheel, full positive amplitude range
 };
 
 //-----------------------------------------------------------------------------------------

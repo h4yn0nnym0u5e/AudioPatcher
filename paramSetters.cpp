@@ -841,6 +841,14 @@ const ParamEntry ContextWaveformDc::_params[] = {
 };
 
 
+const ParamEntry ContextWaveformDc::MIDIparams[] 
+{
+  {"CC number", -1, 119}, // off, bank select, modulation, breath...
+  {"min", -1.00f, +1.00f},
+  {"max", -1.00f, +1.00f, 100},
+};
+
+
 void ContextWaveformDc::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
@@ -854,6 +862,24 @@ int editWaveformDc(AudioObjInstance* aoi, AudioEditMode mode, void* params)
   return editObjType<AudioSynthWaveformDc, ContextWaveformDc>(aoi,mode,params);    
 }
 
+template <>
+void processMIDIevent<ContextWaveformDc>(AudioObjInstance* aoi, MIDIevent* ev)
+{
+  ContextWaveformDc* ctxt = (ContextWaveformDc*) aoi->context;
+  
+  switch (ev->type)
+  {
+    case midi::ControlChange:
+    {
+      if (ev->CCnum == ctxt->m.CCnum.value.i)
+      {
+        float ampl = map((float) ev->CCval,0.0f,127.0f,ctxt->m.CCmin.value.f,ctxt->m.CCmax.value.f);
+        aoi->streamP.WaveformDc->amplitude(ampl);
+      }
+    }
+    break;
+  }
+}
 //===========================================================================================
 const ParamEntry ContextNoise::_params[] = {
   {"amplitude", 0.0f, 1.0f}
