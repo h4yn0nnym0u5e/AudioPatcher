@@ -538,12 +538,18 @@ class ContextLadder : public ContextBase
 class ContextStateVariable : public ContextBase 
 {
   public:
-    ContextStateVariable() : ContextBase(COUNT_OF(_params), &s.frequency, _params) {}
+    ContextStateVariable() : ContextBase(COUNT_OF(_params), &s.frequency, _params, nullptr,
+                                         COUNT_OF(MIDIparams), &m.CCnum, MIDIparams) {}
     static const ParamEntry _params[3];
     struct {ParamValue frequency,resonance,octaves;} s
                    {          {8.0f}, {0.7f},   {1.0f}    };
     void setParam(int i, AudioObjInstance* aoi);
     static const int boxWidth{260};
+    
+    //------ MIDI settings ----------
+    static const ParamEntry MIDIparams[3];
+    struct {ParamValue CCnum, CCmin,  CCmax; } m 
+                    {  {1},   {0.0f}, {1.0f}}; // mod wheel, full positive amplitude range
 };
 
 //-----------------------------------------------------------------------------------------

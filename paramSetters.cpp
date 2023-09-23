@@ -841,11 +841,11 @@ const ParamEntry ContextWaveformDc::_params[] = {
 };
 
 
-const ParamEntry ContextWaveformDc::MIDIparams[] 
+const ParamEntry ContextWaveformDc::MIDIparams[]
 {
   {"CC number", -1, 119}, // off, bank select, modulation, breath...
   {"min", -1.00f, +1.00f},
-  {"max", -1.00f, +1.00f, 100},
+  {"max", -1.00f, +1.00f},
 };
 
 
@@ -1060,6 +1060,33 @@ const ParamEntry ContextStateVariable::_params[3] = {
 int editStateVariable(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioFilterStateVariable, ContextStateVariable>(aoi,mode,params);
+}
+
+const ParamEntry ContextStateVariable::MIDIparams[]
+{
+  {"Resonance CC", -1, 119}, // off, bank select, modulation, breath...
+  {"min", 0.7f, +5.00f},
+  {"max", 0.7f, +5.00f},
+};
+
+
+template <>
+void processMIDIevent<ContextStateVariable>(AudioObjInstance* aoi, MIDIevent* ev)
+{
+  ContextStateVariable* ctxt = (ContextStateVariable*) aoi->context;
+  
+  switch (ev->type)
+  {
+    case midi::ControlChange:
+    {
+      if (ev->CCnum == ctxt->m.CCnum.value.i)
+      {
+        float ampl = map((float) ev->CCval,0.0f,127.0f,ctxt->m.CCmin.value.f,ctxt->m.CCmax.value.f);
+        aoi->streamP.StateVariable->resonance(ampl);
+      }
+    }
+    break;
+  }
 }
 
 //===========================================================================================
