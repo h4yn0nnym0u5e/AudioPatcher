@@ -70,6 +70,7 @@ class PatcherVoice : public PatcherVoiceBase
     bool isOK(void) { return patchOK; }
     bool usesDesignObjects(void) { return designObjectsUsed; }
     int getNote(void) { return triggerNote; }
+    int getVelocity(void) { return triggerVelocity; }
 };
 
 struct MIDIevent

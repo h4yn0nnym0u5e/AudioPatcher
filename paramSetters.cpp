@@ -275,14 +275,20 @@ int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const size_t pa
 // Set AudioStream object's parameters from the stored ones
 int editSetStreamParams(AudioObjInstance& aoi)
 {
+  int result = 0;
   ContextBase* myContext = (ContextBase*) aoi.context;
-  
-  // set the actual stream object's parameters
-  for (size_t i=0; i < myContext->paramCount; i++)
-    if (myContext->params[i].ValType != 'n') // unless the flag says not to...
-      myContext->setParam(i,&aoi);        // ...set the value
 
-  return (int) myContext->paramCount;
+  if (nullptr != myContext)
+  {  
+    // set the actual stream object's parameters
+    for (size_t i=0; i < myContext->paramCount; i++)
+      if (myContext->params[i].ValType != 'n') // unless the flag says not to...
+        myContext->setParam(i,&aoi);        // ...set the value
+  
+    result = (int) myContext->paramCount;
+  }
+  
+  return result;  
 }
 
 
@@ -295,7 +301,9 @@ void ContextBase::copyParamsTo(ContextBase& dst)
 
 void CopyContext(void* src, void* dst)
 {
-  ((ContextBase*) src)->copyParamsTo(*(ContextBase*) dst);
+  // some objects don't need a context, e.g. AudioEffectMultiply
+  if (nullptr != src && nullptr != dst)
+    ((ContextBase*) src)->copyParamsTo(*(ContextBase*) dst);
 }
 
 //===========================================================================================
@@ -763,7 +771,7 @@ const ParamEntry ContextWaveformModulated::_params[6] =
   {"amplitude", 0.0f, 1.0f},
   {"   offset", -1.0f, 1.0f},
   {" mod type",PARAM_ENTRY_CHOICES(modTypes)},
-  {"mod depth",0.0f, 12.0f} // frequency is 0.0 - 12.0 octaves; phase modulation could be 9000°
+  {"mod depth",0.0f, 100.0f} // use 0-100%; frequency is 0.0 - 12.0 octaves; phase modulation could be 9000°
 };
 
 void ContextWaveformModulated::setParam(int i, AudioObjInstance* aoi)
@@ -774,10 +782,21 @@ void ContextWaveformModulated::setParam(int i, AudioObjInstance* aoi)
     case 1: aoi->streamP.WaveformModulated->frequency(pow(2,s.frequency.value.f)); break;
     case 2: aoi->streamP.WaveformModulated->amplitude(s.amplitude.value.f); break;
     case 3: aoi->streamP.WaveformModulated->offset(s.offset.value.f); break;
-    /*
-    case 2: aoi->streamP.WaveformModulated->amplitude(s.amplitude.value.f); break;
-    case 3: aoi->streamP.WaveformModulated->offset(s.offset.value.f); break;
-    */
+    
+    case 4: 
+    case 5: 
+      switch (modTypes[s.modType.value.i].value)
+      {
+        case 0: // frequency modulation
+          aoi->streamP.WaveformModulated->frequencyModulation(s.modDepth.value.f * 0.12f); 
+          break;
+        case 1: // frequency modulation
+          aoi->streamP.WaveformModulated->phaseModulation(s.modDepth.value.f * s.modDepth.value.f * 0.9f); 
+          break;
+      }
+      break;
+      
+    
   }
 }
 
@@ -829,6 +848,13 @@ void updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myCo
     }
   }
 }
+
+
+template <>
+void processMIDIevent<ContextWaveformModulated>(AudioObjInstance* aoi, MIDIevent* ev)
+{
+  processMIDIforWaveform(aoi,ev,(ContextWaveformModulated*) aoi->context,aoi->streamP.WaveformModulated);
+}
   
 int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
@@ -842,8 +868,8 @@ const ParamEntry ContextWaveformDc::_params[] = {
 
 
 const ParamEntry ContextWaveformDc::MIDIparams[]
-{
-  {"CC number", -1, 119}, // off, bank select, modulation, breath...
+{                         // -3    -2     -1        0           1           2    ...
+  {"CC number", -3, 119}, // off, note, velocity, bank select, modulation, breath...
   {"min", -1.00f, +1.00f},
   {"max", -1.00f, +1.00f},
 };
@@ -878,8 +904,42 @@ void processMIDIevent<ContextWaveformDc>(AudioObjInstance* aoi, MIDIevent* ev)
       }
     }
     break;
+
+    case midi::NoteOn:
+      {
+        int CCval = 0;
+        PatcherVoice* pv = (PatcherVoice*) &(ev->pvb);
+        
+        switch (ctxt->m.CCnum.value.i)
+        {
+          case -3: // off
+            CCval = -1;
+            break;
+            
+          case -2: // set amplitude from note value
+            CCval = pv->getNote();
+            break;
+            
+          case -1: // set amplitude from note velocity
+            CCval = pv->getVelocity();
+            break;
+
+          default: // normal CC            
+            CCval = ev->pvb.pm.getCC(ctxt->m.CCnum.value.i);
+            break;
+        }
+
+        if (CCval >= 0) // valid CC value
+        {
+          float ampl = map((float) CCval,0.0f,127.0f,ctxt->m.CCmin.value.f,ctxt->m.CCmax.value.f);
+          aoi->streamP.WaveformDc->amplitude(ampl);          
+        }
+      }
+      break;
   }
 }
+
+
 //===========================================================================================
 const ParamEntry ContextNoise::_params[] = {
   {"amplitude", 0.0f, 1.0f}
@@ -1172,62 +1232,7 @@ void updateFromControls<ContextWaveform>(ContextWaveform* myContext, AudioObjIns
 template <>
 void processMIDIevent<ContextWaveform>(AudioObjInstance* aoi, MIDIevent* ev)
 {
-  ContextWaveform* ctxt = (ContextWaveform*) aoi->context;
-  
-  switch (ev->type)
-  {
-    case midi::NoteOn:
-    {
-      float freq;
-      byte note = ev->note;
-      
-      note += 12*(ctxt->m.octave.value.i - 4);
-  
-      if (0 == ctxt->m.tuning.value.i) // magic: equal temperament
-      {
-        freq = PatcherVoice::noteToFreq(note);
-        freq *= pow(2.0f,ctxt->m.detune.value.f);
-        ctxt->noteFreq = freq;
-        freq *= ev->pvb.pm.getPitchBend(ctxt->m.PBamount.value.f);
-      }
-      else
-      {
-        note += (int) ctxt->m.detune.value.f; // just use another "tonewheel"
-        freq = PatcherVoice::noteToFreq(note - 12,notesHammond); // Hammond table is an octave up
-        ctxt->noteFreq = freq;
-      }
-      
-      aoi->streamP.Waveform->frequency(freq);
-      switch (velocityShapes[ctxt->m.velocity.value.i].value)
-      {
-        case 0: // linear     
-          aoi->streamP.Waveform->amplitude(ev->velocity / 127.0f);
-          break;
-          
-        case 1: // curved     
-          aoi->streamP.Waveform->amplitude(velocity2amplitude[ev->velocity]);
-          break;
-          
-        case 2: // as set     
-          aoi->streamP.Waveform->amplitude(ctxt->s.amplitude.value.f);
-          break;
-          
-        case 3: // maximum     
-          aoi->streamP.Waveform->amplitude(1.0f);
-          break;
-      }
-    }
-    break;
-
-    case midi::PitchBend:
-      if (0 == ctxt->m.tuning.value.i) // magic: equal temperament
-      {
-        float freq = ctxt->noteFreq;
-        freq *= ev->pvb.pm.getPitchBend(ctxt->m.PBamount.value.f);
-        aoi->streamP.Waveform->frequency(freq);
-      }
-      break;
-  }
+  processMIDIforWaveform(aoi,ev,(ContextWaveform*) aoi->context,aoi->streamP.Waveform);
 }
 
   

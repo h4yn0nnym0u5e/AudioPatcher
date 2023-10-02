@@ -8,6 +8,7 @@
 #include "apMIDI.h"
 
 extern LimitedEncoder encM,enc0,enc1,enc2;
+extern const ParamChoice velocityShapes[];
 
 #if !defined(COUNT_OF)
 #define COUNT_OF(a) (sizeof a / sizeof a[0])
@@ -148,6 +149,7 @@ int editSetParams(AudioObjInstance* aoi, getSetParams* p)
   return result;
 }
 
+//=====================================================================================
 // Set object's MIDI parameters from supplied string
 template <class Tctxt>
 int editSetMIDIparams(AudioObjInstance* aoi, getSetParams* p)
@@ -162,6 +164,69 @@ int editSetMIDIparams(AudioObjInstance* aoi, getSetParams* p)
 //=====================================================================================
 template <class Tctxt>
 void processMIDIevent(AudioObjInstance* aoi, MIDIevent* ev){} // no special action for most AudioStream classes
+
+//=====================================================================================
+template <class TWaveformCtxt, class TwaveformObject>
+void processMIDIforWaveform(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt* ctxt, TwaveformObject* wav)
+{
+  switch (ev->type)
+  {
+    case midi::NoteOn:
+    {
+      float freq;
+      byte note = ev->note;
+      
+      note += 12*(ctxt->m.octave.value.i - 4);
+  
+      if (0 == ctxt->m.tuning.value.i) // magic: equal temperament
+      {
+        freq = PatcherVoice::noteToFreq(note);
+        freq *= pow(2.0f,ctxt->m.detune.value.f);
+        ctxt->noteFreq = freq;
+        freq *= ev->pvb.pm.getPitchBend(ctxt->m.PBamount.value.f);
+      }
+      else
+      {
+        note += (int) ctxt->m.detune.value.f; // just use another "tonewheel"
+        freq = PatcherVoice::noteToFreq(note - 12,notesHammond); // Hammond table is an octave up
+        ctxt->noteFreq = freq;
+      }
+      
+      wav->frequency(freq);
+      switch (velocityShapes[ctxt->m.velocity.value.i].value)
+      {
+        case 0: // linear     
+          wav->amplitude(ev->velocity / 127.0f);
+          break;
+          
+        case 1: // curved     
+          wav->amplitude(velocity2amplitude[ev->velocity]);
+          break;
+          
+        case 2: // as set     
+          wav->amplitude(ctxt->s.amplitude.value.f);
+          break;
+          
+        case 3: // maximum     
+          wav->amplitude(1.0f);
+          break;
+      }
+    }
+    break;
+
+    case midi::PitchBend:
+      if (0 == ctxt->m.tuning.value.i) // magic: equal temperament
+      {
+        float freq = ctxt->noteFreq;
+        freq *= ev->pvb.pm.getPitchBend(ctxt->m.PBamount.value.f);
+        wav->frequency(freq);
+      }
+      break;
+  }
+}
+
+
+//=====================================================================================
 template <class Tctxt>
 int isActive(AudioObjInstance* aoi){ return 0; } // most AudioStream classes don't have "active" state
 //=====================================================================================
