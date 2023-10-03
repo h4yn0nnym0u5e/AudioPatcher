@@ -23,6 +23,7 @@
 #define PATCHCORD_COLOUR     0xFA02 // orange
 #define PATCHCORD_HIGHLIGHT  0xFC04 // orange
 #define EDIT_BKGND           0x528A // darker grey
+#define KEY_CAP_COLOUR       ILI9341_LIGHTGREY
 
 //A 320x240x16-bit display takes 153,600 bytes to store
 class AudioPatcherDisplay
@@ -52,6 +53,7 @@ class AudioPatcherDisplay
     struct {int16_t x,y,w,h;} savedArea;
     static const int16_t CURSOR_SIZE = 10;
     static const int16_t OBJECT_SIZE = 48;
+    static const int16_t KEY_SIZE = 24;
     
     void GetCursorSaveParams(const int16_t x, const int16_t y, int16_t& cxr, int16_t& cyr, int16_t& cw, int16_t& ch);
     bool objIsOnScreen(int16_t x, int16_t y, int16_t w = OBJECT_SIZE, int16_t h = OBJECT_SIZE); // call after canvas co-ordinate transformation
@@ -99,13 +101,17 @@ class AudioPatcherDisplay
     
     // parameter settings box is screeen-relative
     void SaveArea(int16_t x, int16_t y, int16_t w, int16_t h);
-    void InitArea(int16_t x, int16_t y, int16_t w, int16_t h);
+    void InitArea(int16_t x, int16_t y, int16_t w, int16_t h, bool withHeader = true);
     void RestoreArea(void);
     void ShowTitle(const char* t, int16_t xoff, int16_t yoff);
     void ShowVoiceFlag(bool flag);
     void FillRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t colour);
     void ShowLabel(const ParamEntry& p, ParamValue& v, int16_t n, int16_t xoff, int16_t yoff);
     void ShowValue(const ParamEntry& p, ParamValue& v, int16_t n);
+
+    // keyboard
+    char ShowKey(int16_t x, int16_t y, size_t r, size_t c, int16_t fg, int16_t bg, bool upr = false);
+    void ShowKeyboard(int16_t x, int16_t y, const char* title = nullptr);
 };
 
 extern AudioPatcherDisplay& display;

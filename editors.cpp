@@ -1203,12 +1203,27 @@ FLASHMEM int FileEditor::loadLast(void)
   return result;
 }
 
-FLASHMEM void FileEditor::showMode(void)
+void FileEditor::showMode(void)
 {
   char buffer[20];
+  int theMode = enc1.getValue();
 
-  sprintf(buffer,"%s: %c",enc1.getValue()?"save":"load",fileChar);
+  sprintf(buffer,"%s: %c",theMode?"save":"load",fileChar);
   display.ShowBottomText(buffer,display.getModeColour());
+
+  if (theMode) // saving - show keyboard to create filename
+  {
+    display.ShowKeyboard(20,40,"File name");
+    keyboardVisible = true;
+  }
+  else
+  {
+    if (keyboardVisible)
+    {
+      display.RestoreArea();
+      keyboardVisible = false;
+    }
+  }
 }
 
 FLASHMEM void FileEditor::enter(void)
@@ -1218,12 +1233,15 @@ FLASHMEM void FileEditor::enter(void)
 
   enc1.setLimits(0,1); // load or save
   enc1.setValue(0);
+  keyboardVisible = false;
 
   showMode();
 }
 
 FLASHMEM void FileEditor::exit(void)
 {
+  if (keyboardVisible)
+    display.RestoreArea();
 }
 
 FLASHMEM void FileEditor::edit(void)

@@ -171,6 +171,7 @@ class FileEditor : public BaseEditor
     LimitedEncoder& enc0, &enc1, &enc2;
     int state;
     char fileChar;
+    bool keyboardVisible;
 
     void showMode(void);
     void save(void);

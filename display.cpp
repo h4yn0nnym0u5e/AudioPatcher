@@ -39,10 +39,11 @@ void AudioPatcherDisplay::RestoreArea(void)
 }
 
 
-void AudioPatcherDisplay::InitArea(int16_t x, int16_t y, int16_t w, int16_t h)
+void AudioPatcherDisplay::InitArea(int16_t x, int16_t y, int16_t w, int16_t h, bool withHeader /* = true */)
 {
   tft.fillRoundRect(x,y,w,h,6,EDIT_BKGND); 
-  tft.fillRoundRect(x,y,w,26,6,ILI9341_BLACK); 
+  if (withHeader)
+    tft.fillRoundRect(x,y,w,26,6,ILI9341_BLACK); 
   tft.drawRoundRect(x,y,w,h,6,ILI9341_WHITE); 
   tft.setTextColor(ILI9341_LIGHTGREY,EDIT_BKGND);
   tft.setTextSize(2);
@@ -590,4 +591,43 @@ bool AudioPatcherDisplay::canvasMakeVisible(PatchcordInstance_t& cord, int16_t x
       std::swap(sy,dy);
       
     return canvasMakeVisible(sx, sy, dx - sx, dy - sy, xstep, ystep); 
+}
+
+//=================================================================================================
+static const char* key_rows[] = {"1234567890", "qwertyuiop", "asdfghjkl", "_zxcvbnm-"};
+
+char AudioPatcherDisplay::ShowKey(int16_t x, int16_t y, size_t r, size_t c, int16_t fg, int16_t bg, bool upr /* = false */)
+{
+  char result = key_rows[r][c];
+
+  if (r > 0 && upr)
+    result = result & ~0x20;
+
+  int16_t xoff = x + c*KEY_SIZE + r*KEY_SIZE / 3 + 6;
+  tft.drawRoundRect(xoff,y+r*KEY_SIZE+2,KEY_SIZE-2,KEY_SIZE-2,4,fg);
+  tft.drawChar(xoff+4,y+r*KEY_SIZE+5,result,fg,bg,2);
+
+  return result;
+}
+
+
+void AudioPatcherDisplay::ShowKeyboard(int16_t x, int16_t y, const char* title /* = nullptr */)
+{
+  bool hasTitle = nullptr != title;
+  
+  SaveArea(x,y,KEY_SIZE*11 + 4,KEY_SIZE*4 + 4 + 30 + (hasTitle?25:0));
+  InitArea(savedArea.x,savedArea.y,savedArea.w,savedArea.h,hasTitle);
+
+  if (hasTitle)
+  {
+    ShowTitle(title,5,5);
+    y += 27;  
+  }
+  
+  for (size_t r = 0; r < COUNT_OF(key_rows); r++)
+  {
+    size_t cols = strlen(key_rows[r]);
+    for (size_t c = 0; c < cols;c++)
+      ShowKey(x,y,r,c,KEY_CAP_COLOUR,EDIT_BKGND);
+  } 
 }
