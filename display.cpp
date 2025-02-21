@@ -7,6 +7,9 @@ uint16_t behindCursor[100];
 
 void AudioPatcherDisplay::Init(void)
 {
+  pinMode(TCH_CS,OUTPUT);
+  digitalWriteFast(TCH_CS,HIGH);
+  
   tft.begin();
   tft.setRotation(TFT_ROTATION);
   tft.setScroll(0);
