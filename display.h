@@ -11,7 +11,7 @@
 #define TFT_DC  9
 #define TFT_CS 22
 #define TCH_CS  5
-#define TFT_ROTATION 3
+#define TFT_ROTATION 1
 /* // Values for 2.4" display
 #define CONNECTION_COLOUR    0x9492 // ILI9341_DARKGREY
 #define PATCHCORD_COLOUR     0xFC02 // orange

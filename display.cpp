@@ -148,7 +148,7 @@ struct AudioObjectColours_s {uint16_t body,border,text; }
                           {ILI9341_PURPLE, 0xD01C, ILI9341_WHITE},
                           {ILI9341_NAVY, 0x03FF, ILI9341_WHITE},
                           {0x0280, ILI9341_GREEN, ILI9341_WHITE},
-                          {ILI9341_MAROON, ILI9341_RED, ILI9341_WHITE},
+                          {0x3800, ILI9341_RED, ILI9341_WHITE},
                           {0x04200, ILI9341_YELLOW, ILI9341_WHITE}, // synth
                           {ILI9341_BLACK, ILI9341_DARKGREY, ILI9341_WHITE}, // \  ---------------
                           {ILI9341_BLACK, ILI9341_DARKGREY, ILI9341_WHITE}, //  } I/O and control
