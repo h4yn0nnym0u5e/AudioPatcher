@@ -1,7 +1,8 @@
 #include "apMIDI.h"
 
 static USBHost myUSB;
-static MIDIDevice midi1(myUSB);
+static MIDIDevice midiHost(myUSB);
+#define midi1 usbMIDI
 static PatcherMIDI* pm;
 
 static std::vector<PatcherVoice*> sounding;

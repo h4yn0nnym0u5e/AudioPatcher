@@ -56,6 +56,7 @@ class AudioPatcherDisplay
     
     void GetCursorSaveParams(const int16_t x, const int16_t y, int16_t& cxr, int16_t& cyr, int16_t& cw, int16_t& ch);
     bool objIsOnScreen(int16_t x, int16_t y, int16_t w = OBJECT_SIZE, int16_t h = OBJECT_SIZE); // call after canvas co-ordinate transformation
+    bool screenReadOK(void);
   public:  
     void Init(void);
     void Clear(void);

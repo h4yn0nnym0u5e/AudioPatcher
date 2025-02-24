@@ -15,6 +15,35 @@ void AudioPatcherDisplay::Init(void)
   tft.setScroll(0);
   Clear();
   screenBuffer = (uint16_t*) extmem_malloc(tft.width() * tft.height() * sizeof *screenBuffer);
+  screenReadOK();
+}
+
+bool AudioPatcherDisplay::screenReadOK(void)
+{
+  bool result = false;
+  uint16_t testValues[] = {0x1234, 0x0811};
+
+  if (nullptr != screenBuffer)
+  {
+    tft.drawPixel(0,0,testValues[0]);
+    tft.drawPixel(0,1,testValues[1]);
+    screenBuffer[0] = 0xDEAD;
+    screenBuffer[1] = 0xBEEF;
+    SaveArea(0,0,1,2);
+    if (testValues[0] != screenBuffer[0] || testValues[1] != screenBuffer[1])
+      Serial.printf("Screen read-back gave: 0x%04X, 0x%04X\n",
+                     screenBuffer[0],
+                     screenBuffer[1]);
+    else 
+    {
+      Serial.println("Screen read-back OK");
+      result = true;
+    }
+  }
+  else
+      Serial.println("No screen save buffer");
+
+  return result;
 }
 
 void AudioPatcherDisplay::Clear(void)
@@ -120,7 +149,7 @@ void AudioPatcherDisplay::Splash(void)
   tft.setTextColor(ILI9341_YELLOW);
   tft.setTextSize(2);
   tft.print("Here we ");
-  delay(500);
+  delay(100);
   tft.println("go!...");
 
 #define TFT_OBJ_SIZE_X 32
@@ -138,8 +167,7 @@ void AudioPatcherDisplay::Splash(void)
   tft.print("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");   
   
   tft.drawLine(0,0,100,100,ILI9341_ORANGE);
-  //tft.setScroll(20); // is horizontal, with setRotation(3)
-  Serial.println(tft.color565(64,0,128),HEX);
+  delay(400);
 }
 
 struct AudioObjectColours_s {uint16_t body,border,text; }

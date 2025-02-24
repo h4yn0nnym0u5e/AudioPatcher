@@ -23,12 +23,13 @@
 
 
 /********************************************************************************************************/
-M5w_8angle    ctrl;
-M5w_8encoder  encr;
+M5w_8angle    ctrl{0x43, Wire1};
+M5w_8encoder  encr{0x41, Wire1};
 uint32_t next;
 int systemState;
 
 extern AudioObjStatic_t objList[];
+extern uint8_t external_psram_size;
 
 // Non-deletable objects: I/O and control
 #define AUDIO_ENTRY(typ,shrt,id, ...) AudioObjInstance the##shrt{objList[id##_ID],-1,-1,true};
@@ -50,27 +51,48 @@ void dumpObjVec(void)
     Serial.printf("%d: %s @ %08X\n",i,objVec.at(i).p->objP->name,(uint32_t) objVec.at(i).p);
 }
 /********************************************************************************************************/
+void printFlashID(void)
+{
+  uint8_t buf[7] = {0x9F};
+  const int pin = 6; // audio board memory
+  
+  pinMode(pin, OUTPUT);
+  digitalWrite(pin, HIGH);
+  delayMicroseconds(500);
+  //SPI.begin();
+
+  SPI.beginTransaction(SPISettings(15'000'000, MSBFIRST, SPI_MODE0));
+  digitalWrite(pin, LOW);
+  SPI.transfer(buf, sizeof buf);
+  SPI.endTransaction();
+  digitalWrite(pin, HIGH);
+   
+  Serial.printf("Audio adaptor memory ID: %02X %02X %02X\n", buf[4], buf[5], buf[6]); 
+}
+/********************************************************************************************************/
+void printHL(void)
+{
+  Serial.println("============================================================");
+}
+/********************************************************************************************************/
 void setup() 
 {
-  systemState = 4;
-  AudioMemory(50);
-  
-  display.Init();
-  display.Splash();
   while (!Serial)
     ;
+  Serial.println("Setup");
+  systemState = 4;
+  AudioMemory(80);
+
+  printHL();
+  display.Init();
+  display.Splash();
   display.Clear();   
   systemState = 5;
 
-  Serial.println("Setup");
-  Serial.printf("%d audio object types available\n",AUDIO_MAX_ID - 2);
-
-  for (int i=1;i<COUNT_OF_objList;i++)
-  {
-    Serial.printf("%32.32s: ID=%d, %d inputs, %d outputs\n",
-                  objList[i].name, i, objList[i].inputs, objList[i].outputs);
-  }
-
+  printHL();
+  printFlashID();
+  Serial.printf("%dMB PSRAM fitted\n", external_psram_size);
+  
   while (!SD.begin(BUILTIN_SDCARD))
   {
     Serial.println("SD not available!");
@@ -78,7 +100,7 @@ void setup()
   }
   Serial.println("SD initialised");
   
-
+  Wire1.begin();
   ctrl.begin();
   Serial.printf("8Angle says %d\n",ctrl?1:0);
   Serial.printf("8Angle at address 0x%02X; version %d\n",ctrl.getAddress(),ctrl.getVersion());
@@ -100,6 +122,14 @@ void setup()
   Serial.printf("8Encoder says %d\n",encr?1:0);
   Serial.printf("8Encoder at address 0x%02X; version %d\n",encr.getAddress(),encr.getVersion());
   
+  printHL();
+  Serial.printf("%d audio object types available\n",AUDIO_MAX_ID - 2);
+  for (int i=1;i<COUNT_OF_objList;i++)
+  {
+    Serial.printf("%22.22s: ID=%d, %d inputs, %d outputs\n",
+                  objList[i].name, i, objList[i].inputs, objList[i].outputs);
+  }
+
   AudioObjInstancePtr aoi = {new AudioObjInstance(objList[AUDIO_SYNTH_WAVEFORM_ID],110,110)};
   objVec.insert(std::next(objVec.begin(),2),aoi);
   
@@ -110,6 +140,7 @@ void setup()
   theControlSGTL5000.x = 1;
   theControlSGTL5000.y = 240 - 48 - 20 - 2;
   
+  printHL();
   for (auto obj : objVec)
   {
     Serial.printf("%s\n",obj.p->objP->name);
@@ -133,10 +164,12 @@ void setup()
   for (auto cord : cordVec)
     display.DrawPatchcord(cord);
 
+
+  printHL();
   Serial.printf("SGTL5000 at %08x\n",(uint32_t) theControlSGTL5000.streamP.ControlSGTL5000);
   
-//  theControlSGTL5000.streamP.ControlSGTL5000->setAddress(HIGH);
-  Serial.printf("SGTL6000 init %s\n",theControlSGTL5000.streamP.ControlSGTL5000->enable()?"success":"failure");
+  theControlSGTL5000.streamP.ControlSGTL5000->setAddress(HIGH);
+  Serial.printf("SGTL5000 init %s\n",theControlSGTL5000.streamP.ControlSGTL5000->enable()?"success":"failure");
   theControlSGTL5000.streamP.ControlSGTL5000->volume(0.1);
  
   delay(5);
@@ -146,6 +179,8 @@ void setup()
 
   next = millis() + 50;
   systemState = 6;
+
+  printHL();
 }
 
 /*
@@ -256,6 +291,10 @@ void updateStatus(void)
 //======================================================================
 void loop() 
 {
+#if defined(GDB_IS_ENABLED)
+  if (encr.getButton(7))
+    halt_cpu();
+#endif // defined(GDB_IS_ENABLED)
   if (!initialised)
   {
     enc2.setValue(enc2.getValue()); // ensures it's valid!
