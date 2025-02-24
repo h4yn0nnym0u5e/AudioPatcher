@@ -167,9 +167,17 @@ void setup()
 
   printHL();
   Serial.printf("SGTL5000 at %08x\n",(uint32_t) theControlSGTL5000.streamP.ControlSGTL5000);
-  
-  theControlSGTL5000.streamP.ControlSGTL5000->setAddress(HIGH);
-  Serial.printf("SGTL5000 init %s\n",theControlSGTL5000.streamP.ControlSGTL5000->enable()?"success":"failure");
+
+  {
+    uint8_t addr = LOW;
+    bool enabled = theControlSGTL5000.streamP.ControlSGTL5000->enable();
+    if (!enabled)
+    {
+      theControlSGTL5000.streamP.ControlSGTL5000->setAddress(HIGH);
+      enabled = theControlSGTL5000.streamP.ControlSGTL5000->enable();
+    }
+    Serial.printf("SGTL5000 init %s at %s address\n",enabled?"success":"failure", addr == LOW?"low":"high");
+  }
   theControlSGTL5000.streamP.ControlSGTL5000->volume(0.1);
  
   delay(5);
