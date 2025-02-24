@@ -181,6 +181,8 @@ void setup()
   systemState = 6;
 
   printHL();
+  Serial.println("loop() starting");
+  printHL();
 }
 
 /*
@@ -299,7 +301,9 @@ void loop()
   {
     enc2.setValue(enc2.getValue()); // ensures it's valid!
     fileEditor.loadLast();
+    printHL();
     patcherMIDI.init();
+    printHL();
   }
     
   // Change mode of operation
