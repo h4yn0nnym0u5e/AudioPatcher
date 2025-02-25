@@ -91,25 +91,25 @@ FLASHMEM void ObjEditor::edit(void)
   }
 
   // Move the cross-hair cursor
-  if (enc0.available() || enc1.available() || !initialised)
+  if (enc0.available(CURSOR_STEP) || enc1.available(CURSOR_STEP) || !initialised)
   {
     bool redraw = false;
     
-    int16_t x = enc0.getValue() * CURSOR_STEP;
-    int16_t y = enc1.getValue() * CURSOR_STEP;
+    int16_t x = enc0.getValue();
+    int16_t y = enc1.getValue();
     if (x < 0)
     {
       display.canvasMoveBy(-CANVAS_STEP,0); // clears cursor and screen area
       redraw = true;
       x += CURSOR_STEP; // assume just one step over
-      enc0.setValue(x / CURSOR_STEP);
+      enc0.setValue(x);
     }
     if (x > xmax)
     {
       display.canvasMoveBy(CANVAS_STEP,0); 
       redraw = true;
       x -= CURSOR_STEP; // assume just one step over
-      enc0.setValue(x / CURSOR_STEP);
+      enc0.setValue(x);
     }
 
     if (y < 0)
@@ -117,21 +117,32 @@ FLASHMEM void ObjEditor::edit(void)
       display.canvasMoveBy(0,-CANVAS_STEP); // clears cursor and screen area
       redraw = true;
       y += CURSOR_STEP; // assume just one step over
-      enc1.setValue(y / CURSOR_STEP);
+      enc1.setValue(y);
     }
     if (y > ymax)
     {
       display.canvasMoveBy(0,CANVAS_STEP); 
       redraw = true;
       y -= CURSOR_STEP; // assume just one step over
-      enc1.setValue(y / CURSOR_STEP);
+      enc1.setValue(y);
     }
-
+    
     if (redraw)
       drawAll();
     display.CursorTo(x,y);
   } 
+  
+  if (touch.isTouched())
+  {
+//*
+    TS_Point p = touch.getPoint();
 
+    enc0.setValue(p.x);
+    enc1.setValue(p.y);
+    display.CursorTo(p.x,p.y);
+//*/
+  }
+  
   if (!initialised)
     initialised = true;
 }
@@ -142,8 +153,8 @@ FLASHMEM void ObjEditor::enter(void)
 {
   display.canvasGetLimits(xmax,ymax);
   ymax -= 20; // allow for status line (magic number...)
-  enc0.setLimits(-1,xmax / CURSOR_STEP + 1);
-  enc1.setLimits(-1,ymax / CURSOR_STEP + 1);
+  enc0.setLimits(-1,xmax + 1);
+  enc1.setLimits(-1,ymax + 1);
   enc2.setLimits(1,COUNT_OF_objList);
   enc2.setValue(lastType);
   ShowSelection(enc2.getValue());

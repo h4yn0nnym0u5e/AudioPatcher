@@ -5,10 +5,14 @@ ILI9341_t3 tft = ILI9341_t3(TFT_CS, TFT_DC);
 AudioPatcherDisplay& display = AudioPatcherDisplay::getInstance();
 uint16_t behindCursor[100];
 
+static XPT2046_Touchscreen ts(TCH_CS);
+AudioPatcherTouch touch{ts, 320, 240};
+
 void AudioPatcherDisplay::Init(void)
 {
   pinMode(TCH_CS,OUTPUT);
   digitalWriteFast(TCH_CS,HIGH);
+  touch.begin();
   
   tft.begin();
   tft.setRotation(TFT_ROTATION);

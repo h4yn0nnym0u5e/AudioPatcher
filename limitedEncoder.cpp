@@ -1,6 +1,6 @@
 #include"limitedEncoder.h"
 
-bool LimitedEncoder::available(void)
+bool LimitedEncoder::available(int stepBy)
 {
   bool result = false;
   int32_t dv = enc.getIncrement(channel);
@@ -10,6 +10,8 @@ bool LimitedEncoder::available(void)
     //Serial.printf("dv=%d: ",dv);
     if (dv != (int32_t) 0xDEADBEEF)
     {
+      dv *= stepBy;
+      
       valuex2 += dv;
       if (value != valuex2 / 2)
       {

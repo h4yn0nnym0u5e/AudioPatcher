@@ -12,6 +12,7 @@
 #define TFT_CS 22
 #define TCH_CS  5
 #define TFT_ROTATION 1
+#define TCH_ROTATION 3
 /* // Values for 2.4" display
 #define CONNECTION_COLOUR    0x9492 // ILI9341_DARKGREY
 #define PATCHCORD_COLOUR     0xFC02 // orange
@@ -111,5 +112,38 @@ class AudioPatcherDisplay
 };
 
 extern AudioPatcherDisplay& display;
+
+#include "XPT2046_Touchscreen.h"
+
+class AudioPatcherTouch
+{
+    XPT2046_Touchscreen& ts;
+    int screen_width, screen_height;
+    int xl, yl, xh, yh;
+    uint32_t touch_shift;
+  public:
+    AudioPatcherTouch(XPT2046_Touchscreen& _ts, int w, int h)
+    : ts(_ts), screen_width(w), screen_height(h),
+    xl(200), yl(200), xh(3800), yh(3800), // should be calibrated at some point
+    touch_shift(0)
+    {}
+    bool begin(void) {bool result = ts.begin(); ts.setRotation(TCH_ROTATION); return result; }
+    bool isTouched(void) { touch_shift = (touch_shift<<1) | ts.touched(); return (touch_shift & 3) == 3;}
+    TS_Point getPoint(void)
+    {
+      TS_Point p = ts.getPoint(); // int16_t values
+
+      //Serial.printf("%d,%d -> ",p.x,p.y);
+      p.x = map(p.x, xl, xh, 0, screen_width);
+      p.y = map(p.y, yl, yh, 0, screen_height);
+      p.x = constrain(p.x, 0, screen_width);
+      p.y = constrain(p.y, 0, screen_height); 
+      //Serial.printf("%d,%d\n",p.x,p.y);
+
+      return p;
+    }
+};
+
+extern AudioPatcherTouch touch;
 
 #endif // !defined(_DISPLAY_H_)
