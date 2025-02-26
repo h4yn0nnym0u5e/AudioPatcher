@@ -201,6 +201,19 @@ bool AudioPatcherDisplay::objIsOnScreen(int16_t x, int16_t y, int16_t w, int16_t
    && 0 < y + h;  
 }
 
+
+//=================================================================================================
+bool AudioPatcherDisplay::PointIsInObj(AudioObjInstance& aoi, int16_t x, int16_t y)
+{
+  // transform screen point to canvas co-ordinates:
+  x += canvas_x;
+  y += canvas_y;
+
+  return aoi.x <= x && aoi.x+osize.ow >= x
+      && aoi.y <= y && aoi.y+osize.oh >= y;
+}
+
+
 //=================================================================================================
 void getInputPositions(AudioObjStatic_t& o, int16_t x, int16_t y, 
                        int16_t* ppx, int16_t* ppy, int16_t* pys)
@@ -625,4 +638,25 @@ bool AudioPatcherDisplay::canvasMakeVisible(PatchcordInstance_t& cord, int16_t x
       std::swap(sy,dy);
       
     return canvasMakeVisible(sx, sy, dx - sx, dy - sy, xstep, ystep); 
+}
+
+
+bool AudioPatcherTouch::isTouched(void)
+{ 
+  bool result;
+  
+  touch_shift = (touch_shift<<1) | ts.touched();
+  result = (touch_shift & 3) == 3;
+  if (result)
+  {
+    lastPoint = ts.getPoint();
+    penState = down;
+  }
+  else
+  {
+    if (down == penState)
+      penState = lifted;
+  }
+   
+  return result;
 }

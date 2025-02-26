@@ -31,6 +31,7 @@ class BaseEditor
             {}
     AudioObjInstance* highlightObjnum(int n, uint16_t colour);
     AudioObjInstance* highlightObj(AudioObjInstance* it, uint16_t colour); 
+    int PointToObject(int x, int y);
     void drawAll(void);
 };
 

@@ -46,6 +46,24 @@ FLASHMEM void BaseEditor::drawAll(void)
   display.RestoreStatus();
 }
 
+
+// Search object list for (the first) one that overlaps
+// the given screen co-ordinates.
+// \return index, or -1 if point isn't in an object
+FLASHMEM int BaseEditor::PointToObject(int x, int y)
+{
+  int result = -1;
+
+  for (unsigned int i=0; i < objVec.size(); i++)
+    if (display.PointIsInObj(*objVec.at(i).p,x,y))
+    {
+      result = (int) i;
+      break;
+    }
+    
+  return result;
+}
+
 //======================================================================
 FLASHMEM void ObjEditor::ShowSelection(int v)
 {
@@ -53,10 +71,12 @@ FLASHMEM void ObjEditor::ShowSelection(int v)
     display.ShowSelection(objList[v].name,objList[v].category);
 }
 
+
 FLASHMEM void ObjEditor::create(int id, int x, int y)
 {
   objVec.push_back({new AudioObjInstance(objList[id],x,y)});                           
 }
+
 
 FLASHMEM void ObjEditor::edit(void)
 {
@@ -638,6 +658,32 @@ FLASHMEM void ParamEditor::edit(void)
       highlightObjnum(epIdx,ILI9341_BLACK);  
       epIdx = enc0.getValue();
       highlightObjnum(epIdx,ILI9341_WHITE);
+    }
+
+    {
+      static bool wasTouched;
+      static TS_Point lastPoint;
+      bool isTouched = touch.isTouched();
+
+      if (isTouched)
+      {
+        lastPoint = touch.getPoint();
+      }
+      else
+      {
+        if (wasTouched)
+        {
+          int idx = PointToObject(lastPoint.x, lastPoint.y);
+          if (idx >= 0)
+          {
+            highlightObjnum(epIdx,ILI9341_BLACK);
+            epIdx = idx;
+            enc0.setValue(epIdx);
+            highlightObjnum(epIdx,ILI9341_WHITE);            
+          }
+        }
+      }
+      wasTouched = isTouched;      
     }
 
     // move an audio object

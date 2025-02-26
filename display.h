@@ -82,6 +82,7 @@ class AudioPatcherDisplay
     void DrawConnection(AudioObjStatic_t& o, int16_t x, int16_t y, int8_t n = 0, bool op = false, uint16_t colour = CONNECTION_COLOUR);
     void DrawPatchcord(AudioObjInstance& src, int8_t sp, AudioObjInstance& dst, int8_t dp, uint16_t colour = PATCHCORD_COLOUR);
     void DrawPatchcord(PatchcordInstance_t* cord, uint16_t colour = PATCHCORD_COLOUR) { DrawPatchcord(*cord->src,cord->src_port,*cord->dst,cord->dst_port, colour); }
+    bool PointIsInObj(AudioObjInstance& aoi, int16_t x, int16_t y);
     
     // bottom line doesn't move with canvas
     void ShowMode(const char* txt);
@@ -121,6 +122,8 @@ class AudioPatcherTouch
     int screen_width, screen_height;
     int xl, yl, xh, yh;
     uint32_t touch_shift;
+    TS_Point lastPoint;
+    enum {up, down, lifted} penState;
   public:
     AudioPatcherTouch(XPT2046_Touchscreen& _ts, int w, int h)
     : ts(_ts), screen_width(w), screen_height(h),
@@ -128,7 +131,19 @@ class AudioPatcherTouch
     touch_shift(0)
     {}
     bool begin(void) {bool result = ts.begin(); ts.setRotation(TCH_ROTATION); return result; }
-    bool isTouched(void) { touch_shift = (touch_shift<<1) | ts.touched(); return (touch_shift & 3) == 3;}
+    bool isTouched(void);
+    bool isLifted(void) 
+    { 
+      bool result = false; 
+      if (lifted == penState) 
+      {
+        penState = up; 
+        result = true; 
+      } 
+      return result;
+    }
+    
+    TS_Point getLastPoint(void) { return lastPoint; }
     TS_Point getPoint(void)
     {
       TS_Point p = ts.getPoint(); // int16_t values
