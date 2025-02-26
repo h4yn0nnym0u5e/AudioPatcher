@@ -22,6 +22,7 @@ class BaseEditor
     int state;
     const int16_t CURSOR_STEP=10;
     const int16_t CANVAS_STEP=50;
+    static const int32_t NO_FORCE=0xCAFEBABE;
 
   public:
     BaseEditor(AudioPatcherDisplay& d,
@@ -32,6 +33,8 @@ class BaseEditor
     AudioObjInstance* highlightObjnum(int n, uint16_t colour);
     AudioObjInstance* highlightObj(AudioObjInstance* it, uint16_t colour); 
     int PointToObject(int x, int y);
+    void SelectByEncoder(LimitedEncoder& enc0, int32_t value=NO_FORCE);
+    int SelectByTouch(LimitedEncoder& enc0, bool onlySetEncoder=false);
     void drawAll(void);
 };
 

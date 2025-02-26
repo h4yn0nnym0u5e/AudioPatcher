@@ -64,6 +64,43 @@ FLASHMEM int BaseEditor::PointToObject(int x, int y)
   return result;
 }
 
+
+// Change object selection based on encoder value,
+// or force selection to a specific value
+FLASHMEM void BaseEditor::SelectByEncoder(LimitedEncoder& enc0, int32_t force)
+{
+  if (force != NO_FORCE)
+    enc0.setValue(force);
+    
+  if (force != NO_FORCE || enc0.available())
+  {
+    highlightObjnum(epIdx,ILI9341_BLACK);  
+    epIdx = enc0.getValue();
+    highlightObjnum(epIdx,ILI9341_WHITE);
+  }
+}
+
+
+FLASHMEM int BaseEditor::SelectByTouch(LimitedEncoder& enc0, bool onlySetEncoder)
+{
+  int idx = -1;
+  if (!touch.isTouched() && touch.isLifted())
+  {
+    TS_Point lastPoint = touch.getLastPoint();
+    idx = PointToObject(lastPoint.x, lastPoint.y);
+    Serial.printf("Lift at %d, %d; index %d\n",lastPoint.x, lastPoint.y, idx);
+    if (idx >= 0)
+    {
+      if (onlySetEncoder)
+        enc0.setValue(idx);
+      else
+        SelectByEncoder(enc0, idx);
+    }
+  }
+
+  return idx;
+}
+
 //======================================================================
 FLASHMEM void ObjEditor::ShowSelection(int v)
 {
@@ -433,12 +470,7 @@ FLASHMEM void CordEditor::edit(void)
   }
     
   if (epIdx != newSettings.objNum)
-  {
-    highlightObjnum(epIdx,ILI9341_BLACK);
-    epIdx = newSettings.objNum;        
-    aoi = highlightObjnum(epIdx,ILI9341_WHITE);
-    enc0.setValue(epIdx); // in case we skipped some
-  }
+    SelectByEncoder(enc0, newSettings.objNum);
   
   if (io != newSettings.srcdst)
   {
@@ -562,11 +594,7 @@ FLASHMEM void CordEditor::edit(void)
             }
 
             if (ec1 != epIdx)
-            {
-              enc0.setValue(ec1);
-              highlightObjnum(epIdx,ILI9341_BLACK);
-              highlightObjnum(ec1,ILI9341_WHITE);
-            }
+              SelectByEncoder(enc0,ec1);
           }
       }
     }
@@ -577,8 +605,8 @@ FLASHMEM void CordEditor::enter(void)
 {
   AudioObjInstance* aoi;
   
-  enc0.setValue(epIdx);
   enc0.setLimits(0,objVec.size() -1);
+  enc0.setValue(epIdx);
   
   enc2.setLimits(0,1);
   enc2.setValue(1); 
@@ -653,39 +681,9 @@ FLASHMEM void ParamEditor::edit(void)
   {
     //-----------------------------------------------
     // select an audio object
-    if (enc0.available())
-    {
-      highlightObjnum(epIdx,ILI9341_BLACK);  
-      epIdx = enc0.getValue();
-      highlightObjnum(epIdx,ILI9341_WHITE);
-    }
-
-    {
-      static bool wasTouched;
-      static TS_Point lastPoint;
-      bool isTouched = touch.isTouched();
-
-      if (isTouched)
-      {
-        lastPoint = touch.getPoint();
-      }
-      else
-      {
-        if (wasTouched)
-        {
-          int idx = PointToObject(lastPoint.x, lastPoint.y);
-          if (idx >= 0)
-          {
-            highlightObjnum(epIdx,ILI9341_BLACK);
-            epIdx = idx;
-            enc0.setValue(epIdx);
-            highlightObjnum(epIdx,ILI9341_WHITE);            
-          }
-        }
-      }
-      wasTouched = isTouched;      
-    }
-
+    SelectByEncoder(enc0);
+    SelectByTouch(enc0);
+    
     // move an audio object
     if (enc1.available() || enc2.available())
     {
@@ -761,12 +759,8 @@ FLASHMEM void MIDIEditor::edit(void)
   {
     //-----------------------------------------------
     // select an audio object
-    if (enc0.available())
-    {
-      highlightObjnum(epIdx,ILI9341_BLACK);  
-      epIdx = enc0.getValue();
-      highlightObjnum(epIdx,ILI9341_WHITE);
-    }
+    SelectByEncoder(enc0);
+    SelectByTouch(enc0);
 
     if (enc0.getButton())
       state = 1;
@@ -852,9 +846,10 @@ FLASHMEM void DeleteEditor::exit(void)
 FLASHMEM void DeleteEditor::edit(void)
 {
   // select an audio object
-  if (enc0.available())
+  if (enc0.available() || SelectByTouch(enc0,true) >= 0)
   {
     int ec1 = enc0.getValue();
+    Serial.printf("Delete highlight %d -> %d\n", epIdx, ec1);
     highlight(epIdx,ec1);
     epIdx = ec1;
   }

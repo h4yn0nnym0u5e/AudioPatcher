@@ -649,7 +649,7 @@ bool AudioPatcherTouch::isTouched(void)
   result = (touch_shift & 3) == 3;
   if (result)
   {
-    lastPoint = ts.getPoint();
+    lastPoint = getPoint();
     penState = down;
   }
   else
