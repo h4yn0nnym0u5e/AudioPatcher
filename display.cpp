@@ -214,6 +214,39 @@ bool AudioPatcherDisplay::PointIsInObj(AudioObjInstance& aoi, int16_t x, int16_t
 }
 
 
+int16_t AudioPatcherDisplay::PointDistanceToPatchcord(PatchcordInstance_t& cord, int16_t x, int16_t y)
+{
+  
+  int16_t sx, sy, dx, dy, xy;
+  float a,b,c,ab2, result;
+  bool offline = false;
+  
+  getPatchcordEnds(*cord.src, cord.src_port, *cord.dst, cord.dst_port, true,  sx, sy, dx, dy);
+
+  a = (float)(sy-dy)/(float)(sx-dx);
+  b = -1.0f;
+  c = sy - a*sx;
+  ab2 = a*a+b*b;
+  
+  //Serial.printf("Point: %d,%d; cord: %d,%d -> %d,%d; %.3fx + %.3fy + %.3f = 0; ", x,y, sx,sy,dx,dy, a,b,c);
+
+  result = fabs((a*x + b*y + c) / sqrt(ab2));
+
+  // see if we're past ends of cord
+  xy = (b*(b*x-a*y)-a*c)/ab2; // closest X
+  if (sx < dx && (xy < sx || xy > dx)) offline = true; 
+  if (sx > dx && (xy > sx || xy < dx)) offline = true; 
+  
+  xy = (a*(-b*x+a*y)-b*c)/ab2; // closest X
+  if (sy < dy && (xy < sy || xy > dy)) offline = true; 
+  if (sy > dy && (xy > sy || xy < dy)) offline = true; 
+
+  if (offline)
+    result = -result;
+  
+  return (int16_t) result;
+}
+
 //=================================================================================================
 void getInputPositions(AudioObjStatic_t& o, int16_t x, int16_t y, 
                        int16_t* ppx, int16_t* ppy, int16_t* pys)
@@ -238,6 +271,42 @@ void getOutputPositions(AudioObjStatic_t& o, int16_t x, int16_t y,
   *ppx = x+osize.ow-osize.cw-1;
   *ppy = cb;
   *pys = cs;
+}
+
+
+bool AudioPatcherDisplay::getPatchcordEnds(AudioObjInstance& src, int8_t sp, AudioObjInstance& dst, int8_t dp, 
+                                           bool convertToScreen,
+                                           int16_t& sx, int16_t& sy, int16_t& dx, int16_t& dy)
+{
+  bool result = false;
+  
+  if (sp < src.objP->outputs && dp < dst.objP->inputs) // port numbers are valid
+  {
+    int16_t ss;
+
+    // find positions of input and output connector blobs
+    // these are at the top left
+    getOutputPositions(*src.objP,src.x,src.y,&sx,&sy,&ss);
+    sy += sp*ss;
+    getInputPositions(*dst.objP,dst.x,dst.y,&dx,&dy,&ss);
+    dy += dp*ss;
+
+    // patchcords start outside the box
+    sx += osize.cw + 1;
+    dx -= 1;
+
+    sy += osize.ch / 2;
+    dy += osize.ch / 2;
+
+    if (convertToScreen)
+    {
+      sx -= canvas_x; sy -= canvas_y;
+      dx -= canvas_x; dy -= canvas_y;    
+    }
+    result = true;
+  }
+
+  return result;
 }
 
 
@@ -540,26 +609,11 @@ void AudioPatcherDisplay::DrawPatchcord(AudioObjInstance& src, int8_t sp, AudioO
 {
   if (sp < src.objP->outputs && dp < dst.objP->inputs) // port numbers are valid
   {
-    int16_t sx,sy,ss,dx,dy;
+    int16_t sx,sy,dx,dy;
 
     // find positions of input and output connector blobs
-    // these are at the top left
-    getOutputPositions(*src.objP,src.x,src.y,&sx,&sy,&ss);
-    sy += sp*ss;
-    getInputPositions(*dst.objP,dst.x,dst.y,&dx,&dy,&ss);
-    dy += dp*ss;
-
-    // patchcords start outside the box
-    sx += osize.cw + 1;
-    dx -= 1;
-
-    sy += osize.ch / 2;
-    dy += osize.ch / 2;
-
-    sx -= canvas_x; sy -= canvas_y;
-    dx -= canvas_x; dy -= canvas_y;
-    
-    tft.drawLine(sx,sy,dx,dy,colour);
+    if (getPatchcordEnds(src, sp, dst, dp, true, sx, sy, dx, dy))
+      tft.drawLine(sx,sy,dx,dy,colour);
   }
 }
 
@@ -646,7 +700,7 @@ bool AudioPatcherTouch::isTouched(void)
   bool result;
   
   touch_shift = (touch_shift<<1) | ts.touched();
-  result = (touch_shift & 3) == 3;
+  result = (touch_shift & 7) == 7;
   if (result)
   {
     lastPoint = getPoint();

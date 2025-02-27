@@ -83,6 +83,7 @@ class AudioPatcherDisplay
     void DrawPatchcord(AudioObjInstance& src, int8_t sp, AudioObjInstance& dst, int8_t dp, uint16_t colour = PATCHCORD_COLOUR);
     void DrawPatchcord(PatchcordInstance_t* cord, uint16_t colour = PATCHCORD_COLOUR) { DrawPatchcord(*cord->src,cord->src_port,*cord->dst,cord->dst_port, colour); }
     bool PointIsInObj(AudioObjInstance& aoi, int16_t x, int16_t y);
+    int16_t PointDistanceToPatchcord(PatchcordInstance_t& cord, int16_t x, int16_t y);
     
     // bottom line doesn't move with canvas
     void ShowMode(const char* txt);
@@ -100,6 +101,9 @@ class AudioPatcherDisplay
     void GetCursor(int16_t& x, int16_t& y);
     
     uint16_t getModeColour(void) { return modeColour; }
+    bool getPatchcordEnds(AudioObjInstance& src, int8_t sp, AudioObjInstance& dst, int8_t dp, 
+                          bool convertToScreen,
+                          int16_t& sx, int16_t& sy, int16_t& dx, int16_t& dy);
     
     // parameter settings box is screeen-relative
     void SaveArea(int16_t x, int16_t y, int16_t w, int16_t h);
@@ -111,6 +115,7 @@ class AudioPatcherDisplay
     void ShowLabel(const ParamEntry& p, ParamValue& v, int16_t n, int16_t xoff, int16_t yoff);
     void ShowValue(const ParamEntry& p, ParamValue& v, int16_t n);
 };
+
 
 extern AudioPatcherDisplay& display;
 

@@ -65,6 +65,26 @@ FLASHMEM int BaseEditor::PointToObject(int x, int y)
 }
 
 
+// Search cord list for the closest one to
+// the given screen co-ordinates.
+// \return index, or -1 if point isn't in an object
+FLASHMEM int BaseEditor::PointToCord(int x, int y)
+{
+  int result = -1;
+  int16_t minDist = 32767;
+
+  for (unsigned int i=0; i < cordVec.size(); i++)
+  {
+    int16_t tmp = display.PointDistanceToPatchcord(*cordVec.at(i),x,y);
+    if (tmp >= 0 && tmp < CORD_SELECT_MIN && tmp < minDist)
+    {
+      result = (int) i;
+      minDist = tmp;
+    }
+  } 
+  return result;
+}
+
 // Change object selection based on encoder value,
 // or force selection to a specific value
 FLASHMEM void BaseEditor::SelectByEncoder(LimitedEncoder& enc0, int32_t force)
@@ -100,6 +120,28 @@ FLASHMEM int BaseEditor::SelectByTouch(LimitedEncoder& enc0, bool onlySetEncoder
 
   return idx;
 }
+
+
+FLASHMEM int BaseEditor::SelectCordByTouch(LimitedEncoder& enc0, bool onlySetEncoder)
+{
+  int idx = -1;
+  if (!touch.isTouched() && touch.isLifted())
+  {
+    TS_Point lastPoint = touch.getLastPoint();
+    idx = PointToCord(lastPoint.x, lastPoint.y);
+    Serial.printf("Lift at %d, %d; index %d\n",lastPoint.x, lastPoint.y, idx);
+    if (idx >= 0)
+    {
+      if (onlySetEncoder)
+        enc0.setValue(idx);
+      else
+        SelectByEncoder(enc0, idx);
+    }
+  }
+
+  return idx;
+}
+
 
 //======================================================================
 FLASHMEM void ObjEditor::ShowSelection(int v)
@@ -845,14 +887,19 @@ FLASHMEM void DeleteEditor::exit(void)
 
 FLASHMEM void DeleteEditor::edit(void)
 {
-  // select an audio object
-  if (enc0.available() || SelectByTouch(enc0,true) >= 0)
+  // select an audio object or patchcord
+  if (enc0.available() || 
+      (delObj == delType
+          ?SelectByTouch(enc0,true) 
+          :SelectCordByTouch(enc0,true) 
+          ) >= 0)
   {
-    int ec1 = enc0.getValue();
-    Serial.printf("Delete highlight %d -> %d\n", epIdx, ec1);
-    highlight(epIdx,ec1);
-    epIdx = ec1;
+      int ec1 = enc0.getValue();
+      //Serial.printf("Delete highlight %d -> %d\n", epIdx, ec1);
+      highlight(epIdx,ec1);
+      epIdx = ec1;
   }
+
   
   if (enc2.available())
   {
@@ -905,8 +952,7 @@ FLASHMEM void DeleteEditor::highlight(int remove, int add)
 {
   switch (delType)
   {
-    case delObj:
-    
+    case delObj:    
       if (remove >= 0)
       {
         AudioObjInstance* aoi = 
