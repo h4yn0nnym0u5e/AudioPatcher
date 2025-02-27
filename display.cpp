@@ -233,11 +233,11 @@ int16_t AudioPatcherDisplay::PointDistanceToPatchcord(PatchcordInstance_t& cord,
   result = fabs((a*x + b*y + c) / sqrt(ab2));
 
   // see if we're past ends of cord
-  xy = (b*(b*x-a*y)-a*c)/ab2; // closest X
+  xy = (b*(b*x-a*y)-a*c)/ab2; // closest X on line
   if (sx < dx && (xy < sx || xy > dx)) offline = true; 
   if (sx > dx && (xy > sx || xy < dx)) offline = true; 
   
-  xy = (a*(-b*x+a*y)-b*c)/ab2; // closest X
+  xy = (a*(-b*x+a*y)-b*c)/ab2; // closest Y
   if (sy < dy && (xy < sy || xy > dy)) offline = true; 
   if (sy > dy && (xy > sy || xy < dy)) offline = true; 
 

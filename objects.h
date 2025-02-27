@@ -21,7 +21,7 @@ extern int systemState;
   AUDIO_ENTRY(AudioEffectBitcrusher,Bitcrusher,AUDIO_EFFECT_BITCRUSHER,1,1,effect,crsh,) \
   AUDIO_ENTRY(AudioEffectChorus,Chorus,AUDIO_EFFECT_CHORUS,1,1,effect,chor,) \
   AUDIO_ENTRY(AudioEffectDelay,Delay,AUDIO_EFFECT_DELAY,1,8,effect,dely,) \
-  AUDIO_ENTRY(AudioEffectDelayExternal,DelayExternal,AUDIO_EFFECT_DELAY_EXTERNAL,1,8,effect,delX,) \
+  AUDIO_ENTRY(AudioEffectDelayExternal,DelayExternal,AUDIO_EFFECT_DELAY_EXTERNAL,1,8,effect,delX,AEDE_CONSTRUCTOR) \
   AUDIO_ENTRY(AudioEffectDigitalCombine,DigitalCombine,AUDIO_EFFECT_DIGITAL_COMBINE,2,1,effect,cmbn,) \
   AUDIO_ENTRY(AudioEffectEnvelope,Envelope,AUDIO_EFFECT_ENVELOPE,1,1,effect,envL,) \
   AUDIO_ENTRY(AudioEffectExpEnvelope,ExpEnvelope,AUDIO_EFFECT_EXP_ENVELOPE,1,1,effect,envE,) \
@@ -42,9 +42,9 @@ extern int systemState;
   AUDIO_ENTRY(AudioFilterLadder,Ladder,AUDIO_FILTER_LADDER,3,1,filter,ladr,) \
   AUDIO_ENTRY(AudioFilterStateVariable,StateVariable,AUDIO_FILTER_STATE_VARIABLE,2,3,filter,svf,) \
   AUDIO_ENTRY(AudioAmplifier,Amplifier,AUDIO_AMPLIFIER,1,1,mixer,amp,) \
-  AUDIO_ENTRY(AudioMixer,Mixer,AUDIO_MIXER,8,1,mixer,mixN,(8)) \
+  AUDIO_ENTRY(AudioMixer,Mixer,AUDIO_MIXER,8,1,mixer,mixN,8) \
   AUDIO_ENTRY(AudioMixer4,Mixer4,AUDIO_MIXER4,4,1,mixer,mix4,) \
-  AUDIO_ENTRY(AudioMixerStereo,MixerStereo,AUDIO_MIXER_STEREO,8,2,mixer,mixS,(8)) \
+  AUDIO_ENTRY(AudioMixerStereo,MixerStereo,AUDIO_MIXER_STEREO,8,2,mixer,mixS,8) \
   AUDIO_ENTRY(AudioSynthKarplusStrong,KarplusStrong,AUDIO_SYNTH_KARPLUS_STRONG,0,1,synth,kpst,) \
   AUDIO_ENTRY(AudioSynthNoisePink,NoisePink,AUDIO_SYNTH_NOISE_PINK,0,1,synth,npnk,) \
   AUDIO_ENTRY(AudioSynthNoiseWhite,NoiseWhite,AUDIO_SYNTH_NOISE_WHITE,0,1,synth,nwht,) \
@@ -103,6 +103,7 @@ extern int systemState;
   AUDIO_ENTRY(AudioOutputUSB,OutputUSB,AUDIO_OUTPUT_USB,2,0,output,USBo,) \
 */
 
+#define AEDE_CONSTRUCTOR AUDIO_MEMORY_EXTMEM,1000.0f
 
 enum AudioCategory_e { AudioCategory_none, AudioCategory_patchcord, AudioCategory_analyze, AudioCategory_effect, AudioCategory_filter, AudioCategory_mixer, AudioCategory_synth, AudioCategory_control, AudioCategory_input, AudioCategory_output };
 
