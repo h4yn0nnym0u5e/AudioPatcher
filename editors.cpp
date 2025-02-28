@@ -1301,13 +1301,11 @@ FLASHMEM int FileEditor::loadLast(void)
   return result;
 }
 
+
 void FileEditor::showMode(void)
 {
-  char buffer[20];
+  char buffer[5+MAX_FILE_NAME+1];
   int theMode = enc1.getValue();
-
-  sprintf(buffer,"%s: %c",theMode?"save":"load",fileChar);
-  display.ShowBottomText(buffer,display.getModeColour());
 
   if (theMode) // saving - show keyboard to create filename
   {
@@ -1322,6 +1320,9 @@ void FileEditor::showMode(void)
       keyboardVisible = false;
     }
   }
+  
+  sprintf(buffer,"%s:%s",theMode?"save":"load",fileName);
+  display.ShowBottomText(buffer,display.getModeColour());
 }
 
 FLASHMEM void FileEditor::enter(void)
@@ -1333,6 +1334,13 @@ FLASHMEM void FileEditor::enter(void)
   enc1.setValue(0);
   keyboardVisible = false;
 
+  //initialise filename on entry
+  if (idx < 0) // first time ever
+  {
+    idx = 0;
+    fileName[0] = fileChar;
+    fileName[1] = 0;
+  }  
   showMode();
 }
 
@@ -1342,17 +1350,17 @@ FLASHMEM void FileEditor::exit(void)
     display.RestoreArea();
 }
 
-FLASHMEM void newKey(AudioPatcherDisplay::keyInfo key)
+FLASHMEM void FileEditor::newKey(AudioPatcherDisplay::keyInfo key)
 {
   static AudioPatcherDisplay::keyInfo lastKey;
 
   if (key.ch != lastKey.ch)
   {
-    if (0 != lastKey.ch)
-      display.ShowKey(lastKey.row,lastKey.col,KEY_CAP_COLOUR,EDIT_BKGND);
+    if (lastKey.ch != 0)
+      display.ShowKey(lastKey,KEY_CAP_COLOUR,EDIT_BKGND,upperCase);
     lastKey = key;      
-    if (0 != lastKey.ch)
-      display.ShowKey(lastKey.row,lastKey.col,KEY_CAP_COLOUR,KEY_ACTIVE_BKGND);
+    if (lastKey.ch != 0)
+      display.ShowKey(lastKey,KEY_CAP_COLOUR,KEY_ACTIVE_BKGND,upperCase);
   }
 }
 
@@ -1374,7 +1382,8 @@ FLASHMEM void FileEditor::edit(void)
         AudioPatcherDisplay::keyInfo key;
         TS_Point p = touch.getLastPoint();
         key = display.KeyAt(p.x,p.y);
-        if (0 != key.ch)
+        
+        if (key.ch > 0)
         {
           Serial.print((char) key.ch);
           if (idx < MAX_FILE_NAME)
@@ -1385,6 +1394,32 @@ FLASHMEM void FileEditor::edit(void)
             fileName[idx] = 0;
             sprintf(buf,"save:%s", fileName);
             display.ShowBottomText(buf);
+          }
+        }
+        else
+        {
+          switch (key.ch)
+          {
+            case -10: // toggle case
+              upperCase = !upperCase;
+              display.RedrawKeyboard(upperCase);
+              break;
+              
+            case -11: // delete
+              if (idx > 0)
+              {
+                char buf[MAX_FILE_NAME + 5 + 1];
+                
+                idx--;
+                fileName[idx] = 0;
+                sprintf(buf,"save:%s", fileName);
+                display.ShowBottomText(buf);
+              }
+              break;
+              
+            case -12: // enter
+              Serial.printf("save %s\n", fileName);
+              break;
           }
         }
           

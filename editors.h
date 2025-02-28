@@ -179,7 +179,7 @@ class FileEditor : public BaseEditor
     LimitedEncoder& enc0, &enc1, &enc2;
     int state, idx;
     char fileChar, fileName[MAX_FILE_NAME+1];
-    bool keyboardVisible;
+    bool keyboardVisible, upperCase;
 
     void showMode(void);
     void save(void);
@@ -197,13 +197,14 @@ class FileEditor : public BaseEditor
             )
             : BaseEditor(d,o,p),
             enc0(e0), enc1(e1), enc2(e2),
-            state(0), idx(0), fileChar('A')
+            state(0), idx(-1), fileChar('A')
             {}
     void edit(void);
     void enter(void);
     void exit(void); 
     
     int loadLast(void);
+    void newKey(AudioPatcherDisplay::keyInfo key);
 };
 
 #endif // !defined(_EDITORS_H_)

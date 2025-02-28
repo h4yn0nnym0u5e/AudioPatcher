@@ -8,6 +8,8 @@ uint16_t behindCursor[100];
 static XPT2046_Touchscreen ts(TCH_CS);
 AudioPatcherTouch touch{ts, 320, 240};
 
+using namespace AudioPatcherBitDefs;
+
 void AudioPatcherDisplay::Init(void)
 {
   pinMode(TCH_CS,OUTPUT);
@@ -700,6 +702,107 @@ bool AudioPatcherDisplay::canvasMakeVisible(PatchcordInstance_t& cord, int16_t x
 
 //=================================================================================================
 static const char* key_rows[] = {"1234567890", "qwertyuiop", "asdfghjkl", "_zxcvbnm-"};
+using namespace AudioPatcherBitDefs;
+static uint8_t 
+delKey[] =
+{// W   H
+   21, 19,
+  _______XX,_XXXXXXXX,_XXXXX___,
+  ______XXX,_XXXXXXXX,_XXXXX___,
+  _____XX__,_________,____XX___,
+  ____XX___,_________,____XX___,
+  ____XX___,_________,____XX___,
+  ___XX___X,_X______X,_X__XX___,
+  ___XX____,_XX____XX,____XX___,
+  __XX_____,__XX__XX_,____XX___,
+  __XX_____,___XXXX__,____XX___,
+  _XX______,____XX___,____XX___,
+  __XX_____,___XXXX__,____XX___,
+  __XX_____,__XX__XX_,____XX___,
+  ___XX____,_XX____XX,____XX___,
+  ___XX___X,_X______X,_X__XX___,
+  ____XX___,_________,____XX___,
+  ____XX___,_________,____XX___,
+  _____XX__,_________,____XX___,
+  ______XXX,_XXXXXXXX,_XXXXX___,
+  _______XX,_XXXXXXXX,_XXXXX___,
+},
+entKey[] =
+{// W   H
+   21, 19,
+  _________,_________,__XXXX___,
+  _________,_________,__XXXX___,
+  _________,_________,__XXXX___,
+  _________,_________,__XXXX___,
+  _________,_________,__XXXX___,
+  _________,_________,__XXXX___,
+  _________,_________,__XXXX___,
+  _______XX,_________,__XXXX___,
+  ______XX_,_________,__XXXX___,
+  _____XX__,_________,__XXXX___,
+  ____XX___,_________,__XXXX___,
+  ___XXXXXX,_XXXXXXXX,_XXXXX___,
+  __XXXXXXX,_XXXXXXXX,_XXXXX___,
+  ___XXXXXX,_XXXXXXXX,_XXXX____,
+  ____XX___,_________,_________,
+  _____XX__,_________,_________,
+  ______XX_,_________,_________,
+  _______XX,_________,_________,
+  _________,_________,_________,
+},
+shfKey[] =
+{// W   H
+   24, 19,
+   /*
+  _________,_________,_________,
+  _________,_________,_________,
+  ___XXXXXX,_X______X,_X_______,
+  __XX_____,_XX_____X,_X_______,
+  _XX______,_XX____XX,_XX______,
+  _XX______,_XX____XX,_XX______,
+  __XX_____,_XX___XX_,__XX_____,
+  ___XXXXXX,__XX__XX_,__XX_____,
+  _________,_____XX__,___XX____,
+  _________,_____XX__,___XX____,
+  _________,____XX___,____XX___,
+  _________,____XXXXX,_XXXXX___,
+  _________,___XXXXXX,_XXXXXX__,
+  _________,___XX____,_____XX__,
+  _________,__XX_____,______XX_,
+  _________,__XX_____,______XX_,
+  _________,_XX______,_______XX,
+  _________,_XX______,_______XX,
+  _________,_________,_________,
+  _________,_________,_________,
+  */
+  _________,_________,_________,
+  _________,_________,_________,
+  _____XXXX,_XX______,___XX____,
+  ____XXXXX,_XXX_____,___XX____,
+  _________,___XX____,___XX____,
+  _________,___XX____,__XXXX___,
+  ____XXXXX,_XXXX____,__XXXX___,
+  ___XXXXXX,_XXXX____,__XXXX___,
+  ___XX____,___XX____,_XX__XX__,
+  ___XX____,__XXX____,_XX__XX__,
+  ___XXXXXX,_XX_XX___,_XX__XX__,
+  ____XXXXX,_X___XX_X,_X____XX_,
+  _________,________X,_XXXXXXX_,
+  _________,________X,_XXXXXXX_,
+  _________,_______XX,_______XX,
+  _________,_______XX,_______XX,
+  _________,_______XX,_______XX,
+  _________,_________,_________,
+  _________,_________,_________,
+}
+;
+
+#define KEY_SZ 25 
+static std::vector<BitmapKey> keysVec = {
+  {5*KEY_SZ, 4*KEY_SZ+6, -10, shfKey},
+  {7*KEY_SZ, 4*KEY_SZ+6, -11, delKey},
+  {8*KEY_SZ, 4*KEY_SZ+6, -12, entKey},
+};
 
 void AudioPatcherDisplay::keypos(int16_t x, int16_t y, size_t r, size_t c,
                                  int16_t& xoff, int16_t& yoff)
@@ -720,7 +823,7 @@ char AudioPatcherDisplay::ShowKey(int16_t x, int16_t y, size_t r, size_t c, int1
 
   tft.fillRoundRect(xoff,yoff,KEY_SIZE-2,KEY_SIZE-2,4,bg);
   tft.drawRoundRect(xoff,yoff,KEY_SIZE-2,KEY_SIZE-2,4,fg);
-  tft.drawChar(xoff+5,y+r*KEY_SIZE+5,result,fg,bg,2);
+  tft.drawChar(xoff+6,y+r*KEY_SIZE+6,result,fg,bg,2);
 
   // store keyboard position ready for readback
   if (0 == r && 0 == c)
@@ -742,6 +845,55 @@ char AudioPatcherDisplay::ShowKey(size_t r, size_t c, int16_t fg, int16_t bg, bo
 }
 
 
+char AudioPatcherDisplay::ShowKey(keyInfo key, int16_t fg, int16_t bg, bool upr /* = false */)
+{
+  char result = 0;
+
+  if (key.ch > 0)
+    result = ShowKey(keyboard_x,keyboard_y,key.row,key.col,fg,bg,upr);
+  else
+  {
+    for (auto bk : keysVec)
+      if (bk.hitVal == key.ch)
+      {
+        result = ShowBitmapKey(bk.xpos, bk.ypos, fg, bg, bk.bitmap);      
+        break;
+      }
+  }
+
+  return result;
+}
+
+
+char AudioPatcherDisplay::ShowBitmapKey(int16_t x, int16_t y, int16_t fg, int16_t bg, const uint8_t* bitmap)
+{
+  int16_t xoff = x + keyboard_x;
+  int16_t yoff = y + keyboard_y;
+
+  tft.fillRoundRect(xoff-1,yoff-1,bitmap[0]+2,bitmap[1]+2,4,bg);
+  tft.drawBitmap(xoff,yoff,
+                bitmap+2,bitmap[0],bitmap[1],
+                fg);
+  return 0;                
+}
+
+
+void AudioPatcherDisplay::RedrawKeyboard(int16_t x, int16_t y, bool upperCase)
+{
+  keyboard_uppercase = upperCase;
+  
+  for (size_t r = 0; r < COUNT_OF(key_rows); r++)
+  {
+    size_t cols = strlen(key_rows[r]);
+    for (size_t c = 0; c < cols;c++)
+      ShowKey(x,y,r,c,KEY_CAP_COLOUR,EDIT_BKGND,upperCase);
+  }
+
+  for (auto key : keysVec)
+    ShowBitmapKey(key.xpos,key.ypos,KEY_CAP_COLOUR,EDIT_BKGND,key.bitmap);  
+}
+
+
 void AudioPatcherDisplay::ShowKeyboard(int16_t x, int16_t y, const char* title /* = nullptr */)
 {
   bool hasTitle = nullptr != title;
@@ -754,13 +906,8 @@ void AudioPatcherDisplay::ShowKeyboard(int16_t x, int16_t y, const char* title /
     ShowTitle(title,5,5);
     y += 27;  
   }
-  
-  for (size_t r = 0; r < COUNT_OF(key_rows); r++)
-  {
-    size_t cols = strlen(key_rows[r]);
-    for (size_t c = 0; c < cols;c++)
-      ShowKey(x,y,r,c,KEY_CAP_COLOUR,EDIT_BKGND);
-  } 
+
+  RedrawKeyboard(x,y,false);
 }
 
 
@@ -768,16 +915,38 @@ AudioPatcherDisplay::keyInfo AudioPatcherDisplay::KeyAt(int16_t x, int16_t y)
 {
   keyInfo result = {0}; // assume a miss
 
-  y -= keyboard_y; // make y keyboard-relative
-  y /= KEY_SIZE;   // and into row number
-  if (y >= 0 && y < (int16_t) COUNT_OF(key_rows)) // in a row, at least!
+  x -= keyboard_x; // make y keyboard-relative
+  y -= keyboard_y; 
+
+  for (auto key : keysVec)
   {
-    x -= keyboard_x + y*KEY_STAGGER; // x becomes row-relative
-    x /= KEY_SIZE;                   // ...and column number
-    if (x >=0 && x < (int16_t) strlen(key_rows[y]))
-      result = {key_rows[y][x], y, x};
+    if (x >= key.xpos 
+     && x <= key.xpos + key.bitmap[0]
+     && y >= key.ypos 
+     && y <= key.ypos + key.bitmap[1]
+     )
+    {
+      result = {key.hitVal,y,x};
+      break;
+    }
   }
 
+  if (0 == result.ch)
+  {
+    y /= KEY_SIZE;   // and into row number
+    if (y >= 0 && y < (int16_t) COUNT_OF(key_rows)) // in a row, at least!
+    {
+      x -= y*KEY_STAGGER; // x becomes row-relative
+      x /= KEY_SIZE;      // ...and column number
+      if (x >=0 && x < (int16_t) strlen(key_rows[y]))
+        result = {key_rows[y][x], y, x};
+    }
+  }
+
+  if (keyboard_uppercase 
+   && result.ch >= 'a' && result.ch <= 'z') // don't uppercase numbers!
+    result.ch &= ~0x20;
+    
   return result;
 }
 
