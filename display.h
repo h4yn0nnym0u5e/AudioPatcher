@@ -13,6 +13,8 @@
 #define TCH_CS  5
 #define TFT_ROTATION 1
 #define TCH_ROTATION 3
+
+#define NOT_A_COLOUR 0x1DEAD
 /* // Values for 2.4" display
 #define CONNECTION_COLOUR    0x9492 // ILI9341_DARKGREY
 #define PATCHCORD_COLOUR     0xFC02 // orange
@@ -25,6 +27,8 @@
 #define PATCHCORD_COLOUR     0xFA02 // orange
 #define PATCHCORD_HIGHLIGHT  0xFC04 // orange
 #define EDIT_BKGND           0x528A // darker grey
+#define KEY_CAP_COLOUR       ILI9341_LIGHTGREY
+#define KEY_ACTIVE_BKGND     0x0821 // very dark grey
 
 //A 320x240x16-bit display takes 153,600 bytes to store
 class AudioPatcherDisplay
@@ -49,15 +53,21 @@ class AudioPatcherDisplay
     int16_t cursor_y;
     int16_t canvas_x; 
     int16_t canvas_y;
+    int16_t keyboard_x; 
+    int16_t keyboard_y;
     uint16_t modeColour;
     uint16_t* screenBuffer = nullptr;
     struct {int16_t x,y,w,h;} savedArea;
     static const int16_t CURSOR_SIZE = 10;
     static const int16_t OBJECT_SIZE = 48;
+    static const int16_t KEY_SIZE = 25;
+    static const int16_t KEY_STAGGER = KEY_SIZE / 3;
     
     void GetCursorSaveParams(const int16_t x, const int16_t y, int16_t& cxr, int16_t& cyr, int16_t& cw, int16_t& ch);
     bool objIsOnScreen(int16_t x, int16_t y, int16_t w = OBJECT_SIZE, int16_t h = OBJECT_SIZE); // call after canvas co-ordinate transformation
     bool screenReadOK(void);
+    void keypos(int16_t x, int16_t y, size_t r, size_t c, int16_t& xoff, int16_t& yoff);
+    
   public:  
     void Init(void);
     void Clear(void);
@@ -88,7 +98,7 @@ class AudioPatcherDisplay
     // bottom line doesn't move with canvas
     void ShowMode(const char* txt);
     void ShowSelection(const char* txt, AudioCategory_e cat);
-    void ShowBottomText(const char* txt, uint16_t colour);
+    void ShowBottomText(const char* txt, int colour = NOT_A_COLOUR);
     void ShowStatus(const char* txt,int16_t x,int16_t y, uint16_t colour);
     void SaveStatus(void);
     void RestoreStatus(void) { RestoreArea(); }
@@ -107,13 +117,20 @@ class AudioPatcherDisplay
     
     // parameter settings box is screeen-relative
     void SaveArea(int16_t x, int16_t y, int16_t w, int16_t h);
-    void InitArea(int16_t x, int16_t y, int16_t w, int16_t h);
+    void InitArea(int16_t x, int16_t y, int16_t w, int16_t h, bool withHeader = true);
     void RestoreArea(void);
     void ShowTitle(const char* t, int16_t xoff, int16_t yoff);
     void ShowVoiceFlag(bool flag);
     void FillRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t colour);
     void ShowLabel(const ParamEntry& p, ParamValue& v, int16_t n, int16_t xoff, int16_t yoff);
     void ShowValue(const ParamEntry& p, ParamValue& v, int16_t n);
+
+    // keyboard
+    struct keyInfo {int ch, row, col;};
+    char ShowKey(int16_t x, int16_t y, size_t r, size_t c, int16_t fg, int16_t bg, bool upr = false);
+    char ShowKey(size_t r, size_t c, int16_t fg, int16_t bg, bool upr = false);
+    void ShowKeyboard(int16_t x, int16_t y, const char* title = nullptr);
+    keyInfo KeyAt(int16_t x, int16_t y);
 };
 
 

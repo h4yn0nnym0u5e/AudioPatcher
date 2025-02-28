@@ -75,10 +75,11 @@ void AudioPatcherDisplay::RestoreArea(void)
 }
 
 
-void AudioPatcherDisplay::InitArea(int16_t x, int16_t y, int16_t w, int16_t h)
+void AudioPatcherDisplay::InitArea(int16_t x, int16_t y, int16_t w, int16_t h, bool withHeader /* = true */)
 {
   tft.fillRoundRect(x,y,w,h,6,EDIT_BKGND); 
-  tft.fillRoundRect(x,y,w,26,6,ILI9341_BLACK); 
+  if (withHeader)
+    tft.fillRoundRect(x,y,w,26,6,ILI9341_BLACK); 
   tft.drawRoundRect(x,y,w,h,6,ILI9341_WHITE); 
   tft.setTextColor(ILI9341_LIGHTGREY,EDIT_BKGND);
   tft.setTextSize(2);
@@ -481,10 +482,13 @@ void AudioPatcherDisplay::ShowMode(const char* txt)
 
 
 //=================================================================================================
-void AudioPatcherDisplay::ShowBottomText(const char* txt, uint16_t colour)
+void AudioPatcherDisplay::ShowBottomText(const char* txt, int colour /* = modeColour */)
 {
   static int16_t eraseTo = -1;
   bool fixCursor;
+
+  if (NOT_A_COLOUR == colour)
+    colour = modeColour;
   
   tft.setFontAdafruit();
   tft.setTextSize(2);
@@ -694,7 +698,90 @@ bool AudioPatcherDisplay::canvasMakeVisible(PatchcordInstance_t& cord, int16_t x
     return canvasMakeVisible(sx, sy, dx - sx, dy - sy, xstep, ystep); 
 }
 
+//=================================================================================================
+static const char* key_rows[] = {"1234567890", "qwertyuiop", "asdfghjkl", "_zxcvbnm-"};
 
+void AudioPatcherDisplay::keypos(int16_t x, int16_t y, size_t r, size_t c,
+                                 int16_t& xoff, int16_t& yoff)
+{
+  xoff = x + c*KEY_SIZE + r*KEY_STAGGER + 6;
+  yoff = y+r*KEY_SIZE+2;  
+}
+
+char AudioPatcherDisplay::ShowKey(int16_t x, int16_t y, size_t r, size_t c, int16_t fg, int16_t bg, bool upr /* = false */)
+{
+  char result = key_rows[r][c];
+  int16_t xoff, yoff;
+
+  keypos(x,y,r,c,xoff,yoff);
+  
+  if (r > 0 && upr)
+    result = result & ~0x20;
+
+  tft.fillRoundRect(xoff,yoff,KEY_SIZE-2,KEY_SIZE-2,4,bg);
+  tft.drawRoundRect(xoff,yoff,KEY_SIZE-2,KEY_SIZE-2,4,fg);
+  tft.drawChar(xoff+5,y+r*KEY_SIZE+5,result,fg,bg,2);
+
+  // store keyboard position ready for readback
+  if (0 == r && 0 == c)
+  {
+    int16_t xoff2, yoff2;
+  
+    keypos(0,0,0,0,xoff2,yoff2);
+    keyboard_x = xoff - xoff2;
+    keyboard_y = yoff- yoff2;
+  }
+
+  return result;
+}
+
+
+char AudioPatcherDisplay::ShowKey(size_t r, size_t c, int16_t fg, int16_t bg, bool upr /* = false */)
+{
+  return ShowKey(keyboard_x,keyboard_y,r,c,fg,bg,upr);  
+}
+
+
+void AudioPatcherDisplay::ShowKeyboard(int16_t x, int16_t y, const char* title /* = nullptr */)
+{
+  bool hasTitle = nullptr != title;
+  
+  SaveArea(x,y,KEY_SIZE*11 + 4,KEY_SIZE*4 + 4 + 30 + (hasTitle?25:0));
+  InitArea(savedArea.x,savedArea.y,savedArea.w,savedArea.h,hasTitle);
+
+  if (hasTitle)
+  {
+    ShowTitle(title,5,5);
+    y += 27;  
+  }
+  
+  for (size_t r = 0; r < COUNT_OF(key_rows); r++)
+  {
+    size_t cols = strlen(key_rows[r]);
+    for (size_t c = 0; c < cols;c++)
+      ShowKey(x,y,r,c,KEY_CAP_COLOUR,EDIT_BKGND);
+  } 
+}
+
+
+AudioPatcherDisplay::keyInfo AudioPatcherDisplay::KeyAt(int16_t x, int16_t y)
+{
+  keyInfo result = {0}; // assume a miss
+
+  y -= keyboard_y; // make y keyboard-relative
+  y /= KEY_SIZE;   // and into row number
+  if (y >= 0 && y < (int16_t) COUNT_OF(key_rows)) // in a row, at least!
+  {
+    x -= keyboard_x + y*KEY_STAGGER; // x becomes row-relative
+    x /= KEY_SIZE;                   // ...and column number
+    if (x >=0 && x < (int16_t) strlen(key_rows[y]))
+      result = {key_rows[y][x], y, x};
+  }
+
+  return result;
+}
+
+//=================================================================================================
 bool AudioPatcherTouch::isTouched(void)
 { 
   bool result;

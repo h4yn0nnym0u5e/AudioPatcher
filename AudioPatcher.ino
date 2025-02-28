@@ -227,6 +227,8 @@ MIDIEditor midiEditor(enc0,display,objVec,cordVec);
 DeleteEditor deleteEditor(enc0,enc1,enc2,display,objVec,cordVec);
 FileEditor fileEditor(enc0,enc1,enc2,display,objVec,cordVec);
 
+// char dummy_buffer[34000];
+
 PatcherMIDI patcherMIDI(objVec, cordVec);
 /********************************************************************************************************/
 // "Lock" the mode encoder, e.g. while sub-editor is active

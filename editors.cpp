@@ -1301,12 +1301,27 @@ FLASHMEM int FileEditor::loadLast(void)
   return result;
 }
 
-FLASHMEM void FileEditor::showMode(void)
+void FileEditor::showMode(void)
 {
   char buffer[20];
+  int theMode = enc1.getValue();
 
-  sprintf(buffer,"%s: %c",enc1.getValue()?"save":"load",fileChar);
+  sprintf(buffer,"%s: %c",theMode?"save":"load",fileChar);
   display.ShowBottomText(buffer,display.getModeColour());
+
+  if (theMode) // saving - show keyboard to create filename
+  {
+    display.ShowKeyboard(20,40,"File name");
+    keyboardVisible = true;
+  }
+  else
+  {
+    if (keyboardVisible)
+    {
+      display.RestoreArea();
+      keyboardVisible = false;
+    }
+  }
 }
 
 FLASHMEM void FileEditor::enter(void)
@@ -1316,16 +1331,69 @@ FLASHMEM void FileEditor::enter(void)
 
   enc1.setLimits(0,1); // load or save
   enc1.setValue(0);
+  keyboardVisible = false;
 
   showMode();
 }
 
 FLASHMEM void FileEditor::exit(void)
 {
+  if (keyboardVisible)
+    display.RestoreArea();
+}
+
+FLASHMEM void newKey(AudioPatcherDisplay::keyInfo key)
+{
+  static AudioPatcherDisplay::keyInfo lastKey;
+
+  if (key.ch != lastKey.ch)
+  {
+    if (0 != lastKey.ch)
+      display.ShowKey(lastKey.row,lastKey.col,KEY_CAP_COLOUR,EDIT_BKGND);
+    lastKey = key;      
+    if (0 != lastKey.ch)
+      display.ShowKey(lastKey.row,lastKey.col,KEY_CAP_COLOUR,KEY_ACTIVE_BKGND);
+  }
 }
 
 FLASHMEM void FileEditor::edit(void)
 {
+  if (keyboardVisible)
+  {
+    if (touch.isTouched())
+    {
+      AudioPatcherDisplay::keyInfo key;
+      TS_Point p = touch.getPoint();
+      key = display.KeyAt(p.x,p.y);
+      newKey(key);            
+    }
+    else
+    {
+      if(touch.isLifted())
+      {
+        AudioPatcherDisplay::keyInfo key;
+        TS_Point p = touch.getLastPoint();
+        key = display.KeyAt(p.x,p.y);
+        if (0 != key.ch)
+        {
+          Serial.print((char) key.ch);
+          if (idx < MAX_FILE_NAME)
+          {
+            char buf[MAX_FILE_NAME + 5 + 1];
+            
+            fileName[idx++] = key.ch;
+            fileName[idx] = 0;
+            sprintf(buf,"save:%s", fileName);
+            display.ShowBottomText(buf);
+          }
+        }
+          
+        key.ch = 0;  // "no key"
+        newKey(key); // negate         
+      }
+    }
+  }
+    
   if (enc0.available())
   {
     fileChar = enc0.getValue() + '@';

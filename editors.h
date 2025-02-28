@@ -175,9 +175,11 @@ class MIDIEditor : public BaseEditor
 
 class FileEditor : public BaseEditor
 {
+    static const int MAX_FILE_NAME = 15;
     LimitedEncoder& enc0, &enc1, &enc2;
-    int state;
-    char fileChar;
+    int state, idx;
+    char fileChar, fileName[MAX_FILE_NAME+1];
+    bool keyboardVisible;
 
     void showMode(void);
     void save(void);
@@ -195,7 +197,7 @@ class FileEditor : public BaseEditor
             )
             : BaseEditor(d,o,p),
             enc0(e0), enc1(e1), enc2(e2),
-            state(0), fileChar('A')
+            state(0), idx(0), fileChar('A')
             {}
     void edit(void);
     void enter(void);

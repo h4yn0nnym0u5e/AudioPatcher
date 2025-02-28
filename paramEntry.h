@@ -1,6 +1,10 @@
 #if !defined(_PARAMENTRY_H_)
 #define _PARAMENTRY_H_
 
+#if !defined(COUNT_OF)
+#define COUNT_OF(a) (sizeof a / sizeof a[0])
+#endif // !defined(COUNT_OF)
+
 class ParamChoice
 {
   public:
