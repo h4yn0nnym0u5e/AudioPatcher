@@ -178,7 +178,7 @@ class FileEditor : public BaseEditor
     static const int MAX_FILE_NAME = 15;
     LimitedEncoder& enc0, &enc1, &enc2;
     int state, idx;
-    char fileChar, fileName[MAX_FILE_NAME+1];
+    char fileName[MAX_FILE_NAME+1];
     bool keyboardVisible, upperCase;
 
     void showMode(void);
@@ -197,7 +197,7 @@ class FileEditor : public BaseEditor
             )
             : BaseEditor(d,o,p),
             enc0(e0), enc1(e1), enc2(e2),
-            state(0), idx(-1), fileChar('A'), fileName{0}
+            state(0), idx(-1), fileName{0}
             {}
     void edit(void);
     void enter(void);

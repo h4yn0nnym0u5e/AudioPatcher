@@ -1310,7 +1310,7 @@ FLASHMEM int FileEditor::loadLast(void)
 void FileEditor::showMode(void)
 {
   char buffer[5+MAX_FILE_NAME+1];
-  int theMode = enc1.getValue();
+  int theMode = enc0.getValue();
 
   if (theMode) // saving - show keyboard to create filename
   {
@@ -1332,11 +1332,8 @@ void FileEditor::showMode(void)
 
 FLASHMEM void FileEditor::enter(void)
 {
-  enc0.setLimits(1,26); // single alphabetic character
-  enc0.setValue(fileChar - '@');
-
-  enc1.setLimits(0,1); // load or save
-  enc1.setValue(0);
+  enc0.setLimits(0,1); // load or save
+  enc0.setValue(0);
   keyboardVisible = false;
 
   //initialise filename on entry
@@ -1431,17 +1428,10 @@ FLASHMEM void FileEditor::edit(void)
       }
     }
   }
-    
+
+  // switch between load and save
   if (enc0.available())
-  {
-    fileChar = enc0.getValue() + '@';
     showMode();  
-  }
-  
-  if (enc1.available())
-  {
-    showMode();  
-  }
   
   if (enc0.getButton())
     state = 1;
@@ -1449,7 +1439,7 @@ FLASHMEM void FileEditor::edit(void)
   {
     if (state)
     {
-      if (enc1.getValue()) // save
+      if (enc0.getValue()) // save
       {
         Serial.printf("\nSave to patch %s:\n",fileName);
         save(fileName);
@@ -1463,7 +1453,7 @@ FLASHMEM void FileEditor::edit(void)
         load(fileName);
         Serial.println("---------------\n");        
       }
-      state = 0;       
+      state = 0;
     }
   }
 }
