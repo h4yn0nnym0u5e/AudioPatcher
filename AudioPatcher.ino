@@ -1,6 +1,6 @@
 /*
- * Test of M5 8Angle
- * 8x pot, 9x RGB, 1x switch
+ * Run-time configurable synthesizer
+ * based on Dynamic Audio library
  */
 
 #include "M5wire.h"
@@ -13,7 +13,7 @@
 #include <vector>
 #include <algorithm>
 
-#include "TeensyDebug.h"
+//#include "TeensyDebug.h"
 
 //#define COUNT_OF(a) (sizeof a / sizeof a[0])
 

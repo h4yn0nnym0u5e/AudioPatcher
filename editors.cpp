@@ -101,6 +101,7 @@ FLASHMEM void BaseEditor::SelectByEncoder(LimitedEncoder& enc0, int32_t force)
 }
 
 
+// Change object selection based on screen touch
 FLASHMEM int BaseEditor::SelectByTouch(LimitedEncoder& enc0, bool onlySetEncoder)
 {
   int idx = -1;
@@ -122,6 +123,7 @@ FLASHMEM int BaseEditor::SelectByTouch(LimitedEncoder& enc0, bool onlySetEncoder
 }
 
 
+// Change patchcord selection based on screen touch
 FLASHMEM int BaseEditor::SelectCordByTouch(LimitedEncoder& enc0, bool onlySetEncoder)
 {
   int idx = -1;
@@ -1000,7 +1002,7 @@ FLASHMEM void DeleteEditor::ShowSelection(int op)
 
 //======================================================================
 //======================================================================
-FLASHMEM void FileEditor::setLast(char fileChar)
+FLASHMEM void FileEditor::setLast(const char* nme)
 {
   File saveTo;
   
@@ -1008,14 +1010,14 @@ FLASHMEM void FileEditor::setLast(char fileChar)
   if (saveTo)
   {
     saveTo.truncate();
-    saveTo.print(fileChar);
+    saveTo.println(nme);
     saveTo.close();
   }
 }
 
 
 // last file used, or -1
-FLASHMEM int FileEditor::getLast(void)
+FLASHMEM int FileEditor::getLast(char* buf, int maxn)
 {
   int result = -1;
   File loadFrom;
@@ -1023,7 +1025,7 @@ FLASHMEM int FileEditor::getLast(void)
   loadFrom = SD.open("last.txt",FILE_READ);
   if (loadFrom)
   {
-    result = loadFrom.read();
+    result = loadFrom.readBytesUntil('\n',buf,maxn);
     loadFrom.close();
   }
 
@@ -1031,13 +1033,13 @@ FLASHMEM int FileEditor::getLast(void)
 }
 
 
-FLASHMEM void FileEditor::save(void)
+FLASHMEM void FileEditor::save(const char* nme)
 {
   char buffer[200];
   File saveTo;
   int count;
 
-  sprintf(buffer,"%c.txt",fileChar);
+  sprintf(buffer,"%s.txt",nme);
   SD.remove(buffer);
   saveTo = SD.open(buffer,FILE_WRITE_BEGIN);
 
@@ -1110,17 +1112,17 @@ FLASHMEM void FileEditor::save(void)
     saveTo.close();
     Serial.print("Saved\n"); Serial.flush();
     
-    setLast(fileChar);
+    setLast(nme);
   }
 }
 
 
-FLASHMEM void FileEditor::dump(void)
+FLASHMEM void FileEditor::dump(const char* nme)
 {
   char buffer[100];
   File loadFrom;
 
-  sprintf(buffer,"%c.txt",fileChar);
+  sprintf(buffer,"%s.txt",nme);
   loadFrom = SD.open(buffer,FILE_READ);
 
   if (loadFrom)
@@ -1145,12 +1147,12 @@ FLASHMEM void FileEditor::dump(void)
 }
 
 
-FLASHMEM void FileEditor::load(void)
+FLASHMEM void FileEditor::load(const char* nme)
 {
   char buffer[200];
   File loadFrom;
 
-  sprintf(buffer,"%c.txt",fileChar);
+  sprintf(buffer,"%s.txt",nme);
   loadFrom = SD.open(buffer,FILE_READ);
 
   if (loadFrom)
@@ -1282,6 +1284,7 @@ FLASHMEM void FileEditor::load(void)
     } while (1);
     
     loadFrom.close();
+    setLast(nme);
 
     delay(5); // allow audio system to settle
     setMuteStatus(false);
@@ -1290,12 +1293,14 @@ FLASHMEM void FileEditor::load(void)
 
 FLASHMEM int FileEditor::loadLast(void)
 {
-  int result = getLast();
+  char buf[MAX_FILE_NAME+1];
+  int result = getLast(buf,MAX_FILE_NAME);
 
   if (result > 0)
   {
-    fileChar = result;
-    load();
+    buf[MAX_FILE_NAME] = 0; // ensure string is terminated
+    strncpy(fileName,buf,sizeof fileName);
+    load(buf);
   }
 
   return result;
@@ -1337,9 +1342,7 @@ FLASHMEM void FileEditor::enter(void)
   //initialise filename on entry
   if (idx < 0) // first time ever
   {
-    idx = 0;
-    fileName[0] = fileChar;
-    fileName[1] = 0;
+    idx = strlen(fileName);
   }  
   showMode();
 }
@@ -1448,17 +1451,16 @@ FLASHMEM void FileEditor::edit(void)
     {
       if (enc1.getValue()) // save
       {
-        Serial.printf("\nSave to patch %c:\n",fileChar);
-        save();
-        Serial.printf("\nCheck load of patch %c:\n",fileChar);
-        dump();
+        Serial.printf("\nSave to patch %s:\n",fileName);
+        save(fileName);
+        Serial.printf("\nCheck load of patch %s:\n",fileName);
+        dump(fileName);
         Serial.println("---------------\n");        
       }
       else
       {
-        Serial.printf("\nLoad patch %c:\n",fileChar);
-        load();
-        setLast(fileChar);
+        Serial.printf("\nLoad patch %s:\n",fileName);
+        load(fileName);
         Serial.println("---------------\n");        
       }
       state = 0;       

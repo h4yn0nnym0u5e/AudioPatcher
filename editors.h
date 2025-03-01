@@ -182,12 +182,12 @@ class FileEditor : public BaseEditor
     bool keyboardVisible, upperCase;
 
     void showMode(void);
-    void save(void);
-    void load(void);
-    void dump(void);
+    void save(const char* nme);
+    void load(const char* nme);
+    void dump(const char* nme);
     
-    int getLast(void);
-    void setLast(char fileChar);
+    int getLast(char* buf, int maxn);
+    void setLast(const char* nme);
      
   public:    
     FileEditor(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2, 
@@ -197,7 +197,7 @@ class FileEditor : public BaseEditor
             )
             : BaseEditor(d,o,p),
             enc0(e0), enc1(e1), enc2(e2),
-            state(0), idx(-1), fileChar('A')
+            state(0), idx(-1), fileChar('A'), fileName{0}
             {}
     void edit(void);
     void enter(void);
