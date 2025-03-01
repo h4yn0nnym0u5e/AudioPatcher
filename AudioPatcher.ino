@@ -75,6 +75,11 @@ void printHL(void)
   Serial.println("============================================================");
 }
 /********************************************************************************************************/
+void doReboot() 
+{
+  SCB_AIRCR = 0x05FA0004;
+}
+/********************************************************************************************************/
 void setup() 
 {
   while (!Serial)
@@ -303,10 +308,13 @@ void updateStatus(void)
 //======================================================================
 void loop() 
 {
-#if defined(GDB_IS_ENABLED)
   if (encr.getButton(7))
+#if defined(GDB_IS_ENABLED)
     halt_cpu();
+#else
+    doReboot();   
 #endif // defined(GDB_IS_ENABLED)
+
   if (!initialised)
   {
     enc2.setValue(enc2.getValue()); // ensures it's valid!

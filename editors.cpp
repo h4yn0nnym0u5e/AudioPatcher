@@ -1025,7 +1025,7 @@ FLASHMEM int FileEditor::getLast(char* buf, int maxn)
   loadFrom = SD.open("last.txt",FILE_READ);
   if (loadFrom)
   {
-    result = loadFrom.readBytesUntil('\n',buf,maxn);
+    result = loadFrom.readBytesUntil('\r',buf,maxn);
     loadFrom.close();
   }
 
@@ -1284,8 +1284,7 @@ FLASHMEM void FileEditor::load(const char* nme)
     } while (1);
     
     loadFrom.close();
-    setLast(nme);
-
+ 
     delay(5); // allow audio system to settle
     setMuteStatus(false);
   }
@@ -1451,6 +1450,7 @@ FLASHMEM void FileEditor::edit(void)
       {
         Serial.printf("\nLoad patch %s:\n",fileName);
         load(fileName);
+        setLast(fileName);
         Serial.println("---------------\n");        
       }
       state = 0;
