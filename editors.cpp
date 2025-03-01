@@ -1346,6 +1346,39 @@ void FileEditor::showMode(void)
   display.ShowBottomText(buffer,display.getModeColour());
 }
 
+FLASHMEM void FileEditor::createFileList(const char* path)
+{
+  File root = SD.open(path);
+
+  while (true)
+  {
+    File entry = root.openNextFile();
+
+    if (!entry)
+      break;
+
+    {
+      String nme = String(entry.name());
+
+      if (!nme.startsWith('!') && nme.endsWith(".txt")) // ignore !last.txt, thing.exe etc.
+      {
+        nme.replace(".txt","");
+        fileList.push_back(nme);
+      }
+    }
+  }
+  
+  std::stable_sort(fileList.begin(),fileList.end());
+  
+  for (auto s : fileList)
+    Serial.println(s.c_str());
+}
+
+FLASHMEM void FileEditor::clearFileList(void)
+{
+  fileList.clear();
+}
+
 FLASHMEM void FileEditor::enter(void)
 {
   enc0.setLimits(0,1); // load or save
@@ -1364,6 +1397,7 @@ FLASHMEM void FileEditor::exit(void)
 {
   if (keyboardVisible)
     display.RestoreArea();
+  clearFileList();
 }
 
 FLASHMEM void FileEditor::newKey(AudioPatcherDisplay::keyInfo key)
@@ -1453,7 +1487,7 @@ FLASHMEM void FileEditor::edit(void)
     state = 1;
   else
   {
-    if (state)
+    if (1 == state)
     {
       if (enc0.getValue()) // save
       {
@@ -1471,4 +1505,17 @@ FLASHMEM void FileEditor::edit(void)
       state = 0;
     }
   }
+
+  if (enc1.getButton())
+    state = 2;
+  else
+  {
+    if (2 == state)
+    {
+      clearFileList();
+      createFileList(filePath);
+      state = 0;
+    }
+  }
+
 }

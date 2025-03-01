@@ -180,6 +180,7 @@ class FileEditor : public BaseEditor
     static const char NAME_EOL = '\r';
     LimitedEncoder& enc0, &enc1, &enc2;
     int state, idx;
+    std::vector<String> fileList;
     char fileName[MAX_FILE_NAME+1];
     char filePath[MAX_FILE_PATH+1];
     bool keyboardVisible, upperCase;
@@ -191,6 +192,9 @@ class FileEditor : public BaseEditor
     
     int getLast(char* buf, int maxn);
     void setLast(const char* nme);
+
+    void createFileList(const char* path);
+    void clearFileList(void);
      
   public:    
     FileEditor(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2, 
