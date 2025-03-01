@@ -176,9 +176,12 @@ class MIDIEditor : public BaseEditor
 class FileEditor : public BaseEditor
 {
     static const int MAX_FILE_NAME = 15;
+    static const int MAX_FILE_PATH = 42;
+    static const char NAME_EOL = '\r';
     LimitedEncoder& enc0, &enc1, &enc2;
     int state, idx;
     char fileName[MAX_FILE_NAME+1];
+    char filePath[MAX_FILE_PATH+1];
     bool keyboardVisible, upperCase;
 
     void showMode(void);
@@ -197,7 +200,7 @@ class FileEditor : public BaseEditor
             )
             : BaseEditor(d,o,p),
             enc0(e0), enc1(e1), enc2(e2),
-            state(0), idx(-1), fileName{0}
+            state(0), idx(-1), fileName{0}, filePath{"/patches"}
             {}
     void edit(void);
     void enter(void);

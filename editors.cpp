@@ -1006,11 +1006,11 @@ FLASHMEM void FileEditor::setLast(const char* nme)
 {
   File saveTo;
   
-  saveTo = SD.open("last.txt",FILE_WRITE_BEGIN);
+  saveTo = SD.open("/patches/!last.txt",FILE_WRITE_BEGIN);
   if (saveTo)
   {
     saveTo.truncate();
-    saveTo.println(nme);
+    saveTo.printf("%s/%s%c",filePath,nme,NAME_EOL);
     saveTo.close();
   }
 }
@@ -1022,10 +1022,10 @@ FLASHMEM int FileEditor::getLast(char* buf, int maxn)
   int result = -1;
   File loadFrom;
   
-  loadFrom = SD.open("last.txt",FILE_READ);
+  loadFrom = SD.open("/patches/!last.txt",FILE_READ);
   if (loadFrom)
   {
-    result = loadFrom.readBytesUntil('\r',buf,maxn);
+    result = loadFrom.readBytesUntil(NAME_EOL,buf,maxn);
     loadFrom.close();
   }
 
@@ -1039,7 +1039,8 @@ FLASHMEM void FileEditor::save(const char* nme)
   File saveTo;
   int count;
 
-  sprintf(buffer,"%s.txt",nme);
+  sprintf(buffer,"%s/%s.txt",filePath,nme);
+  Serial.printf("Save to %s\n",buffer);
   SD.remove(buffer);
   saveTo = SD.open(buffer,FILE_WRITE_BEGIN);
 
@@ -1122,7 +1123,7 @@ FLASHMEM void FileEditor::dump(const char* nme)
   char buffer[100];
   File loadFrom;
 
-  sprintf(buffer,"%s.txt",nme);
+  sprintf(buffer,"%s/%s.txt",filePath,nme);
   loadFrom = SD.open(buffer,FILE_READ);
 
   if (loadFrom)
@@ -1152,7 +1153,8 @@ FLASHMEM void FileEditor::load(const char* nme)
   char buffer[200];
   File loadFrom;
 
-  sprintf(buffer,"%s.txt",nme);
+  sprintf(buffer,"%s/%s.txt",filePath,nme);
+  Serial.printf("Load from %s\n",buffer);
   loadFrom = SD.open(buffer,FILE_READ);
 
   if (loadFrom)
@@ -1292,14 +1294,29 @@ FLASHMEM void FileEditor::load(const char* nme)
 
 FLASHMEM int FileEditor::loadLast(void)
 {
-  char buf[MAX_FILE_NAME+1];
-  int result = getLast(buf,MAX_FILE_NAME);
+  char buf[MAX_FILE_PATH+1+MAX_FILE_NAME+1];
+  int result = getLast(buf,MAX_FILE_PATH+1+MAX_FILE_NAME);
 
   if (result > 0)
   {
-    buf[MAX_FILE_NAME] = 0; // ensure string is terminated
-    strncpy(fileName,buf,sizeof fileName);
-    load(buf);
+    char* nme;
+
+    Serial.printf("Last file was: '%s'\n",buf);
+    buf[MAX_FILE_PATH+1+MAX_FILE_NAME] = 0; // ensure string is terminated
+    nme = strrchr(buf,'/'); // find file leaf name
+    if (nullptr != nme) // there was a path separator
+    {
+      if (nme != buf) // if file is not at root...
+      {
+        *nme = 0; // replace separator with terminator
+        strncpy(filePath,buf,sizeof filePath);  // copy path
+        nme++;
+      }
+    }
+    else
+      nme = buf;
+    strncpy(fileName,nme,sizeof fileName);
+    load(nme);
   }
 
   return result;
@@ -1440,7 +1457,6 @@ FLASHMEM void FileEditor::edit(void)
     {
       if (enc0.getValue()) // save
       {
-        Serial.printf("\nSave to patch %s:\n",fileName);
         save(fileName);
         Serial.printf("\nCheck load of patch %s:\n",fileName);
         dump(fileName);
@@ -1448,7 +1464,6 @@ FLASHMEM void FileEditor::edit(void)
       }
       else
       {
-        Serial.printf("\nLoad patch %s:\n",fileName);
         load(fileName);
         setLast(fileName);
         Serial.println("---------------\n");        
