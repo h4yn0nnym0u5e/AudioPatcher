@@ -1309,37 +1309,91 @@ FLASHMEM int FileEditor::loadLast(void)
       if (nme != buf) // if file is not at root...
       {
         *nme = 0; // replace separator with terminator
-        strncpy(filePath,buf,sizeof filePath);  // copy path
         nme++;
+        if (strlen(buf) < sizeof filePath)
+          strcpy(filePath,buf);  // copy path
+        else
+          strcpy(filePath,PATCH_ROOT);          
       }
     }
     else
       nme = buf;
-    strncpy(fileName,nme,sizeof fileName);
-    load(nme);
+      
+    if (strlen(nme) < sizeof fileName)
+    {      
+      strcpy(fileName,nme);
+      load(nme);
+    }
+    else
+      fileName[0] = 0;
   }
 
   return result;
 }
 
 
-void FileEditor::showMode(void)
+void FileEditor::showFileList(const int item, bool showAll)
+{
+  // we assume the item number is sane...
+  if (item < fileListTop || item > fileListTop+MAX_FILE_LINE)
+  {
+    showAll = true;
+    while (item < fileListTop && fileListTop > 0) fileListTop -= MAX_FILE_LINE/2 + 1;
+    while (item > fileListTop+MAX_FILE_LINE && fileListTop < (int) fileList.size()-MAX_FILE_LINE) fileListTop += MAX_FILE_LINE/2 + 1;
+    if (fileListTop+MAX_FILE_LINE > (int) fileList.size()-1) fileListTop = (int) fileList.size() - MAX_FILE_LINE - 1;
+    if (fileListTop <0) fileListTop = 0;
+  }
+  
+  if (showAll)
+  {
+    for (int i=0;i<=MAX_FILE_LINE;i++)
+    {
+      display.ShowAreaText(fileList.at(i+fileListTop).c_str(),5,27,i,KEY_CAP_COLOUR,
+          i==(item - fileListTop)
+            ?KEY_ACTIVE_BKGND
+            :EDIT_BKGND);
+    }    
+  }
+  else
+  {
+    display.ShowAreaText(fileList.at(fileListCurrent).c_str(),5,27,fileListCurrent - fileListTop,KEY_CAP_COLOUR,EDIT_BKGND);
+    display.ShowAreaText(fileList.at(item           ).c_str(),5,27,item            - fileListTop,KEY_CAP_COLOUR,KEY_ACTIVE_BKGND);        
+  }
+  
+  fileListCurrent = item;
+}
+
+
+void FileEditor::showMode(bool zapCurrent /* = true */)
 {
   char buffer[5+MAX_FILE_NAME+1];
   int theMode = enc0.getValue();
-
+  
   if (theMode) // saving - show keyboard to create filename
   {
-    display.ShowKeyboard(20,40,"File name");
+    display.ShowKeyboard(20,40,"File name",!keyboardVisible);
     keyboardVisible = true;
   }
   else
   {
-    if (keyboardVisible)
+    int16_t x = 20, y = 40, w = 25*11+4, h = 25*4+30+25;
+    if (!keyboardVisible)
+      display.SaveArea(x,y,w,h);
+    display.InitArea(x,y,w,h);
+    display.ShowTitle("File list",5,5);
+
+    if (zapCurrent)
     {
-      display.RestoreArea();
-      keyboardVisible = false;
+      clearFileList();
+      createFileList(filePath);
+      enc1.setLimits(0, fileList.size()-1);
+      enc1.setValue(0);
+      fileListTop = 0;
+      fileListCurrent = -1;
     }
+    showFileList(enc1.getValue(), true);
+    
+    keyboardVisible = true;
   }
   
   sprintf(buffer,"%s:%s",theMode?"save":"load",fileName);
@@ -1370,8 +1424,8 @@ FLASHMEM void FileEditor::createFileList(const char* path)
   
   std::stable_sort(fileList.begin(),fileList.end());
   
-  for (auto s : fileList)
-    Serial.println(s.c_str());
+  //for (auto s : fileList)
+  //  Serial.println(s.c_str());
 }
 
 FLASHMEM void FileEditor::clearFileList(void)
@@ -1483,13 +1537,13 @@ FLASHMEM void FileEditor::edit(void)
   if (enc0.available())
     showMode();  
   
-  if (enc0.getButton())
+  if (enc0.getButton() || enc1.getButton())
     state = 1;
   else
   {
     if (1 == state)
     {
-      if (enc0.getValue()) // save
+      if (1 == enc0.getValue()) // save
       {
         save(fileName);
         Serial.printf("\nCheck load of patch %s:\n",fileName);
@@ -1498,24 +1552,21 @@ FLASHMEM void FileEditor::edit(void)
       }
       else
       {
+        strcpy(fileName,fileList.at(enc1.getValue()).c_str());
+        display.RestoreArea();
+        keyboardVisible = false;
         load(fileName);
         setLast(fileName);
-        Serial.println("---------------\n");        
+        Serial.println("---------------\n");
+        delay(250);
+        showMode(false);
       }
       state = 0;
     }
   }
 
-  if (enc1.getButton())
-    state = 2;
-  else
-  {
-    if (2 == state)
-    {
-      clearFileList();
-      createFileList(filePath);
-      state = 0;
-    }
-  }
 
+  // scroll through file list, if we're on the "load" screen
+  if (enc1.available() && 0 == enc0.getValue())
+    showFileList(enc1.getValue());  
 }

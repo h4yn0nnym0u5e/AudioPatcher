@@ -67,6 +67,13 @@ void AudioPatcherDisplay::SaveArea(int16_t x, int16_t y, int16_t w, int16_t h)
   }
 }
 
+void AudioPatcherDisplay::GetArea(int16_t& x, int16_t& y, int16_t& w, int16_t& h)
+{
+  x = savedArea.x;
+  y = savedArea.y;
+  w = savedArea.w;
+  h = savedArea.h;
+}
 
 void AudioPatcherDisplay::RestoreArea(void)
 {
@@ -509,6 +516,24 @@ void AudioPatcherDisplay::ShowBottomText(const char* txt, int colour /* = modeCo
     CursorRestore();
 }
 
+void AudioPatcherDisplay::ShowAreaText(const char* txt, int xoff, int yoff, int row, int fg, int bg)
+{
+  const int EXTRA = 2;
+  int eraseTo = savedArea.w - xoff - 5;
+  xoff += savedArea.x;
+  
+  tft.setFontAdafruit();
+  tft.setTextSize(2);
+  int16_t tw = tft.measureTextWidth(txt),
+          th = tft.fontLineSpace()+EXTRA; // assume it's going to fit on one line!
+  yoff += savedArea.y + row*th;
+  tft.setTextColor(fg,bg);
+  tft.setCursor(xoff,yoff);
+  tft.print(txt);
+  tft.fillRect(xoff,yoff+th-EXTRA,tw,EXTRA, bg);
+  tft.fillRect(xoff+tw,yoff,eraseTo - tw,th, bg);
+}
+
 void AudioPatcherDisplay::ShowSelection(const char* txt, AudioCategory_e cat)
 {
   ShowBottomText(txt,AudioObjectColours[cat].border);
@@ -753,28 +778,6 @@ entKey[] =
 shfKey[] =
 {// W   H
    24, 19,
-   /*
-  _________,_________,_________,
-  _________,_________,_________,
-  ___XXXXXX,_X______X,_X_______,
-  __XX_____,_XX_____X,_X_______,
-  _XX______,_XX____XX,_XX______,
-  _XX______,_XX____XX,_XX______,
-  __XX_____,_XX___XX_,__XX_____,
-  ___XXXXXX,__XX__XX_,__XX_____,
-  _________,_____XX__,___XX____,
-  _________,_____XX__,___XX____,
-  _________,____XX___,____XX___,
-  _________,____XXXXX,_XXXXX___,
-  _________,___XXXXXX,_XXXXXX__,
-  _________,___XX____,_____XX__,
-  _________,__XX_____,______XX_,
-  _________,__XX_____,______XX_,
-  _________,_XX______,_______XX,
-  _________,_XX______,_______XX,
-  _________,_________,_________,
-  _________,_________,_________,
-  */
   _________,_________,_________,
   _________,_________,_________,
   _____XXXX,_XX______,___XX____,
@@ -894,11 +897,14 @@ void AudioPatcherDisplay::RedrawKeyboard(int16_t x, int16_t y, bool upperCase)
 }
 
 
-void AudioPatcherDisplay::ShowKeyboard(int16_t x, int16_t y, const char* title /* = nullptr */)
+void AudioPatcherDisplay::ShowKeyboard(int16_t x, int16_t y, 
+                                       const char* title, /* = nullptr */
+                                       bool saveArea /* = true */)
 {
   bool hasTitle = nullptr != title;
-  
-  SaveArea(x,y,KEY_SIZE*11 + 4,KEY_SIZE*4 + 4 + 30 + (hasTitle?25:0));
+
+  if (saveArea)
+    SaveArea(x,y,KEY_SIZE*11 + 4,KEY_SIZE*4 + 4 + 30 + (hasTitle?25:0));
   InitArea(savedArea.x,savedArea.y,savedArea.w,savedArea.h,hasTitle);
 
   if (hasTitle)

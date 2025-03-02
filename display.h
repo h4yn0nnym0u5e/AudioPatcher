@@ -28,7 +28,7 @@
 #define PATCHCORD_HIGHLIGHT  0xFC04 // orange
 #define EDIT_BKGND           0x528A // darker grey
 #define KEY_CAP_COLOUR       ILI9341_LIGHTGREY
-#define KEY_ACTIVE_BKGND     0x0821 // very dark grey
+#define KEY_ACTIVE_BKGND     0x1042 // very dark grey
 
 //A 320x240x16-bit display takes 153,600 bytes to store
 class AudioPatcherDisplay
@@ -101,6 +101,7 @@ class AudioPatcherDisplay
     void ShowSelection(const char* txt, AudioCategory_e cat);
     void ShowBottomText(const char* txt, int colour = NOT_A_COLOUR);
     void ShowStatus(const char* txt,int16_t x,int16_t y, uint16_t colour);
+    void ShowAreaText(const char* txt, int xoff, int yoff, int row, int fg, int bg);
     void SaveStatus(void);
     void RestoreStatus(void) { RestoreArea(); }
 
@@ -119,6 +120,7 @@ class AudioPatcherDisplay
     // parameter settings box is screen-relative
     void SaveArea(int16_t x, int16_t y, int16_t w, int16_t h);
     void InitArea(int16_t x, int16_t y, int16_t w, int16_t h, bool withHeader = true);
+    void GetArea(int16_t& x, int16_t& y, int16_t& w, int16_t& h);
     void RestoreArea(void);
     void ShowTitle(const char* t, int16_t xoff, int16_t yoff);
     void ShowVoiceFlag(bool flag);
@@ -132,7 +134,7 @@ class AudioPatcherDisplay
     char ShowKey(size_t r, size_t c, int16_t fg, int16_t bg, bool upr = false);
     char ShowKey(keyInfo key, int16_t fg, int16_t bg, bool upr = false);
     char ShowBitmapKey(int16_t x, int16_t y, int16_t fg, int16_t bg, const uint8_t* bitmap);
-    void ShowKeyboard(int16_t x, int16_t y, const char* title = nullptr);
+    void ShowKeyboard(int16_t x, int16_t y, const char* title = nullptr,bool saveArea = true);
     void RedrawKeyboard(int16_t x, int16_t y, bool upperCase);
     void RedrawKeyboard(bool upperCase) { RedrawKeyboard(keyboard_x, keyboard_y, upperCase); }
     keyInfo KeyAt(int16_t x, int16_t y);
