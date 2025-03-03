@@ -174,6 +174,19 @@ class MIDIEditor : public BaseEditor
     void exit(void); 
 };
 
+class FileListEntry
+{
+  public:
+    FileListEntry(String nm, bool dr) : name{nm}, isDir{dr} {}
+    String name;
+    bool isDir;
+    friend bool operator<(const FileListEntry& lhs, const FileListEntry& rhs)
+    {
+      if (lhs.isDir && !rhs.isDir) return true;
+      return lhs.name < rhs.name;
+    }
+};
+
 class FileEditor : public BaseEditor
 {
     static const int MAX_FILE_NAME = 15;
@@ -182,11 +195,12 @@ class FileEditor : public BaseEditor
     static const char NAME_EOL = '\r';
     LimitedEncoder& enc0, &enc1, &enc2;
     int state, idx;
-    std::vector<String> fileList;
+    std::vector<FileListEntry> fileList;
     char fileName[MAX_FILE_NAME+1];
     char filePath[MAX_FILE_PATH+1];
     bool keyboardVisible, upperCase;
 
+    enum class mode_e {load,save,del,dir} mode;
     void showMode(bool zapCurrent = true);
     void save(const char* nme);
     void load(const char* nme);
@@ -195,7 +209,7 @@ class FileEditor : public BaseEditor
     int getLast(char* buf, int maxn);
     void setLast(const char* nme);
 
-    void createFileList(const char* path);
+    void createFileList(const char* path, mode_e mode);
     void clearFileList(void);
     void showFileList(const int item, bool showAll = false);
     int fileListTop, fileListCurrent;

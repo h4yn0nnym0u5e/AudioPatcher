@@ -28,6 +28,7 @@
 #define PATCHCORD_HIGHLIGHT  0xFC04 // orange
 #define EDIT_BKGND           0x528A // darker grey
 #define KEY_CAP_COLOUR       ILI9341_LIGHTGREY
+#define DIR_NAME_COLOUR      0x27E4 // pale green
 #define KEY_ACTIVE_BKGND     0x1042 // very dark grey
 
 //A 320x240x16-bit display takes 153,600 bytes to store

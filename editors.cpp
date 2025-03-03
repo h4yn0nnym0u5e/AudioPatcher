@@ -1346,18 +1346,29 @@ void FileEditor::showFileList(const int item, bool showAll)
   
   if (showAll)
   {
-    for (int i=0;i<=MAX_FILE_LINE;i++)
+    for (int i=0;i<=MAX_FILE_LINE && i+fileListTop < (int) fileList.size();i++)
     {
-      display.ShowAreaText(fileList.at(i+fileListTop).c_str(),5,27,i,KEY_CAP_COLOUR,
-          i==(item - fileListTop)
-            ?KEY_ACTIVE_BKGND
-            :EDIT_BKGND);
+      display.ShowAreaText(fileList.at(i+fileListTop).name.c_str(),5,27,i,
+                           fileList.at(i+fileListTop).isDir
+                              ?DIR_NAME_COLOUR
+                              :KEY_CAP_COLOUR,
+                           i==(item - fileListTop)
+                              ?KEY_ACTIVE_BKGND
+                              :EDIT_BKGND);
     }    
   }
   else
   {
-    display.ShowAreaText(fileList.at(fileListCurrent).c_str(),5,27,fileListCurrent - fileListTop,KEY_CAP_COLOUR,EDIT_BKGND);
-    display.ShowAreaText(fileList.at(item           ).c_str(),5,27,item            - fileListTop,KEY_CAP_COLOUR,KEY_ACTIVE_BKGND);        
+    display.ShowAreaText(fileList.at(fileListCurrent).name.c_str(),5,27,fileListCurrent - fileListTop,
+                        fileList.at(fileListCurrent).isDir
+                            ?DIR_NAME_COLOUR
+                            :KEY_CAP_COLOUR,
+                        EDIT_BKGND);
+    display.ShowAreaText(fileList.at(item           ).name.c_str(),5,27,item            - fileListTop,
+                        fileList.at(item).isDir
+                            ?DIR_NAME_COLOUR
+                            :KEY_CAP_COLOUR,
+                        KEY_ACTIVE_BKGND);        
   }
   
   fileListCurrent = item;
@@ -1368,42 +1379,54 @@ void FileEditor::showMode(bool zapCurrent /* = true */)
 {
   char buffer[5+MAX_FILE_NAME+1];
   int theMode = enc0.getValue();
+  mode = (mode_e) theMode;
   
-  if (theMode) // saving - show keyboard to create filename
+  switch (mode) // saving - show keyboard to create filename
   {
-    display.ShowKeyboard(20,40,"File name",!keyboardVisible);
-    keyboardVisible = true;
-  }
-  else
-  {
-    int16_t x = 20, y = 40, w = 25*11+4, h = 25*4+30+25;
-    if (!keyboardVisible)
-      display.SaveArea(x,y,w,h);
-    display.InitArea(x,y,w,h);
-    display.ShowTitle("File list",5,5);
+    case mode_e::save:
+      display.ShowKeyboard(20,40,"File name",!keyboardVisible);
+      keyboardVisible = true;
+      break;
 
-    if (zapCurrent)
-    {
-      clearFileList();
-      createFileList(filePath);
-      enc1.setLimits(0, fileList.size()-1);
-      enc1.setValue(0);
-      fileListTop = 0;
-      fileListCurrent = -1;
-    }
-    showFileList(enc1.getValue(), true);
-    
-    keyboardVisible = true;
-  }
+    case mode_e::load:
+    case mode_e::del:
+    case mode_e::dir:
+    {     
+      int16_t x = 20, y = 40, w = 25*11+4, h = 25*4+30+25;
+      if (!keyboardVisible)
+        display.SaveArea(x,y,w,h);
+      display.InitArea(x,y,w,h);
+      display.ShowTitle(mode_e::dir == mode
+                                    ?"Folder list"
+                                    :"File list",
+                        5,5);
   
-  sprintf(buffer,"%s:%s",theMode?"save":"load",fileName);
+      if (zapCurrent)
+      {
+        clearFileList();
+        createFileList(filePath, mode);
+        enc1.setLimits(0, fileList.size()-1);
+        enc1.setValue(0);
+        fileListTop = 0;
+        fileListCurrent = -1;
+      }
+      showFileList(enc1.getValue(), true);
+      
+      keyboardVisible = true;
+    }
+      break;
+  }
+  const char* labels[] ={"load", "save", " del", " dir"};
+  sprintf(buffer,"%s:%s",labels[(int) mode],fileName);
   display.ShowBottomText(buffer,display.getModeColour());
 }
 
-FLASHMEM void FileEditor::createFileList(const char* path)
+FLASHMEM void FileEditor::createFileList(const char* path, mode_e theMode)
 {
   File root = SD.open(path);
 
+  fileList.push_back({"..",true});
+    
   while (true)
   {
     File entry = root.openNextFile();
@@ -1414,10 +1437,18 @@ FLASHMEM void FileEditor::createFileList(const char* path)
     {
       String nme = String(entry.name());
 
-      if (!nme.startsWith('!') && nme.endsWith(".txt")) // ignore !last.txt, thing.exe etc.
+      if (!nme.startsWith('!')) // ignore ! at start
       {
-        nme.replace(".txt","");
-        fileList.push_back(nme);
+        if (entry.isDirectory())
+          fileList.push_back({nme, true});
+        else
+        {
+          if (nme.endsWith(".txt")) // ignore !last.txt, thing.exe etc.
+          {
+            nme.replace(".txt","");
+            fileList.push_back({nme,false});
+          }
+        }
       }
     }
   }
@@ -1435,7 +1466,7 @@ FLASHMEM void FileEditor::clearFileList(void)
 
 FLASHMEM void FileEditor::enter(void)
 {
-  enc0.setLimits(0,1); // load or save
+  enc0.setLimits(0,3); // load or save
   enc0.setValue(0);
   keyboardVisible = false;
 
@@ -1470,7 +1501,7 @@ FLASHMEM void FileEditor::newKey(AudioPatcherDisplay::keyInfo key)
 
 FLASHMEM void FileEditor::edit(void)
 {
-  if (keyboardVisible)
+  if (keyboardVisible && mode_e::save == mode)
   {
     if (touch.isTouched())
     {
@@ -1533,7 +1564,7 @@ FLASHMEM void FileEditor::edit(void)
     }
   }
 
-  // switch between load and save
+  // switch between load, save, del, dir
   if (enc0.available())
     showMode();  
   
@@ -1543,30 +1574,37 @@ FLASHMEM void FileEditor::edit(void)
   {
     if (1 == state)
     {
-      if (1 == enc0.getValue()) // save
+      switch (mode)
       {
-        save(fileName);
-        Serial.printf("\nCheck load of patch %s:\n",fileName);
-        dump(fileName);
-        Serial.println("---------------\n");        
-      }
-      else
-      {
-        strcpy(fileName,fileList.at(enc1.getValue()).c_str());
-        display.RestoreArea();
-        keyboardVisible = false;
-        load(fileName);
-        setLast(fileName);
-        Serial.println("---------------\n");
-        delay(250);
-        showMode(false);
+        case mode_e::save:
+          save(fileName);
+          Serial.printf("\nCheck load of patch %s:\n",fileName);
+          dump(fileName);
+          Serial.println("---------------\n");
+          break;
+
+        case mode_e::load:
+          strcpy(fileName,fileList.at(enc1.getValue()).name.c_str());
+          display.RestoreArea();
+          keyboardVisible = false;
+          load(fileName);
+          setLast(fileName);
+          Serial.println("---------------\n");
+          delay(250);
+          showMode(false);
+          break;
+
+        case mode_e::del:
+          Serial.printf("Delete %s\n", fileList.at(enc1.getValue()).name.c_str());
+          break;
+          
+          
       }
       state = 0;
     }
   }
 
-
-  // scroll through file list, if we're on the "load" screen
-  if (enc1.available() && 0 == enc0.getValue())
+  // scroll through file list, if we're not on the "save" screen
+  if (enc1.available() && mode_e::save != mode)
     showFileList(enc1.getValue());  
 }
