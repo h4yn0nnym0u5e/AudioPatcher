@@ -1403,11 +1403,17 @@ void FileEditor::showMode(bool zapCurrent /* = true */)
   
       if (zapCurrent)
       {
+        int i;
         clearFileList();
         createFileList(filePath, mode);
         enc1.setLimits(0, fileList.size()-1);
-        enc1.setValue(0);
-        fileListTop = 0;
+        for (i=1;i < (int) fileList.size();i++)
+          if (!fileList.at(i).isDir)
+            break;
+        if (fileList.at(i).isDir) // no files, only folders
+          i = 0 == fileList.size()?0:1;
+        enc1.setValue(i);
+        fileListTop = -MAX_FILE_LINE-1; 
         fileListCurrent = -1;
       }
       showFileList(enc1.getValue(), true);
@@ -1568,7 +1574,7 @@ FLASHMEM void FileEditor::edit(void)
   if (enc0.available())
     showMode();  
   
-  if (enc0.getButton() || enc1.getButton())
+  if (enc0.getButton())
     state = 1;
   else
   {
@@ -1584,18 +1590,51 @@ FLASHMEM void FileEditor::edit(void)
           break;
 
         case mode_e::load:
-          strcpy(fileName,fileList.at(enc1.getValue()).name.c_str());
-          display.RestoreArea();
-          keyboardVisible = false;
-          load(fileName);
-          setLast(fileName);
-          Serial.println("---------------\n");
-          delay(250);
-          showMode(false);
+        {
+          FileListEntry& entry = fileList.at(enc1.getValue());
+
+          if (entry.isDir)
+          {
+            bool reRead = false;
+            if (entry.name == "..") // go up one level, if possible
+            {
+              char* lastSlash = strrchr(filePath,'/');
+              if (lastSlash != filePath)
+              {
+                *lastSlash = 0;
+                reRead = true; 
+              }
+            }
+            else
+            {
+              char buf[MAX_FILE_PATH+1];
+              if (strlen(filePath) + 1+ entry.name.length() <= MAX_FILE_PATH)
+              {
+                sprintf(buf,"%s/%s",filePath,entry.name.c_str());
+                strcpy(filePath,buf);
+                reRead = true;
+              }
+            }
+
+            if (reRead) // changed directory
+              showMode(true);
+          }
+          else
+          {
+            strcpy(fileName,entry.name.c_str());
+            display.RestoreArea();
+            keyboardVisible = false;
+            load(fileName);
+            setLast(fileName);
+            Serial.println("---------------\n");
+            delay(250);
+            showMode(false);
+          }
+        }
           break;
 
         case mode_e::del:
-          Serial.printf("Delete %s\n", fileList.at(enc1.getValue()).name.c_str());
+          Serial.printf("Delete %s/%s\n", filePath,fileList.at(enc1.getValue()).name.c_str());
           break;
           
           
