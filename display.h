@@ -120,6 +120,7 @@ class AudioPatcherDisplay
                           int16_t& sx, int16_t& sy, int16_t& dx, int16_t& dy);
     
     // parameter settings box is screen-relative
+    bool SaveAreaToBuffer(int16_t x, int16_t y, int16_t w, int16_t h,  uint16_t* buf);
     void SaveArea(int16_t x, int16_t y, int16_t w, int16_t h);
     void InitArea(int16_t x, int16_t y, int16_t w, int16_t h, bool withHeader = true);
     void GetArea(int16_t& x, int16_t& y, int16_t& w, int16_t& h);

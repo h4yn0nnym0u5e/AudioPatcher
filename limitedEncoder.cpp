@@ -4,6 +4,7 @@ bool LimitedEncoder::available(int stepBy)
 {
   bool result = false;
   int32_t dv = enc.getIncrement(channel);
+  int32_t oldValue = value;
 
   if (dv != 0 || valueSet)
   {
@@ -30,7 +31,7 @@ bool LimitedEncoder::available(int stepBy)
           value = upper;
           valuex2 = value*2;
         }
-        result = true;
+        result = value != oldValue;
       }
     }
   }

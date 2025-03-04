@@ -1058,6 +1058,18 @@ FLASHMEM int FileEditor::getLast(char* buf, int maxn)
 }
 
 
+FLASHMEM void FileEditor::del(const char* nme)
+{
+  char buffer[200];
+  File saveTo;
+  int count;
+
+  makeFFP(buffer, basePath, filePath, nme, ".txt");
+  Serial.printf("Delete %s\n", buffer);
+  SD.remove(buffer);
+}
+
+
 FLASHMEM void FileEditor::save(const char* nme)
 {
   char buffer[200];
@@ -1333,7 +1345,12 @@ FLASHMEM int FileEditor::loadLast(void)
     nme = strrchr(buf, '/');  // find file leaf name
     if (nullptr != nme) // there was a path separator
     {
-      if (nme != path) // if file is not at base...
+      if (nme == path) // if file is at base...
+      {
+          nme++; // filename is everything after the separator        
+          filePath[0] = 0; // start at base path
+      }
+      else
       {
         *nme = 0; // replace separator with terminator
         nme++; // point to leaf name
@@ -1341,7 +1358,7 @@ FLASHMEM int FileEditor::loadLast(void)
           strcpy(filePath, path + 1); // copy path, omitting leading /
         else
           filePath[0] = 0; // start at base path
-      }
+      }      
     }
     else
       nme = buf;
@@ -1608,7 +1625,6 @@ FLASHMEM void FileEditor::edit(void)
         {
           TS_Point p = touch.getLastPoint();
           AudioPatcherDisplay::keyInfo line = display.LineAt(p.x,p.y,FILE_X_OFF,FILE_Y_OFF);
-          Serial.print(line.ch);
           if (line.ch >= -2)
             enc1.setValue(line.ch + fileListTop, true); // fake encoder jump to new value
         }
@@ -1673,6 +1689,7 @@ FLASHMEM void FileEditor::edit(void)
             else
             {
               strcpy(fileName, entry.name.c_str());
+              idx = strlen(fileName);
               display.RestoreArea();
               keyboardVisible = false;
               load(fileName);
@@ -1685,7 +1702,14 @@ FLASHMEM void FileEditor::edit(void)
           break;
 
         case mode_e::del:
-          Serial.printf("Delete %s/%s\n", filePath, fileList.at(enc1.getValue()).name.c_str());
+          if (!fileList.at(enc1.getValue()).isDir)
+          {
+Serial.printf("Delete %s/%s\n", filePath, fileList.at(enc1.getValue()).name.c_str());
+            del(fileList.at(enc1.getValue()).name.c_str());
+            fileList.erase(fileList.begin() + enc1.getValue());
+            enc1.setLimits(0, fileList.size()-1);
+            showMode(false);
+          }
           break;
 
 

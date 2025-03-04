@@ -212,6 +212,7 @@ class FileEditor : public BaseEditor
     void showMode(bool zapCurrent = true);
     void save(const char* nme);
     void load(const char* nme);
+    void del(const char* nme);
     void dump(const char* nme);
     
     int getLast(char* buf, int maxn);

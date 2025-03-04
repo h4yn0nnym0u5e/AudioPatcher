@@ -309,6 +309,59 @@ void updateStatus(void)
 //======================================================================
 void loop() 
 {
+  //-------------------------------------------------
+  // Hacky screen dump code
+  static bool b6state = false;
+  if (encr.getButton(6))
+  {
+    b6state = true;
+  }
+  else
+  {
+    if (b6state)
+    {
+      Serial.printf("Current screen dump");
+      b6state = false;
+      uint16_t* scrbuf;
+      size_t sz = 320*240 * sizeof *scrbuf;
+      scrbuf = (uint16_t*) malloc(sz);
+      if (nullptr != scrbuf)
+      {
+        // find a non-existent file name
+        static int fnum = 0;
+        char buf[50];
+        do
+        {
+          sprintf(buf,"/dumps/%05d.bin",fnum);
+          if (!SD.exists(buf))
+            break;
+          fnum++;
+        } while (1);
+  
+        display.SaveAreaToBuffer(0,0,320,240,scrbuf);
+        uint32_t sum = 0;
+        for (size_t i = 0;i<sz/sizeof *scrbuf;i++)
+          sum += scrbuf[i];
+        File dmp = SD.open(buf,FILE_WRITE);
+
+        if (dmp)
+        {
+          dmp.write(scrbuf,sz);
+          dmp.close();
+          Serial.printf("ed to '%s'; sum = %u\n",buf,sum);
+        }
+        else
+          Serial.println(" failed - no file");
+        
+        free(scrbuf);
+      }
+      else
+        Serial.println(" failed - no memory");
+    }
+  }
+
+  //-------------------------------------------------
+  // enter debugger, or reset system
   if (encr.getButton(7))
 #if defined(GDB_IS_ENABLED)
     halt_cpu();
@@ -316,6 +369,7 @@ void loop()
     doReboot();   
 #endif // defined(GDB_IS_ENABLED)
 
+  //-------------------------------------------------
   if (!initialised)
   {
     enc2.setValue(enc2.getValue()); // ensures it's valid!
@@ -325,6 +379,7 @@ void loop()
     printHL();
   }
     
+  //-------------------------------------------------
   // Change mode of operation
   if ((!modeEncoderLocked && encM.available()) || !initialised)
   {
@@ -371,6 +426,7 @@ void loop()
   if (!initialised)
     initialised = true;
 
+  //-------------------------------------------------
   patcherMIDI.update();
   updateStatus();    
 }
