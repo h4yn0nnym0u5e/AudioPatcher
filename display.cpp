@@ -518,19 +518,18 @@ void AudioPatcherDisplay::ShowBottomText(const char* txt, int colour /* = modeCo
 
 void AudioPatcherDisplay::ShowAreaText(const char* txt, int xoff, int yoff, int row, int fg, int bg)
 {
-  const int EXTRA = 2;
   int eraseTo = savedArea.w - xoff - 5;
   xoff += savedArea.x;
   
   tft.setFontAdafruit();
   tft.setTextSize(2);
   int16_t tw = tft.measureTextWidth(txt),
-          th = tft.fontLineSpace()+EXTRA; // assume it's going to fit on one line!
+          th = tft.fontLineSpace()+AREA_EXTRA; // assume it's going to fit on one line!
   yoff += savedArea.y + row*th;
   tft.setTextColor(fg,bg);
   tft.setCursor(xoff,yoff);
   tft.print(txt);
-  tft.fillRect(xoff,yoff+th-EXTRA,tw,EXTRA, bg);
+  tft.fillRect(xoff,yoff+th-AREA_EXTRA,tw,AREA_EXTRA, bg);
   tft.fillRect(xoff+tw,yoff,eraseTo - tw,th, bg);
 }
 
@@ -956,6 +955,28 @@ AudioPatcherDisplay::keyInfo AudioPatcherDisplay::KeyAt(int16_t x, int16_t y)
   return result;
 }
 
+AudioPatcherDisplay::keyInfo AudioPatcherDisplay::LineAt(int16_t x, int16_t y, int16_t xoff, int16_t yoff)
+{
+  keyInfo result = {-99}; // assume a miss
+
+  int16_t xr = x - savedArea.x - xoff;
+  
+  if (xr >= 0 && xr <= savedArea.w)
+  {
+    // need to set font to get correct sizes
+    tft.setFontAdafruit();
+    tft.setTextSize(2);
+    int16_t th = tft.fontLineSpace()+AREA_EXTRA; // assume it's going to fit on one line!  
+    int16_t yr = y - savedArea.y - yoff;
+    if (yr < 0)
+      yr -= th;
+    yr /= th;
+
+    result = {yr,x,y};
+  }
+
+  return result;
+}
 //=================================================================================================
 bool AudioPatcherTouch::isTouched(void)
 { 

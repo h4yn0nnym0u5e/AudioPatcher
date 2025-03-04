@@ -64,6 +64,7 @@ class AudioPatcherDisplay
     static const int16_t OBJECT_SIZE = 48;
     static const int16_t KEY_SIZE = 25;
     static const int16_t KEY_STAGGER = KEY_SIZE / 3;
+    static const int16_t AREA_EXTRA = 2;
     
     void GetCursorSaveParams(const int16_t x, const int16_t y, int16_t& cxr, int16_t& cyr, int16_t& cw, int16_t& ch);
     bool objIsOnScreen(int16_t x, int16_t y, int16_t w = OBJECT_SIZE, int16_t h = OBJECT_SIZE); // call after canvas co-ordinate transformation
@@ -139,6 +140,7 @@ class AudioPatcherDisplay
     void RedrawKeyboard(int16_t x, int16_t y, bool upperCase);
     void RedrawKeyboard(bool upperCase) { RedrawKeyboard(keyboard_x, keyboard_y, upperCase); }
     keyInfo KeyAt(int16_t x, int16_t y);
+    keyInfo LineAt(int16_t x, int16_t y, int16_t xoff, int16_t yoff);
 };
 
 

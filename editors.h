@@ -189,10 +189,16 @@ class FileListEntry
 
 class FileEditor : public BaseEditor
 {
+    // file names
     static const int MAX_FILE_NAME = 15;
     static const int MAX_FILE_PATH = 42;
-    static const int MAX_FILE_LINE =  6;
     static const char NAME_EOL = '\r';
+
+    // file selection window
+    static const int MAX_FILE_LINE =  6;
+    static const int FILE_X_OFF =  5;
+    static const int FILE_Y_OFF = 27;
+    
     LimitedEncoder& enc0, &enc1, &enc2;
     int state, idx;
     std::vector<FileListEntry> fileList;
@@ -202,7 +208,7 @@ class FileEditor : public BaseEditor
     size_t basePathLen;
     bool keyboardVisible, upperCase;
 
-    enum class mode_e {load,save,del,dir} mode;
+    enum class mode_e {load,save,del} mode;
     void showMode(bool zapCurrent = true);
     void save(const char* nme);
     void load(const char* nme);

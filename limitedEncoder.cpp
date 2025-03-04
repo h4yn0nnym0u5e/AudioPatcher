@@ -5,8 +5,12 @@ bool LimitedEncoder::available(int stepBy)
   bool result = false;
   int32_t dv = enc.getIncrement(channel);
 
-  if (dv != 0)
+  if (dv != 0 || valueSet)
   {
+    // deal with injected encoder value
+    result = valueSet;
+    valueSet = false;
+    
     //Serial.printf("dv=%d: ",dv);
     if (dv != (int32_t) 0xDEADBEEF)
     {
@@ -30,10 +34,11 @@ bool LimitedEncoder::available(int stepBy)
       }
     }
   }
+  
   return result;
 }
 
-void LimitedEncoder::setValue(int32_t v) 
+void LimitedEncoder::setValue(int32_t v, bool makeAvailable /* = false */) 
 { 
   value = v; 
   
@@ -43,6 +48,8 @@ void LimitedEncoder::setValue(int32_t v)
     value = upper;
     
   valuex2 = (value*2 | (valuex2 & 1)); 
+
+  valueSet = makeAvailable;
 }
 
 void LimitedEncoder::setLimits(const int32_t l, const int32_t u)
