@@ -198,6 +198,8 @@ class FileEditor : public BaseEditor
     std::vector<FileListEntry> fileList;
     char fileName[MAX_FILE_NAME+1];
     char filePath[MAX_FILE_PATH+1];
+    const char* basePath;
+    size_t basePathLen;
     bool keyboardVisible, upperCase;
 
     enum class mode_e {load,save,del,dir} mode;
@@ -218,12 +220,16 @@ class FileEditor : public BaseEditor
     FileEditor(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2, 
             AudioPatcherDisplay& d,
             std::vector<AudioObjInstancePtr>& o,
-            std::vector<PatchcordInstance_t*>& p
+            std::vector<PatchcordInstance_t*>& p,
+            const char* bp
             )
             : BaseEditor(d,o,p),
             enc0(e0), enc1(e1), enc2(e2),
-            state(0), idx(-1), fileName{0}, filePath{"/patches"}
-            {}
+            state(0), idx(-1), 
+            fileName{0}, basePath{bp}
+            {
+              basePathLen = strlen(basePath);
+            }
     void edit(void);
     void enter(void);
     void exit(void); 

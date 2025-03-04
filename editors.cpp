@@ -1002,15 +1002,19 @@ FLASHMEM void DeleteEditor::ShowSelection(int op)
 
 //======================================================================
 //======================================================================
+static const char* lastFile = "!last.txt";
+static const size_t LAST_FILE_LEN = 9;
 FLASHMEM void FileEditor::setLast(const char* nme)
 {
   File saveTo;
-  
-  saveTo = SD.open("/patches/!last.txt",FILE_WRITE_BEGIN);
+  char buf[basePathLen + LAST_FILE_LEN + 1];
+
+  sprintf(buf,"%s/%s", basePath,lastFile);  
+  saveTo = SD.open(buf,FILE_WRITE_BEGIN);
   if (saveTo)
   {
     saveTo.truncate();
-    saveTo.printf("%s/%s%c",filePath,nme,NAME_EOL);
+    saveTo.printf("%s/%s/%s%c",basePath,filePath,nme,NAME_EOL);
     saveTo.close();
   }
 }
@@ -1021,8 +1025,11 @@ FLASHMEM int FileEditor::getLast(char* buf, int maxn)
 {
   int result = -1;
   File loadFrom;
+  char lastFFP[basePathLen + LAST_FILE_LEN + 1];
+
+  sprintf(lastFFP,"%s/%s", basePath,lastFile);  
   
-  loadFrom = SD.open("/patches/!last.txt",FILE_READ);
+  loadFrom = SD.open(lastFFP,FILE_READ);
   if (loadFrom)
   {
     result = loadFrom.readBytesUntil(NAME_EOL,buf,maxn);
@@ -1039,7 +1046,7 @@ FLASHMEM void FileEditor::save(const char* nme)
   File saveTo;
   int count;
 
-  sprintf(buffer,"%s/%s.txt",filePath,nme);
+  sprintf(buffer,"%s/%s/%s.txt",basePath,filePath,nme);
   Serial.printf("Save to %s\n",buffer);
   SD.remove(buffer);
   saveTo = SD.open(buffer,FILE_WRITE_BEGIN);
@@ -1123,7 +1130,7 @@ FLASHMEM void FileEditor::dump(const char* nme)
   char buffer[100];
   File loadFrom;
 
-  sprintf(buffer,"%s/%s.txt",filePath,nme);
+  sprintf(buffer,"%s/%s/%s.txt",basePath,filePath,nme);
   loadFrom = SD.open(buffer,FILE_READ);
 
   if (loadFrom)
@@ -1153,7 +1160,7 @@ FLASHMEM void FileEditor::load(const char* nme)
   char buffer[200];
   File loadFrom;
 
-  sprintf(buffer,"%s/%s.txt",filePath,nme);
+  sprintf(buffer,"%s/%s/%s.txt",basePath,filePath,nme);
   Serial.printf("Load from %s\n",buffer);
   loadFrom = SD.open(buffer,FILE_READ);
 
@@ -1294,26 +1301,28 @@ FLASHMEM void FileEditor::load(const char* nme)
 
 FLASHMEM int FileEditor::loadLast(void)
 {
-  char buf[MAX_FILE_PATH+1+MAX_FILE_NAME+1];
-  int result = getLast(buf,MAX_FILE_PATH+1+MAX_FILE_NAME);
+  const size_t BUF_LEN = basePathLen+MAX_FILE_PATH+1+MAX_FILE_NAME+1;
+  char buf[BUF_LEN];  // maximum possible (?)
+  int result = getLast(buf,BUF_LEN);
 
   if (result > 0)
   {
-    char* nme;
+    char* nme, *path;
 
     Serial.printf("Last file was: '%s'\n",buf);
-    buf[MAX_FILE_PATH+1+MAX_FILE_NAME] = 0; // ensure string is terminated
-    nme = strrchr(buf,'/'); // find file leaf name
+    buf[BUF_LEN-1] = 0; // ensure string is terminated
+    path = strchr(buf+1,'/'); // start of path, after basePath
+    nme = strrchr(buf,'/');   // find file leaf name
     if (nullptr != nme) // there was a path separator
     {
-      if (nme != buf) // if file is not at root...
+      if (nme != path) // if file is not at base...
       {
         *nme = 0; // replace separator with terminator
-        nme++;
-        if (strlen(buf) < sizeof filePath)
-          strcpy(filePath,buf);  // copy path
+        nme++; // point to leaf name
+        if (strlen(path) < sizeof filePath)
+          strcpy(filePath,path+1);  // copy path, omitting leading /
         else
-          strcpy(filePath,PATCH_ROOT);          
+          filePath[0] = 0; // start at base path
       }
     }
     else
@@ -1429,7 +1438,12 @@ void FileEditor::showMode(bool zapCurrent /* = true */)
 
 FLASHMEM void FileEditor::createFileList(const char* path, mode_e theMode)
 {
-  File root = SD.open(path);
+  File root; 
+  size_t plen = strlen(path);
+  char buf[basePathLen + 1+ plen + 1];
+
+  sprintf(buf,"%s/%s",basePath,path);
+  root = SD.open(buf);
 
   fileList.push_back({"..",true});
     
@@ -1599,21 +1613,26 @@ FLASHMEM void FileEditor::edit(void)
             if (entry.name == "..") // go up one level, if possible
             {
               char* lastSlash = strrchr(filePath,'/');
+              
               if (lastSlash != filePath)
               {
+                if (nullptr == lastSlash) // no path separator...
+                  lastSlash = filePath;   // ... path has become empty
                 *lastSlash = 0;
                 reRead = true; 
               }
             }
             else
             {
-              char buf[MAX_FILE_PATH+1];
-              if (strlen(filePath) + 1+ entry.name.length() <= MAX_FILE_PATH)
-              {
-                sprintf(buf,"%s/%s",filePath,entry.name.c_str());
+              const size_t BUF_LEN = basePathLen + 1 + MAX_FILE_PATH + 1 + MAX_FILE_NAME + 1;
+              char buf[BUF_LEN];
+              
+              sprintf(buf,"%s/%s",filePath,entry.name.c_str()); // append path element
+              if (buf[0] == '/') // old path was empty
+                strcpy(filePath,buf+1); // don't prepend /
+              else
                 strcpy(filePath,buf);
-                reRead = true;
-              }
+              reRead = true;
             }
 
             if (reRead) // changed directory

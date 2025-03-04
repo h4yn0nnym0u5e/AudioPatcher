@@ -218,6 +218,7 @@ void setMuteStatus(bool mute)
 
 /********************************************************************************************************/
 const char* modes = "OPEMDF"; // objects, patchcords, editing, MIDI config, deleting, filing
+const char* patchBase = "/patches";
 LimitedEncoder encM{encr,0,0,(int32_t) strlen(modes)-1}; // mode
 LimitedEncoder enc0{encr,1,0,31}; // x position in steps of 10
 LimitedEncoder enc1{encr,2,0,23}; // y position in steps of 10
@@ -230,7 +231,7 @@ CordEditor cordEditor(enc0,enc1,enc2,display,objVec,cordVec,objList);
 ParamEditor paramEditor(enc0,enc1,enc2,display,objVec,cordVec);
 MIDIEditor midiEditor(enc0,display,objVec,cordVec);
 DeleteEditor deleteEditor(enc0,enc1,enc2,display,objVec,cordVec);
-FileEditor fileEditor(enc0,enc1,enc2,display,objVec,cordVec);
+FileEditor fileEditor(enc0,enc1,enc2,display,objVec,cordVec,patchBase);
 
 // char dummy_buffer[34000];
 
