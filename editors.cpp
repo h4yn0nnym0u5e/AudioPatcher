@@ -33,15 +33,16 @@ FLASHMEM AudioObjInstance* BaseEditor::highlightObjnum(int n, uint16_t colour)
 }
 
 // Draw all objects, keeping the bottom line intact
-FLASHMEM void BaseEditor::drawAll(void)
+FLASHMEM void BaseEditor::drawAll(bool drawCords /* = true */)
 {
   display.SaveStatus();
 
   for (auto obj : objVec)
     display.DrawAudioObject(*obj.p);
 
-  for (auto cord : cordVec)
-    display.DrawPatchcord(cord);
+  if (drawCords)
+    for (auto cord : cordVec)
+      display.DrawPatchcord(cord);
 
   display.RestoreStatus();
 }
@@ -53,14 +54,16 @@ FLASHMEM void BaseEditor::drawAll(void)
 FLASHMEM int BaseEditor::PointToObject(int x, int y)
 {
   int result = -1;
+  AudioPatcherDisplay::side side;
 
   for (unsigned int i = 0; i < objVec.size(); i++)
-    if (display.PointIsInObj(*objVec.at(i).p, x, y))
+    if (AudioPatcherDisplay::side::out != (side = display.PointIsInObj(*objVec.at(i).p, x, y)))
     {
       result = (int) i;
       break;
     }
 
+  where = side; // store which side of the object we're in, for patchcord editor
   return result;
 }
 
@@ -272,6 +275,7 @@ FLASHMEM void CordEditor::ShowSelection(int io)
   sprintf(buf, "%s", io ? "dst" : "src");
   display.ShowSelection(buf, AudioCategory_patchcord);
   greyOut(io ? noDst : noSrc);
+  drawAll(false);
 }
 
 //----------------------------------------------------------------------
@@ -667,19 +671,18 @@ FLASHMEM void CordEditor::exit(void)
 {
   highlightObjnum(epIdx, ILI9341_BLACK);
   greyOut(nothing);
+  drawAll(false);
 }
 
 FLASHMEM void CordEditor::greyOut(srctype s)
 {
-  display.SaveStatus();
   for (auto obj : objVec)
   {
     bool grey = false;
     if (s == noSrc && 0 == obj.p->objP->outputs) grey = true;
     if (s == noDst && (0 == obj.p->objP->inputs || 0 == obj.p->inputAvailFlags))  grey = true;
-    display.DrawAudioObject(*obj.p, grey);
+    obj.p->drawInGrey = grey;
   }
-  display.RestoreStatus();
 }
 
 
@@ -1062,7 +1065,6 @@ FLASHMEM void FileEditor::del(const char* nme)
 {
   char buffer[200];
   File saveTo;
-  int count;
 
   makeFFP(buffer, basePath, filePath, nme, ".txt");
   Serial.printf("Delete %s\n", buffer);

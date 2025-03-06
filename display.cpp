@@ -224,14 +224,23 @@ bool AudioPatcherDisplay::objIsOnScreen(int16_t x, int16_t y, int16_t w, int16_t
 
 
 //=================================================================================================
-bool AudioPatcherDisplay::PointIsInObj(AudioObjInstance& aoi, int16_t x, int16_t y)
+AudioPatcherDisplay::side AudioPatcherDisplay::PointIsInObj(AudioObjInstance& aoi, int16_t x, int16_t y)
 {
+  side result = side::out;
   // transform screen point to canvas co-ordinates:
   x += canvas_x;
   y += canvas_y;
 
-  return aoi.x <= x && aoi.x+osize.ow >= x
-      && aoi.y <= y && aoi.y+osize.oh >= y;
+  if (aoi.x <= x && aoi.x+osize.ow >= x
+   && aoi.y <= y && aoi.y+osize.oh >= y)
+  {
+    if (x - aoi.x < osize.ow/2)
+      result = side::left;
+    else
+      result = side::right;
+  }
+
+  return result;
 }
 
 
@@ -395,6 +404,8 @@ void AudioPatcherDisplay::DrawPerVoice(AudioObjInstance& aoi, bool greyed)
 
 void AudioPatcherDisplay::DrawAudioObject(AudioObjInstance& aoi, bool greyed)
 { 
+  greyed = greyed || aoi.drawInGrey; // no ||= operator in C :(
+
   if (DrawAudioObject(*aoi.objP,aoi.x,aoi.y,greyed))
     DrawPerVoice(aoi,greyed); 
 }

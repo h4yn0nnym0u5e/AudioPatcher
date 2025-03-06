@@ -172,13 +172,14 @@ class AudioObjInstance
     ~AudioObjInstance();
     AudioObjStatic_t* objP;
     AudioObjPtr_u streamP;
-    void* context; // point to "stuff" needed by this instance: different for each audio object class
-    int16_t x;
-    int16_t y;
-    uint32_t inputAvailFlags; // let's be optimistic!
-    bool noDelete;
-    bool perVoice; // create copy of this object when new voice is triggered
-    bool isAcopy; // true if this object is a copy of one from the main design
+    void* context; //!< pointer to "stuff" needed by this instance: different for each audio object class
+    int16_t x; //!< X position on canvas
+    int16_t y; //!< Y position on canvas
+    uint32_t inputAvailFlags; //!< bit N set if input N is unconnected
+    bool noDelete; //!< do not delete object on patch load (I/O or control, usually)
+    bool perVoice; //!< create copy of this object when new voice is triggered
+    bool isAcopy; //!< true if this object is a copy of one from the main design
+    bool drawInGrey; //!< true if we want to "grey out" when drawing the object
     void copySettingsTo(AudioObjInstance& aoi);
     bool isCopyOf(AudioObjInstance& aoi);
 };

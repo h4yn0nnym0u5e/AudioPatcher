@@ -95,7 +95,8 @@ class AudioPatcherDisplay
     void DrawConnection(AudioObjStatic_t& o, int16_t x, int16_t y, int8_t n = 0, bool op = false, uint16_t colour = CONNECTION_COLOUR);
     void DrawPatchcord(AudioObjInstance& src, int8_t sp, AudioObjInstance& dst, int8_t dp, uint16_t colour = PATCHCORD_COLOUR);
     void DrawPatchcord(PatchcordInstance_t* cord, uint16_t colour = PATCHCORD_COLOUR) { DrawPatchcord(*cord->src,cord->src_port,*cord->dst,cord->dst_port, colour); }
-    bool PointIsInObj(AudioObjInstance& aoi, int16_t x, int16_t y);
+    enum class side {left = -1, out, right = +1};
+    side PointIsInObj(AudioObjInstance& aoi, int16_t x, int16_t y);
     int16_t PointDistanceToPatchcord(PatchcordInstance_t& cord, int16_t x, int16_t y);
     
     // bottom line doesn't move with canvas
