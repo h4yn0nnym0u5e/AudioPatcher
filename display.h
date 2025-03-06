@@ -97,6 +97,7 @@ class AudioPatcherDisplay
     void DrawPatchcord(PatchcordInstance_t* cord, uint16_t colour = PATCHCORD_COLOUR) { DrawPatchcord(*cord->src,cord->src_port,*cord->dst,cord->dst_port, colour); }
     enum class side {left = -1, out, right = +1};
     side PointIsInObj(AudioObjInstance& aoi, int16_t x, int16_t y);
+    int PointToPort(AudioObjInstance& aoi, int16_t x, int16_t y);
     int16_t PointDistanceToPatchcord(PatchcordInstance_t& cord, int16_t x, int16_t y);
     
     // bottom line doesn't move with canvas
@@ -152,17 +153,21 @@ extern AudioPatcherDisplay& display;
 
 class AudioPatcherTouch
 {
+    const int smoothFactor =  990;
+    const int smoothDivide = 1000;
     XPT2046_Touchscreen& ts;
     int screen_width, screen_height;
     int xl, yl, xh, yh;
     uint32_t touch_shift;
-    TS_Point lastPoint;
+    TS_Point lastPoint, smoothedPoint;
+    bool smoothedPointValid;
     enum {up, down, lifted} penState;
   public:
     AudioPatcherTouch(XPT2046_Touchscreen& _ts, int w, int h)
     : ts(_ts), screen_width(w), screen_height(h),
     xl(200), yl(200), xh(3800), yh(3800), // should be calibrated at some point
-    touch_shift(0)
+    touch_shift(0),
+    smoothedPointValid(false)
     {}
     bool begin(void) {bool result = ts.begin(); ts.setRotation(TCH_ROTATION); return result; }
     bool isTouched(void);
@@ -190,6 +195,23 @@ class AudioPatcherTouch
       //Serial.printf("%d,%d\n",p.x,p.y);
 
       return p;
+    }
+
+    TS_Point getSmoothedPoint(void)
+    {
+      if (smoothedPointValid)
+      {
+        smoothedPoint.x = (smoothedPoint.x * smoothFactor 
+                             + lastPoint.x * (smoothDivide - smoothDivide))
+                        / smoothDivide;
+        smoothedPoint.y = (smoothedPoint.y * smoothFactor 
+                             + lastPoint.y * (smoothDivide - smoothDivide))
+                         / smoothDivide;
+      }
+      else
+        smoothedPoint = lastPoint;
+
+      return smoothedPoint;
     }
 };
 

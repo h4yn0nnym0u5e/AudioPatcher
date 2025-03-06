@@ -10,6 +10,12 @@ AudioPatcherTouch touch{ts, 320, 240};
 
 using namespace AudioPatcherBitDefs;
 
+static void getInputPositions(AudioObjStatic_t& o, int16_t x, int16_t y, 
+  int16_t* ppx, int16_t* ppy, int16_t* pys);
+static void getOutputPositions(AudioObjStatic_t& o, int16_t x, int16_t y, 
+    int16_t* ppx, int16_t* ppy, int16_t* pys);
+  
+
 void AudioPatcherDisplay::Init(void)
 {
   pinMode(TCH_CS,OUTPUT);
@@ -243,6 +249,49 @@ AudioPatcherDisplay::side AudioPatcherDisplay::PointIsInObj(AudioObjInstance& ao
   return result;
 }
 
+int AudioPatcherDisplay::PointToPort(AudioObjInstance& aoi, int16_t x, int16_t y)
+{
+  int result = -1;
+  side theSide = side::out;
+  int16_t cx,cb,cs;
+  // transform screen point to canvas co-ordinates:
+  x += canvas_x;
+  y += canvas_y;
+
+  if (aoi.x <= x && aoi.x+osize.ow >= x
+   && aoi.y <= y && aoi.y+osize.oh >= y)
+  {
+    if (x - aoi.x < osize.ow/2)
+      theSide = side::left;
+    else
+      theSide = side::right;
+  }
+
+  if (side::out != theSide) // we are in the object
+  {
+    AudioObjStatic_t obj = *aoi.objP;   // what this object looks like
+    int numPorts;
+    int ySteps;
+
+    if (side::left == theSide)
+    {
+      getInputPositions(obj,aoi.x,aoi.y,&cx,&cb,&cs);
+      numPorts = obj.inputs;
+    }
+    else
+    {
+      getOutputPositions(obj,aoi.x,aoi.y,&cx,&cb,&cs);
+      numPorts = obj.outputs;
+    }
+
+    ySteps = (y - cb + cs/2)/cs; // how many port steps down we are
+    if (ySteps >= 0 && ySteps < numPorts)
+      result = ySteps;
+  }
+
+  return result;
+}
+
 
 int16_t AudioPatcherDisplay::PointDistanceToPatchcord(PatchcordInstance_t& cord, int16_t x, int16_t y)
 {
@@ -278,11 +327,14 @@ int16_t AudioPatcherDisplay::PointDistanceToPatchcord(PatchcordInstance_t& cord,
 }
 
 //=================================================================================================
-void getInputPositions(AudioObjStatic_t& o, int16_t x, int16_t y, 
-                       int16_t* ppx, int16_t* ppy, int16_t* pys)
+static void getInputPositions(AudioObjStatic_t& o, int16_t x, int16_t y, 
+                              int16_t* ppx, int16_t* ppy, int16_t* pys)
 {
-  int16_t cb,cs;
-  cs = (osize.oh - osize.ff) / o.inputs;
+  int16_t cb,cs,np = o.inputs;
+
+  if (np < 1)
+    np = 1;
+  cs = (osize.oh - osize.ff) / np;
   cb = y + (cs - osize.ch + osize.ff) / 2;
 
   *ppx = x+1;
@@ -291,11 +343,15 @@ void getInputPositions(AudioObjStatic_t& o, int16_t x, int16_t y,
 }
 
 
-void getOutputPositions(AudioObjStatic_t& o, int16_t x, int16_t y, 
-                       int16_t* ppx, int16_t* ppy, int16_t* pys)
+static void getOutputPositions(AudioObjStatic_t& o, int16_t x, int16_t y, 
+                               int16_t* ppx, int16_t* ppy, int16_t* pys)
 {
-  int16_t cb,cs;
-  cs = (osize.oh - osize.ff) / o.outputs;
+  int16_t cb,cs,np = o.outputs;
+
+  if (np < 1)
+    np = 1;
+
+  cs = (osize.oh - osize.ff) / np;
   cb = y + (cs - osize.ch + osize.ff) / 2;
 
   *ppx = x+osize.ow-osize.cw-1;
@@ -441,7 +497,7 @@ void AudioPatcherDisplay::DrawConnection(AudioObjStatic_t& o, int16_t x, int16_t
   x -= canvas_x; y -= canvas_y;
   
 #define BAD -999  
-  if (objIsOnScreen(x,y))
+  if (n >= 0 && objIsOnScreen(x,y))
   {
     int16_t cx = BAD,cb,cs;
     
@@ -1013,6 +1069,7 @@ bool AudioPatcherTouch::isTouched(void)
   }
   else
   {
+    smoothedPointValid = false;
     if (down == penState)
       penState = lifted;
   }

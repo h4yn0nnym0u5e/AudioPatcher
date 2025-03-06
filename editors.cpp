@@ -23,7 +23,7 @@ FLASHMEM AudioObjInstance* BaseEditor::highlightObjnum(int n, uint16_t colour)
 {
   AudioObjInstance* it = nullptr;
 
-  if (!objVec.empty() && n < (int) objVec.size())
+  if (!objVec.empty() && n >= 0 && n < (int) objVec.size())
   {
     it = objVec.at(n).p;
     highlightObj(it, colour);
@@ -87,6 +87,7 @@ FLASHMEM int BaseEditor::PointToCord(int x, int y)
   }
   return result;
 }
+
 
 // Change object selection based on encoder value,
 // or force selection to a specific value
@@ -186,7 +187,7 @@ FLASHMEM void ObjEditor::edit(void)
       display.canvasGetCurrent(cx, cy);
       create(enc2.getValue(), cx + x - 24, cy + y - 24);
 
-      AudioObjInstance* ao = objVec.back().p;;
+      AudioObjInstance* ao = objVec.back().p;
       display.CursorClear();
       display.DrawAudioObject(*ao);
       display.CursorRestore();
@@ -287,6 +288,13 @@ FLASHMEM void CordEditor::highlightPort(AudioObjInstance* aoi, int io, int n, bo
     display.DrawConnection(*aoi->objP, aoi->x, aoi->y, n, 0 == io, colour);
     // Serial.printf("highlight %s.%d: %s\n",io?"input":"output",n,on?"on":"off");
   }
+}
+
+
+FLASHMEM void CordEditor::highlightPort(int epIdx, int io, int n, bool on)
+{
+  if (epIdx >=0 && epIdx < (int) objVec.size())
+    highlightPort(objVec.at(epIdx).p, io, n, on);
 }
 
 //----------------------------------------------------------------------
@@ -473,6 +481,101 @@ FLASHMEM void CordEditor::edit(void)
   bool redrawSelected = false;
 
   //-----------------------------------------------
+  if (touch.isTouched())
+  {
+    TS_Point p = touch.getSmoothedPoint();
+    settings newTouch = {-1};
+    int objNum = PointToObject(p.x,p.y);
+
+    if (objNum > 0) // actually in an object
+    {
+      AudioObjInstance* aoi = objVec.at(objNum).p;
+
+      if (objNum != touchedObj.objNum) // not the same as before
+      {
+        SelectByEncoder(enc0,objNum);
+      }
+      newTouch.objNum = objNum;
+      newTouch.srcdst = getSide() == -1
+                            ?1  // left : destination
+                            :0; // right: source
+      newTouch.portNum = display.PointToPort(*objVec.at(objNum).p,p.x,p.y);
+
+      if (1 == newTouch.srcdst // destination
+        && newTouch.portNum >= 0
+        && 0 == (aoi->inputAvailFlags & (1<<newTouch.portNum)))
+        newTouch.portNum = -1; // is not available!
+      
+      // have we changed port? If so, redraw
+      if (newTouch.portNum >=0 && 
+          (newTouch.portNum != touchedObj.portNum
+        || newTouch.srcdst != touchedObj.srcdst))
+      {
+        highlightPort(touchedObj.objNum,touchedObj.srcdst,touchedObj.portNum,false);
+        touchedObj = newTouch;
+        highlightPort(touchedObj.objNum,touchedObj.srcdst,touchedObj.portNum,true);
+      }
+      else 
+        touchedObj = newTouch;
+    }
+    else // touched, but not in an object
+    {
+      if (touchedObj.objNum >= 0)
+      {
+        //highlightPort(objVec.at(touchedObj.objNum).p,touchedObj.srcdst,touchedObj.portNum,false);
+        highlightObjnum(touchedObj.objNum,ILI9341_BLACK);
+      }
+      touchedObj.objNum = -1;
+    }  
+    greyOut(touchNothing); 
+  }
+  else // no touch at the moment, but...
+  {
+    char buf[50], *p=buf;
+
+    if (touchedObj.objNum  >= 0  // we selected something
+     && touchedObj.portNum >= 0) // which we can use
+    {
+      if (1 == touchedObj.srcdst) // destination
+      {
+        editCord.dst      = objVec.at(touchedObj.objNum).p;
+        editCord.dst_port = touchedObj.portNum;
+      }
+      else
+      {
+        editCord.src      = objVec.at(touchedObj.objNum).p;
+        editCord.src_port = touchedObj.portNum;
+      }
+
+      if (nullptr != editCord.src)
+        p += sprintf(p,"%4.4s.%d",editCord.src->objP->label,editCord.src_port);
+      else
+        p += sprintf(p,"~~~~~~");
+      p += sprintf(p," -> ");
+      if (nullptr != editCord.dst)
+        p += sprintf(p,"%4.4s.%d",editCord.dst->objP->label,editCord.dst_port);
+      else
+        p += sprintf(p,"~~~~~~");
+      
+      display.ShowBottomText(buf);
+      setByTouch = nullptr != editCord.src && nullptr != editCord.dst;
+      
+      touchedObj.objNum = -1; // remains until another touch
+    }
+  }
+  /*
+  if (SelectByTouch(enc0) >= 0)
+  {
+    int side = getSide();
+    greyOut(nothing);
+    if (side < 0)
+      enc2.setValue(0, true);
+    if (side > 0)
+      enc2.setValue(1, true);
+  }
+      */
+
+  //-----------------------------------------------
   // select an audio object
   if (enc0.available())
   {
@@ -485,6 +588,7 @@ FLASHMEM void CordEditor::edit(void)
       enc0.setValue(epIdx);
       newSettings = {epIdx, portNum, io};
     }
+    setByTouch = false;
   }
 
   // select a connection port
@@ -499,6 +603,7 @@ FLASHMEM void CordEditor::edit(void)
       enc1.setValue(portNum);
       newSettings = {epIdx, portNum, io};
     }
+    setByTouch = false;
   }
 
   if (enc2.available()) // src / dst switch
@@ -506,6 +611,7 @@ FLASHMEM void CordEditor::edit(void)
     newSettings.srcdst = 1 - enc2.getValue();
     findBestSettings(newSettings, Prioritise::srcdst);
     redrawSelected = true;
+    setByTouch = false;
   }
 
   //-----------------------------------------------
@@ -554,42 +660,46 @@ FLASHMEM void CordEditor::edit(void)
       AudioObjInstance* aoi = objVec.at(epIdx).p;
 
       state = 0;
-      if (1 == io) // set dst / input
+      if (!setByTouch)
       {
-        highlightPort(editCord.dst, 1, editCord.dst_port, false);
-        if (editCord.dst == aoi)
+        if (1 == io) // set dst / input
         {
-          //Serial.println("dst cleared");
-          editCord.dst = nullptr;
+          highlightPort(editCord.dst, 1, editCord.dst_port, false);
+          if (editCord.dst == aoi)
+          {
+            //Serial.println("dst cleared");
+            editCord.dst = nullptr;
+          }
+          else
+          {
+            //Serial.println("dst set");
+            highlightObj(editCord.dst, ILI9341_BLACK);
+            editCord.dst = aoi;
+            editCord.dst_port = portNum;
+            highlightPort(editCord.dst, 1, editCord.dst_port, true);
+          }
         }
-        else
+        else // set src / output
         {
-          //Serial.println("dst set");
-          highlightObj(editCord.dst, ILI9341_BLACK);
-          editCord.dst = aoi;
-          editCord.dst_port = portNum;
-          highlightPort(editCord.dst, 1, editCord.dst_port, true);
-        }
-      }
-      else // set src / output
-      {
-        highlightPort(editCord.src, 0, editCord.src_port, false);
-        if (editCord.src == aoi)
-        {
-          //Serial.println("src cleared");
-          editCord.src = nullptr;
-        }
-        else
-        {
-          //Serial.println("src set");
-          highlightObj(editCord.src, ILI9341_BLACK);
-          editCord.src = aoi;
-          editCord.src_port = portNum;
-          highlightPort(editCord.src, 0, editCord.src_port, true);
+          highlightPort(editCord.src, 0, editCord.src_port, false);
+          if (editCord.src == aoi)
+          {
+            //Serial.println("src cleared");
+            editCord.src = nullptr;
+          }
+          else
+          {
+            //Serial.println("src set");
+            highlightObj(editCord.src, ILI9341_BLACK);
+            editCord.src = aoi;
+            editCord.src_port = portNum;
+            highlightPort(editCord.src, 0, editCord.src_port, true);
+          }
         }
       }
 
-      if (nullptr != editCord.src && nullptr != editCord.dst) // both set - create patchcord
+      // both set - create a new patchcord
+      if (nullptr != editCord.src && nullptr != editCord.dst) 
       {
         cordVec.push_back(new PatchcordInstance_t{editCord.src, editCord.src_port, editCord.dst, editCord.dst_port}); // create
         display.DrawPatchcord(cordVec.back()); // draw
@@ -601,6 +711,7 @@ FLASHMEM void CordEditor::edit(void)
           highlightObj(editCord.src, ILI9341_BLACK); // ...audio object!
 
         editCord = blankPatch;
+        setByTouch = false;
 
         int ec1;
         do

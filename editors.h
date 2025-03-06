@@ -75,13 +75,15 @@ class ObjEditor : public BaseEditor
 
 class CordEditor : public BaseEditor
 {
-    enum srctype {nothing,noSrc,noDst};
+    enum srctype {nothing,noSrc,noDst,touchNothing};
     enum class Prioritise {nothing,object,port,srcdst};
     struct settings {int objNum, portNum, srcdst;};
 
     LimitedEncoder& enc0, &enc1, &enc2;
     AudioObjStatic_t (&objList)[];
     int portNum;
+    settings touchedObj;
+    bool setByTouch;
     PatchcordInstance_t editCord;
 
     int findBestSettings(settings& ns, Prioritise pri);
@@ -89,6 +91,7 @@ class CordEditor : public BaseEditor
     int findGoodObj(int epIdx, int ec1, int io);
     void ShowSelection(int io);
     void highlightPort(AudioObjInstance* aoi, int io, int n, bool on);
+    void highlightPort(int epIdx, int io, int n, bool on);
     void greyOut(srctype s);
 
   public:
@@ -100,7 +103,7 @@ class CordEditor : public BaseEditor
             : BaseEditor(d,o,p),
             enc0(e0), enc1(e1), enc2(e2),
             objList(ol),
-            portNum(0)
+            portNum(0), setByTouch{false}
             {}
     void edit(void);
     void enter(void);
