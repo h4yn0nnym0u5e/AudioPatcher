@@ -4,7 +4,7 @@
 #include <MIDI.h>
 #include "paramEntry.h"
 #include "display.h"
-#include "LimitedEncoder.h"
+#include "limitedEncoder.h"
 #include "apMIDI.h"
 
 extern LimitedEncoder encM,enc0,enc1,enc2;

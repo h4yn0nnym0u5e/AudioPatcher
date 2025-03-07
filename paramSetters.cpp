@@ -1,6 +1,6 @@
 #include "objects.h"
 #include "display.h"
-#include "paramsetters.h"
+#include "paramSetters.h"
 #include "limitedEncoder.h"
 
 extern M5w_8angle ctrl;

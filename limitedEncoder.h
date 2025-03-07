@@ -1,7 +1,7 @@
 #if !defined(_LIMITEDENCODER_H_)
 #define _LIMITEDENCODER_H_
 
-#include <M5Wire.h>
+#include <M5wire.h>
 
 class LimitedEncoder
 {
