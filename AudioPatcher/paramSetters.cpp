@@ -11,7 +11,8 @@ extern M5w_8angle ctrl;
 
 //===========================================================================================
 SettingsEditor* se;
-const float LOG_NOTE_A = 0.781359714f;
+const float LOG_NOTE_A = 0.781359714f;           // frac(log2(440.0)) - 
+const float MIDDLE_C = 16.3515978312875f*16.0f;  // middle C in Hz
 const ParamEntry freqLimits{nullptr,-1.0f,1.0f}; // special, for setting hook control
 
 //===========================================================================================
@@ -1189,6 +1190,8 @@ int editLadder(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
+ContextMIDInote filterNoteContext; // dummy context for filter tracking purposes
+//===========================================================================================
 void ContextStateVariable::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
@@ -1199,10 +1202,11 @@ void ContextStateVariable::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-const ParamEntry ContextStateVariable::_params[3] = {
+const ParamEntry ContextStateVariable::_params[4] = {
         {"frequency", 3.0f, 13.2877123795495f, 'l'}, // 8.0 .. 10,000.0 Hz
         {"resonance", 0.7f, 5.0f},
-        {"  octaves", 0.0f, 7.0f}
+        {"  octaves", 0.0f, 7.0f},
+        {" tracking", 0.0f, 3.0f}
     };
 
 int editStateVariable(AudioObjInstance* aoi, AudioEditMode mode, void* params)
@@ -1225,6 +1229,23 @@ void processMIDIevent<ContextStateVariable>(AudioObjInstance* aoi, MIDIevent* ev
   
   switch (ev->type)
   {
+    case midi::NoteOn:
+      {
+        float freq,ampl_unused;
+
+        processMIDItoFreqAndAmp(&filterNoteContext,ev,freq,ampl_unused);
+        // Magic calculation to set cutoff frequency from note.
+        // We say the setting is the cutoff frequency that's correct for middle C,
+        // and scale accordingly, but adjusted for tracking. Tracking=1.0
+        // scales 1:1 with note frequency, 0.0 doesn't scale at all, and so on
+        freq = pow(2,ctxt->s.frequency.value.f) 
+                * (ctxt->s.tracking.value.f * (freq/MIDDLE_C - 1.0f) + 1.0f);
+        if (freq < ctxt->MIN_CUTOFF) // lop off insane cutoff frequencies
+          freq = ctxt->MIN_CUTOFF;
+        aoi->streamP.StateVariable->frequency(freq);
+      }
+      break;
+
     case midi::ControlChange:
     {
       if (ev->CCnum == ctxt->m.CCnum.value.i)

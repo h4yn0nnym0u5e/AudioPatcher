@@ -678,9 +678,9 @@ class ContextStateVariable : public ContextBase
   public:
     ContextStateVariable() : ContextBase(COUNT_OF(_params), &s.frequency, _params, nullptr,
                                          COUNT_OF(MIDIparams), &m.CCnum, MIDIparams) {}
-    static const ParamEntry _params[3];
-    struct {ParamValue frequency,resonance,octaves;} s
-                   {          {8.0f}, {0.7f},   {1.0f}    };
+    static const ParamEntry _params[4];
+    struct {ParamValue frequency,resonance,octaves,tracking;} s
+                   {      {8.0f}, {0.7f},   {1.0f},  {1.0f} };
     void setParam(int i, AudioObjInstance* aoi);
     static const int boxWidth{260};
     
@@ -688,6 +688,7 @@ class ContextStateVariable : public ContextBase
     static const ParamEntry MIDIparams[3];
     struct {ParamValue CCnum, CCmin,  CCmax; } m 
                     {  {1},   {0.0f}, {1.0f}}; // mod wheel, full positive amplitude range
+    const float MIN_CUTOFF = 10.0f; // how low can we go?
 };
 
 //-----------------------------------------------------------------------------------------
@@ -766,6 +767,27 @@ class ContextNoise : public ContextBase
 struct WaveformMIDI {ParamValue octave, detune, velocity, tuning, PBamount; };
 #define WAVEFORM_MIDI_COUNT (sizeof(WaveformMIDI) / sizeof(ParamValue)) 
 
+//-----------------------------------------------------------------------------------------
+// Waveform-like context for use by filter keyboard tracking etc.
+class ContextMIDInote : public ContextBase 
+{
+  public:
+    //static const ParamEntry _params[1];
+    struct {ParamValue amplitude;} s
+                 {       {1.0f}    };
+
+    //void setParam(int i, AudioObjInstance* aoi);
+    //static const int boxWidth{260};
+
+    //------ MIDI settings ----------
+    //static const ParamEntry MIDIparams[WAVEFORM_MIDI_COUNT];
+    WaveformMIDI m {{4},{0.00f},{0},{0}, {0.0f}};
+    //float noteFreq; // basic note frequency before modification with pitch bend
+    ContextMIDInote() : ContextBase(1, &s.amplitude, nullptr, nullptr,
+                                    WAVEFORM_MIDI_COUNT, &m.octave, nullptr) {}
+};
+
+//-----------------------------------------------------------------------------------------
 class ContextWaveform : public ContextBase 
 {
   public:
