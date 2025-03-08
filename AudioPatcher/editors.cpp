@@ -536,17 +536,18 @@ FLASHMEM void CordEditor::edit(void)
     if (touchedObj.objNum  >= 0  // we selected something
      && touchedObj.portNum >= 0) // which we can use
     {
-      if (1 == touchedObj.srcdst) // destination
+      if (1 == touchedObj.srcdst) // destination: store that end of the editCord
       {
         editCord.dst      = objVec.at(touchedObj.objNum).p;
         editCord.dst_port = touchedObj.portNum;
       }
-      else
+      else // source: store
       {
         editCord.src      = objVec.at(touchedObj.objNum).p;
         editCord.src_port = touchedObj.portNum;
       }
 
+      // update bottom text line for confirmation
       if (nullptr != editCord.src)
         p += sprintf(p,"%4.4s.%d",editCord.src->objP->label,editCord.src_port);
       else
@@ -558,7 +559,15 @@ FLASHMEM void CordEditor::edit(void)
         p += sprintf(p,"~~~~~~");
       
       display.ShowBottomText(buf);
+
+      // flag ready for encoder press to cxreate patchcord
       setByTouch = nullptr != editCord.src && nullptr != editCord.dst;
+
+      // show status on encoder LED
+      if (setByTouch)
+        enc2.setLED(0x2F00'2000);
+      else
+        enc2.setLED(0x2F00'0020);
       
       touchedObj.objNum = -1; // remains until another touch
     }
@@ -604,6 +613,7 @@ FLASHMEM void CordEditor::edit(void)
       newSettings = {epIdx, portNum, io};
     }
     setByTouch = false;
+    enc2.setLED(0x2F00'0000);
   }
 
   if (enc2.available()) // src / dst switch
@@ -612,6 +622,7 @@ FLASHMEM void CordEditor::edit(void)
     findBestSettings(newSettings, Prioritise::srcdst);
     redrawSelected = true;
     setByTouch = false;
+    enc2.setLED(0x2F00'0000);
   }
 
   //-----------------------------------------------
@@ -712,6 +723,7 @@ FLASHMEM void CordEditor::edit(void)
 
         editCord = blankPatch;
         setByTouch = false;
+        enc2.setLED(0x2F00'0000);
 
         int ec1;
         do
@@ -783,6 +795,7 @@ FLASHMEM void CordEditor::exit(void)
   highlightObjnum(epIdx, ILI9341_BLACK);
   greyOut(nothing);
   drawAll(false);
+  enc2.setLED(0x2F00'0000);
 }
 
 FLASHMEM void CordEditor::greyOut(srctype s)

@@ -19,6 +19,8 @@ class LimitedEncoder
     uint8_t getButton(void) { return enc.getButton(channel); }
     void setLimits(const int32_t l, const int32_t u);
     void getLimits(int32_t& l,int32_t& u);
+    void setLED(uint32_t colour)	//!< colour: <brightness><B><G><R>
+    { enc.writeLED(channel,colour); }
 };
 
 class LimitedEncoderStash
