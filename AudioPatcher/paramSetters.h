@@ -166,6 +166,48 @@ template <class Tctxt>
 void processMIDIevent(AudioObjInstance* aoi, MIDIevent* ev){} // no special action for most AudioStream classes
 
 //=====================================================================================
+template <class TWaveformCtxt>
+void processMIDItoFreqAndAmp(TWaveformCtxt* ctxt, MIDIevent* ev, 
+                             float& freq, float& ampl)
+{
+  byte note = ev->note;
+      
+  note += 12*(ctxt->m.octave.value.i - 4);
+
+  if (0 == ctxt->m.tuning.value.i) // magic: equal temperament
+  {
+    freq = PatcherVoice::noteToFreq(note);
+    freq *= pow(2.0f,ctxt->m.detune.value.f);
+    freq *= ev->pvb.pm.getPitchBend(ctxt->m.PBamount.value.f);
+  }
+  else
+  {
+    note += (int) ctxt->m.detune.value.f; // just use another "tonewheel"
+    freq = PatcherVoice::noteToFreq(note - 12,notesHammond); // Hammond table is an octave up
+  }
+  
+  switch (velocityShapes[ctxt->m.velocity.value.i].value)
+  {
+    default: // just in case - gets rid of warning
+    case 0: // linear     
+      ampl = ev->velocity / 127.0f;
+      break;
+      
+    case 1: // curved     
+      ampl = velocity2amplitude[ev->velocity];
+      break;
+      
+    case 2: // as set     
+      ampl = ctxt->s.amplitude.value.f;
+      break;
+      
+    case 3: // maximum     
+      ampl = 1.0f;
+      break;
+  }
+}
+
+//=====================================================================================
 template <class TWaveformCtxt, class TwaveformObject>
 void processMIDIforWaveform(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt* ctxt, TwaveformObject* wav)
 {
@@ -173,7 +215,10 @@ void processMIDIforWaveform(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt*
   {
     case midi::NoteOn:
     {
-      float freq;
+      float freq, ampl;
+      processMIDItoFreqAndAmp(ctxt, ev, freq, ampl);
+      ctxt->noteFreq = freq;
+/*
       byte note = ev->note;
       
       note += 12*(ctxt->m.octave.value.i - 4);
@@ -191,8 +236,10 @@ void processMIDIforWaveform(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt*
         freq = PatcherVoice::noteToFreq(note - 12,notesHammond); // Hammond table is an octave up
         ctxt->noteFreq = freq;
       }
-      
+  */    
       wav->frequency(freq);
+      wav->amplitude(ampl);
+/*      
       switch (velocityShapes[ctxt->m.velocity.value.i].value)
       {
         case 0: // linear     
@@ -211,6 +258,7 @@ void processMIDIforWaveform(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt*
           wav->amplitude(1.0f);
           break;
       }
+          */
     }
     break;
 
@@ -225,6 +273,31 @@ void processMIDIforWaveform(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt*
   }
 }
 
+template <class TWaveformCtxt, class TwaveformObject>
+void processMIDIforKarplusStrong(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt* ctxt, TwaveformObject* wav)
+{
+  switch (ev->type)
+  {
+    case midi::NoteOn:
+    {
+      float freq, ampl;
+      processMIDItoFreqAndAmp(ctxt, ev, freq, ampl);
+      ctxt->noteFreq = freq;
+ 
+      wav->noteOn(freq,ampl);
+    }
+    break;
+
+    case midi::NoteOff:
+    {
+      float freq, ampl;
+      processMIDItoFreqAndAmp(ctxt, ev, freq, ampl);
+      wav->noteOff(ampl);
+    }
+      break;
+
+  }
+}
 
 //=====================================================================================
 template <class Tctxt>
@@ -737,6 +810,24 @@ class ContextWaveformModulated : public ContextBase
                                             COUNT_OF(MIDIparams), &m.octave, MIDIparams) {}
     static const ParamEntry _params[6];
     struct {ParamValue waveform,frequency,amplitude,offset,modType,modDepth;} s {{0},{7.0f},{0.5f},{0.0f},{0},{1.0f}};
+    static const int boxWidth{260};
+          
+    void setParam(int i, AudioObjInstance* aoi);
+
+    //------ MIDI settings ----------
+    static const ParamEntry MIDIparams[WAVEFORM_MIDI_COUNT];
+    WaveformMIDI m {{4},{0.00f},{0},{0},{0.0f}};
+    float noteFreq; // basic note frequency before modification with pitch bend
+};
+
+//-----------------------------------------------------------------------------------------
+class ContextKarplusStrong : public ContextBase
+{ 
+  public:
+    ContextKarplusStrong() : ContextBase(COUNT_OF(_params), &s.frequency, _params, nullptr, 
+                                         COUNT_OF(MIDIparams), &m.octave, MIDIparams) {}
+    static const ParamEntry _params[2];
+    struct {ParamValue frequency,amplitude;} s {{7.0f},{0.5f}};
     static const int boxWidth{260};
           
     void setParam(int i, AudioObjInstance* aoi);

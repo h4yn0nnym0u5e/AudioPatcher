@@ -862,6 +862,94 @@ int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode, void* param
 }
 
 //===========================================================================================
+const ParamEntry ContextKarplusStrong::MIDIparams[] 
+{
+  {"   octave", 0, 9}, // middle C = 261.63Hz = note#60 = octave 4
+  {"   detune", -6.00f, +6.00f}, // semitones / cents
+  {" velocity",PARAM_ENTRY_CHOICES(velocityShapes)},
+  {"   tuning",PARAM_ENTRY_CHOICES(tuningTypes)},
+  {"PB amount",0.0f, 12.0f},
+};
+
+
+const ParamEntry ContextKarplusStrong::_params[2] = 
+{
+  {"frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
+  {"amplitude", 0.0f, 1.0f},
+};
+
+void ContextKarplusStrong::setParam(int i, AudioObjInstance* aoi)
+{
+  switch (i)
+  {
+    case 0: 
+    case 1: aoi->streamP.KarplusStrong->noteOn(pow(2,s.frequency.value.f),s.amplitude.value.f); break;
+  }
+}
+
+template <>
+void enterEditMode<ContextKarplusStrong>(ContextKarplusStrong* myContext, AudioObjInstance* aoi)
+{
+  // fix up the pot and encoder values
+  int iprt = floor(myContext->s.frequency.value.f - LOG_NOTE_A);
+  float frac = myContext->s.frequency.value.f - iprt - LOG_NOTE_A;
+
+  Serial.printf("freq is %f -> %f Hz\n",myContext->s.frequency.value.f,pow(2,myContext->s.frequency.value.f));
+  
+  // octave encoder
+  enc0.setLimits(-3,12);
+  if (frac > 0.5f)
+  {
+    frac -= 1.0f;
+    iprt++;
+  }
+  enc0.setValue(iprt);
+
+  ParamValue pv{frac};    
+  HookControl(ctrl,0,freqLimits,pv); // frequency pot is #0: set hook
+}
+  
+
+template <> // template specialization for setting ContextKarplusStrong; needed for frequency setting
+void updateFromControls<ContextKarplusStrong>(ContextKarplusStrong* myContext, AudioObjInstance* aoi)
+{
+  for (size_t i=0; i < myContext->paramCount; i++)
+  {
+    if (0 == i) // frequency
+    {
+      enc0.available();
+      if (ScaleFreq(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),enc0.getValue(),0.999f))
+      {
+        se->ShowValue(i);
+        myContext->setParam(i,aoi);
+      }      
+    }
+    else
+    {
+      if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
+      {
+        se->ShowValue(i);
+        myContext->setParam(i,aoi);
+      }
+    }
+  }
+}
+
+
+template <>
+void processMIDIevent<ContextKarplusStrong>(AudioObjInstance* aoi, MIDIevent* ev)
+{
+  processMIDIforKarplusStrong(aoi,ev,(ContextKarplusStrong*) aoi->context,aoi->streamP.KarplusStrong);
+}
+  
+int editKarplusStrong(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  return editObjType<AudioSynthKarplusStrong, ContextKarplusStrong>(aoi,mode,params);  
+}
+
+//===========================================================================================
+
+//===========================================================================================
 const ParamEntry ContextWaveformDc::_params[] = {
   {"value", -1.0f, 1.0f},
 };
