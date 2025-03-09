@@ -47,6 +47,7 @@ class AudioPatcherDisplay
       static AudioPatcherDisplay theOnlyOneEver;
       return theOnlyOneEver;
     }
+    struct Box {int16_t x,y,w,h;};
     
   private:    
     uint16_t* cbuf = nullptr; 
@@ -59,7 +60,7 @@ class AudioPatcherDisplay
     bool keyboard_uppercase;
     uint16_t modeColour;
     uint16_t* screenBuffer = nullptr;
-    struct {int16_t x,y,w,h;} savedArea;
+    Box savedArea;
     static const int16_t CURSOR_SIZE = 10;
     static const int16_t OBJECT_SIZE = 48;
     static const int16_t KEY_SIZE = 25;
@@ -134,6 +135,10 @@ class AudioPatcherDisplay
     void ShowValue(const ParamEntry& p, ParamValue& v, int16_t n);
 
     // keyboard
+    void GetDefaultKeyboardArea(int16_t& x, int16_t& y, int16_t& w, int16_t& h)
+    {
+      x = 20; y = 40; w = 25 * 11 + 4; h = 25 * 4 + 30 + 25;  
+    }
     struct keyInfo {int ch, row, col;};
     char ShowKey(int16_t x, int16_t y, size_t r, size_t c, int16_t fg, int16_t bg, bool upr = false);
     char ShowKey(size_t r, size_t c, int16_t fg, int16_t bg, bool upr = false);

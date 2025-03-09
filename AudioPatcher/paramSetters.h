@@ -31,17 +31,20 @@ extern bool Scale(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filte
 //==========================================================================
 class SettingsEditor 
 {
+    int lastRowShown;
   public:
     SettingsEditor(AudioPatcherDisplay& d, 
-    int16_t x, int16_t y, int16_t w, int16_t h,
+    AudioPatcherDisplay::Box box,
+    //int16_t x, int16_t y, int16_t w, int16_t h,
     size_t n,
     const ParamEntry* ppe, ParamValue* ppv, const ParamPage* ppg) 
-    : display(d.getInstance()),
+    : lastRowShown{0},
+      display(d.getInstance()),
       paramCount(n), currentPage(0), params(ppe), aray(ppv), pages(ppg),
-      workArea{.x=x, .y=y, .w=w, .h=h}
+      workArea{box}
     {
-      display.SaveArea(x,y,w,h);
-      display.InitArea(x,y,w,h);
+      display.SaveArea(box.x,box.y,box.w,box.h);
+      display.InitArea(box.x,box.y,box.w,box.h);
     }
     ~SettingsEditor() { display.RestoreArea(); }
     
@@ -51,7 +54,7 @@ class SettingsEditor
     const ParamEntry* params;
     ParamValue* aray;
     const ParamPage* pages;
-    struct {int16_t x,y,w,h;} workArea;
+    AudioPatcherDisplay::Box workArea;
 
     void Init(const char* title);
     void BlankRow(int row, int16_t yoff) { display.FillRect(workArea.x+1, workArea.y+yoff+row*16, workArea.w-2, 16, EDIT_BKGND); }
@@ -69,7 +72,9 @@ extern M5w_8encoder  encr;
 extern int testExit(uint32_t& exitAt);
 
 
-#define BOX_DEF(width,lines) (320/2 - (width)/2),(240/2 - (27+(lines)*16+16)/2),(width),(27+(lines)*16+16)
+#define BOX_DEF(width,lines) \
+    (int16_t)(320/2 - (width)/2),(int16_t)(240/2 - (27+(lines)*16+16)/2), \
+    (int16_t)(width),(int16_t)(27+(lines)*16+16)
 
 //=====================================================================================
 template <class Tctxt>
@@ -302,18 +307,10 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
     //---------------------------------------------------------------------------------------------------
     case AudioEditMode::enter: // start editing an object's settings
       {
-        int cols = 1;
-        int rows = myContext->paramCount;
-
-        if (nullptr != myContext->pages)    // paged parameters?
-          rows = myContext->pages[0].count; // first page must be [equal] biggest
-                  
         result = 1; // claimed
         enterEditMode(myContext,aoi);
-        if (myContext->paramCount > 1 && 0 != myContext->params[1].xoff) // multi-column - assume just 2!
-          cols = 2;
-          
-        se = new SettingsEditor(display,BOX_DEF(Tctxt::boxWidth,rows / cols),
+        
+        se = new SettingsEditor(display,myContext->box, // {BOX_DEF(Tctxt::boxWidth,rows / cols)},
                                 myContext->paramCount, myContext->params,myContext->aray,myContext->pages);
         se->Init(aoi->objP->name);
         next = 0;
@@ -349,7 +346,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
           if (myContext->MIDIparamCount > 1 && 0 != myContext->MIDIparams[1].xoff) // multi-column - assume just 2!
             cols = 2;
             
-          se = new SettingsEditor(display,BOX_DEF(Tctxt::boxWidth,rows / cols),
+          se = new SettingsEditor(display, {BOX_DEF(myContext->box.w,rows / cols)},
                                   myContext->MIDIparamCount, myContext->MIDIparams,myContext->MIDIvalues,nullptr);
   
           se->Init(aoi->objP->name);
@@ -433,6 +430,18 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
   }
   return result;  
 }
+
+//==========================================================================
+//
+//   .d8888b.                    888                     888             
+//  d88P  Y88b                   888                     888             
+//  888    888                   888                     888             
+//  888         .d88b.  88888b.  888888 .d88b.  888  888 888888 .d8888b  
+//  888        d88""88b 888 "88b 888   d8P  Y8b `Y8bd8P' 888    88K      
+//  888    888 888  888 888  888 888   88888888   X88K   888    "Y8888b. 
+//  Y88b  d88P Y88..88P 888  888 Y88b. Y8b.     .d8""8b. Y88b.       X88 
+//   "Y8888P"   "Y88P"  888  888  "Y888 "Y8888  888  888  "Y888  88888P' 
+//                                                                       
 //==========================================================================
 class ContextBase
 {
@@ -458,6 +467,7 @@ class ContextBase
     ParamValue* MIDIvalues;    
 };
 
+
 //==========================================================================
 class ContextBitcrusher  : public ContextBase
 {
@@ -468,7 +478,7 @@ class ContextBitcrusher  : public ContextBase
     struct {ParamValue bits,  sampleRate;} s
                 {      {11},  {/* sample rate / */ 8}      }; 
     void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{260};
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(260,COUNT_OF(_params))};
 
     void enterEditMode(AudioObjInstance* aoi);
     void exitEditMode(AudioObjInstance* aoi);
@@ -491,6 +501,7 @@ class ContextChorus  : public ContextBase
     void allocMem(memRecord&,size_t,AudioObjInstance*);
     void setParam(int i, AudioObjInstance* aoi);
     static const int boxWidth{260};
+	  static constexpr AudioPatcherDisplay::Box box{BOX_DEF(260,COUNT_OF(_params))};
 
     void enterEditMode(AudioObjInstance* aoi);
     void exitEditMode(AudioObjInstance* aoi);
@@ -512,7 +523,7 @@ class ContextFlange  : public ContextBase
     struct memRecord {short* ptr; size_t sz; } mem,tmp;
     void allocMem(memRecord&,size_t,AudioObjInstance*);
     void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{230};
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(230,COUNT_OF(_params))};
 
     void enterEditMode(AudioObjInstance* aoi);
     void exitEditMode(AudioObjInstance* aoi);
@@ -529,7 +540,7 @@ class ContextEnvelope : public ContextBase
                 {      {0.0f}, {3.392f},{1.322f}, {5.129f}, {0.5f},  {8.229f}, {2.322f}      };
 
     void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{240};
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(240,COUNT_OF(_params))};
 };
 
 //-----------------------------------------------------------------------------------------
@@ -542,7 +553,7 @@ class ContextExpEnvelope : public ContextBase
                 {      {0.0f}, {3.392f},{1.322f}, {5.129f}, {0.5f},  {8.229f}, {0.90f}      };
 
     void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{240};
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(240,COUNT_OF(_params))};
 };
 
 //-----------------------------------------------------------------------------------------
@@ -555,7 +566,7 @@ class ContextHammondVibrato : public ContextBase
                 {      {1},  {1}     };
 
     void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{180};
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(180,COUNT_OF(_params))};
 };
 
 //-----------------------------------------------------------------------------------------
@@ -568,7 +579,7 @@ class ContextFreeverb : public ContextBase
                 {      {0.5f},  {0.5f}     };
 
     void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{180};
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(180,COUNT_OF(_params))};
 };
 
 //-----------------------------------------------------------------------------------------
@@ -581,7 +592,7 @@ class ContextFreeverbStereo : public ContextBase
                 {      {0.5f},  {0.5f}     };
 
     void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{180};
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(180,COUNT_OF(_params))};
 };
 
 
@@ -595,7 +606,7 @@ class ContextReverb : public ContextBase
                 {      {1.0f},       };
 
     void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{220};
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(220,COUNT_OF(_params))};
 };
 
 
@@ -620,7 +631,7 @@ class ContextBiquad : public ContextBase
     ValUnion stageSettings[4][COUNT_OF(_params)];
     int prevStage{0};
     void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{260};
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(260,COUNT_OF(_params))};
 };
 
 //-----------------------------------------------------------------------------------------
@@ -633,7 +644,7 @@ class ContextLadder : public ContextBase
     ContextLadder() : ContextBase(COUNT_OF(_params), &s.frequency, _params) {}
     ~ContextLadder(){}
     void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{270};
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(270,COUNT_OF(_params))};
 };
 
 //-----------------------------------------------------------------------------------------
@@ -646,7 +657,7 @@ class ContextStateVariable : public ContextBase
     struct {ParamValue frequency,resonance,octaves,tracking;} s
                    {      {8.0f}, {0.7f},   {1.0f},  {1.0f} };
     void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{260};
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(260,COUNT_OF(_params))};
     
     //------ MIDI settings ----------
     static const ParamEntry MIDIparams[3];
@@ -662,7 +673,7 @@ class ContextMixer4 : public ContextBase
     ContextMixer4() : ContextBase(COUNT_OF(_params), gains, _params){}
     static const ParamEntry _params[4];
     ParamValue gains[4]{{0.55f},{0.55f},{0.55f},{0.55f}};
-    static const int boxWidth{120};
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(120,COUNT_OF(_params))};
     
     void setParam(int i, AudioObjInstance* aoi);
 };
@@ -684,6 +695,7 @@ class ContextMixer : public ContextBase
         {0.70f}, // soft knee point
     };
     static const int boxWidth{240 + 12};
+		static constexpr AudioPatcherDisplay::Box box{BOX_DEF(240 + 12,4)};
     
     void setParam(int i, AudioObjInstance* aoi);
 };
@@ -701,16 +713,19 @@ class ContextMixerStereo : public ContextBase
         {0.55f},{0.0f},
         {0.55f},{0.0f},
         {0.55f},{0.0f},
+
         {0.55f},{0.0f},
         {0.55f},{0.0f},
         {0.55f},{0.0f},
         {0.55f},{0.0f},
+
         {0.55f}, // master gain
         {0.70f}, // soft knee point
         {0.22f}, // pan law
         {0} // pan type
     };
     static const int boxWidth{EDIT_MIXER_STEREO_PAN_OFF + 120 + 12};
+		static constexpr AudioPatcherDisplay::Box box{BOX_DEF(EDIT_MIXER_STEREO_PAN_OFF + 120 + 12,4)};
     
     void setParam(int i, AudioObjInstance* aoi);
 };
@@ -724,7 +739,7 @@ class ContextNoise : public ContextBase
     ParamValue amplitude{0.0f};
 
     void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{180};
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(180,COUNT_OF(_params))};
 };
 
 //-----------------------------------------------------------------------------------------
@@ -735,6 +750,10 @@ template<class Taudio>
 class ContextWaveformBase
 {
   public:
+    /*
+      Fix up arbitrary waveform pointer at construction and
+      destruction time, so we don't crash or leak memory.
+     */
     void fixArbWAV(Taudio* stream, AudioEditMode mode)
     {
       switch (mode)
@@ -753,8 +772,12 @@ class ContextWaveformBase
         break;
       }
     }
-    int16_t* arbWav{(int16_t*) arbWAV_sax};
+
+    //------ Stuff to remember ----------
+    float noteFreq; // basic note frequency before modification with pitch bend
+    int16_t* arbWav{(int16_t*) arbWAV_sax}; // record of aritrary waveform
 };
+
 
 //-----------------------------------------------------------------------------------------
 // Waveform-like context for use by filter keyboard tracking etc.
@@ -770,24 +793,28 @@ class ContextMIDInote : public ContextBase
                                     WAVEFORM_MIDI_COUNT, &m.octave, nullptr) {}
 };
 
+
 //-----------------------------------------------------------------------------------------
 class ContextWaveform : public ContextBase, public ContextWaveformBase<AudioSynthWaveform> 
 {
   public:
     ContextWaveform() : ContextBase(COUNT_OF(_params), &s.waveform, _params, nullptr,
-                                    COUNT_OF(MIDIparams), &m.octave, MIDIparams) {}
+                                    COUNT_OF(MIDIparams), &m.octave, MIDIparams)
+    {
+      display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h);
+    }
     static const ParamEntry _params[5];
     struct {ParamValue waveform,frequency,amplitude,pulseWidth,offset;} s
                  {             {0},     {7.0f},   {0.5f},   {0.333f},  {0.0f}    };
 
     void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{260};
+    AudioPatcherDisplay::Box box;
 
     //------ MIDI settings ----------
     static const ParamEntry MIDIparams[WAVEFORM_MIDI_COUNT];
     WaveformMIDI m {{4},{0.00f},{0},{0}, {0.0f}};
-    float noteFreq; // basic note frequency before modification with pitch bend
 };
+
 
 //-----------------------------------------------------------------------------------------
 class ContextWaveformDc : public ContextBase
@@ -799,13 +826,14 @@ class ContextWaveformDc : public ContextBase
     ParamValue amplitude{0.0f};
 
     void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{160};
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(160,COUNT_OF(_params))};
     
     //------ MIDI settings ----------
     static const ParamEntry MIDIparams[3];
     struct {ParamValue CCnum, CCmin,  CCmax; } m 
                     {  {1},   {0.0f}, {1.0f}}; // mod wheel, full positive amplitude range
 };
+
 
 //-----------------------------------------------------------------------------------------
 class ContextWaveformModulated 
@@ -814,19 +842,19 @@ class ContextWaveformModulated
 { 
   public:
     ContextWaveformModulated() : ContextBase(COUNT_OF(_params), &s.waveform, _params, nullptr, 
-                                            COUNT_OF(MIDIparams), &m.octave, MIDIparams) {}
+                                            COUNT_OF(MIDIparams), &m.octave, MIDIparams) 
+    {
+      display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h);
+    }
     static const ParamEntry _params[6];
     struct {ParamValue waveform,frequency,amplitude,offset,modType,modDepth;} s {{0},{7.0f},{0.5f},{0.0f},{0},{1.0f}};
-    static const int boxWidth{260};
+    AudioPatcherDisplay::Box box;
           
     void setParam(int i, AudioObjInstance* aoi);
 
     //------ MIDI settings ----------
     static const ParamEntry MIDIparams[WAVEFORM_MIDI_COUNT];
     WaveformMIDI m {{4},{0.00f},{0},{0},{0.0f}};
-
-    //------ Stuff to remember ----------
-    float noteFreq; // basic note frequency before modification with pitch bend
 };
 
 //-----------------------------------------------------------------------------------------
@@ -837,7 +865,7 @@ class ContextKarplusStrong : public ContextBase
                                          COUNT_OF(MIDIparams), &m.octave, MIDIparams) {}
     static const ParamEntry _params[2];
     struct {ParamValue frequency,amplitude;} s {{7.0f},{0.5f}};
-    static const int boxWidth{260};
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(260,COUNT_OF(_params))};
           
     void setParam(int i, AudioObjInstance* aoi);
 
@@ -857,7 +885,7 @@ class ContextControlSGTL5000 : public ContextBase
                  {             {0.25f}, {0},        {20},   {0},       {10},       {11}           };
 
     void setParam(int i, AudioObjInstance* aoi);
-    static const int boxWidth{260};
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(260,COUNT_OF(_params))};
 };
      
 

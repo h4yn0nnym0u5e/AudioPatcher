@@ -141,7 +141,7 @@ void SettingsEditor::Init(const char* title)
 
 void SettingsEditor::ShowPage(void)
 {
-  int row = 0;
+  int row = 0, tmpLast = lastRowShown;
   size_t first = 0, nCtrl = paramCount;
 
   if (nullptr != pages)
@@ -150,6 +150,7 @@ void SettingsEditor::ShowPage(void)
     nCtrl = pages[currentPage].count;
   }
   
+  // Show the parameter rows / columns
   for (size_t i = 0; i < nCtrl; i++)
   {
     if (0 != params[i+first].xoff) /// if we have an X offset
@@ -163,6 +164,11 @@ void SettingsEditor::ShowPage(void)
       HookControl(ctrl,i,params[i+first],aray[i+first]);
     row++;            
   }
+  lastRowShown = row; // last row with content on
+
+  // Blank rows that were previously used
+  while (row < tmpLast)
+    BlankRow(row++,27);      
 }
 
 // Change currentPage to a new parameters page number, if possible

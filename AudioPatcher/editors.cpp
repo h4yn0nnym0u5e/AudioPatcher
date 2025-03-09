@@ -1640,7 +1640,9 @@ void FileEditor::showMode(bool zapCurrent /* = true */)
     case mode_e::load:
     case mode_e::del:
       {
-        int16_t x = 20, y = 40, w = 25 * 11 + 4, h = 25 * 4 + 30 + 25;
+        int16_t x,y,w,h;
+        display.GetDefaultKeyboardArea(x,y,w,h);
+
         if (!keyboardVisible)
           display.SaveArea(x, y, w, h);
         display.InitArea(x, y, w, h);
