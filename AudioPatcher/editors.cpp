@@ -1,3 +1,4 @@
+
 #include "editors.h"
 extern AudioObjStatic_t objList[];
 extern DeleteEditor deleteEditor;
@@ -5,7 +6,21 @@ extern ObjEditor objEditor;
 extern void setMuteStatus(bool mute);
 
 static PatchcordInstance_t blankPatch;
+/*
+ ASCII titles from 
+ https://patorjk.com/software/taag/#p=display&c=c%2B%2B&f=Colossal&t=Base%0A
+ */
 //======================================================================
+//
+//  888888b.                              
+//  888  "88b                             
+//  888  .88P                             
+//  8888888K.   8888b.  .d8888b   .d88b.  
+//  888  "Y88b     "88b 88K      d8P  Y8b 
+//  888    888 .d888888 "Y8888b. 88888888 
+//  888   d88P 888  888      X88 Y8b.     
+//  8888888P"  "Y888888  88888P'  "Y8888  
+//
 //======================================================================
 FLASHMEM AudioObjInstance* BaseEditor::highlightObj(AudioObjInstance* it, uint16_t colour)
 {
@@ -150,6 +165,20 @@ FLASHMEM int BaseEditor::SelectCordByTouch(LimitedEncoder& enc0, bool onlySetEnc
 
 
 //======================================================================
+//
+//   .d88888b.  888       d8b                   888             
+//  d88P" "Y88b 888       Y8P                   888             
+//  888     888 888                             888             
+//  888     888 88888b.  8888  .d88b.   .d8888b 888888 .d8888b  
+//  888     888 888 "88b "888 d8P  Y8b d88P"    888    88K      
+//  888     888 888  888  888 88888888 888      888    "Y8888b. 
+//  Y88b. .d88P 888 d88P  888 Y8b.     Y88b.    Y88b.       X88 
+//   "Y88888P"  88888P"   888  "Y8888   "Y8888P  "Y888  88888P' 
+//                        888                                   
+//                       d88P                                   
+//                     888P"                                    
+//
+//======================================================================
 FLASHMEM void ObjEditor::ShowSelection(int v)
 {
   //Serial.printf("%d : %s\n",v,objList[v].name);
@@ -268,6 +297,16 @@ FLASHMEM void ObjEditor::enter(void)
 
 
 //======================================================================
+//
+//  8888888b.          888            888                                   888          
+//  888   Y88b         888            888                                   888          
+//  888    888         888            888                                   888          
+//  888   d88P 8888b.  888888 .d8888b 88888b.   .d8888b .d88b.  888d888 .d88888 .d8888b  
+//  8888888P"     "88b 888   d88P"    888 "88b d88P"   d88""88b 888P"  d88" 888 88K      
+//  888       .d888888 888   888      888  888 888     888  888 888    888  888 "Y8888b. 
+//  888       888  888 Y88b. Y88b.    888  888 Y88b.   Y88..88P 888    Y88b 888      X88 
+//  888       "Y888888  "Y888 "Y8888P 888  888  "Y8888P "Y88P"  888     "Y88888  88888P' 
+//  
 //======================================================================
 FLASHMEM void CordEditor::ShowSelection(int io)
 {
@@ -811,6 +850,16 @@ FLASHMEM void CordEditor::greyOut(srctype s)
 
 
 //======================================================================
+//
+//  8888888b.                                                 888                             
+//  888   Y88b                                                888                             
+//  888    888                                                888                             
+//  888   d88P 8888b.  888d888 8888b.  88888b.d88b.   .d88b.  888888 .d88b.  888d888 .d8888b  
+//  8888888P"     "88b 888P"      "88b 888 "888 "88b d8P  Y8b 888   d8P  Y8b 888P"   88K      
+//  888       .d888888 888    .d888888 888  888  888 88888888 888   88888888 888     "Y8888b. 
+//  888       888  888 888    888  888 888  888  888 Y8b.     Y88b. Y8b.     888          X88 
+//  888       "Y888888 888    "Y888888 888  888  888  "Y8888   "Y888 "Y8888  888      88888P' 
+//  
 //======================================================================
 FLASHMEM void ParamEditor::enter(void)
 {
@@ -905,6 +954,16 @@ FLASHMEM void ParamEditor::edit(void)
 }
 
 //======================================================================
+//
+//  888b     d888 8888888 8888888b. 8888888 
+//  8888b   d8888   888   888  "Y88b  888   
+//  88888b.d88888   888   888    888  888   
+//  888Y88888P888   888   888    888  888   
+//  888 Y888P 888   888   888    888  888   
+//  888  Y8P  888   888   888    888  888   
+//  888   "   888   888   888  .d88P  888   
+//  888       888 8888888 8888888P" 8888888 
+// 
 //======================================================================
 FLASHMEM void MIDIEditor::enter(void)
 {
@@ -967,8 +1026,18 @@ FLASHMEM void MIDIEditor::edit(void)
 }
 
 
-//======================================================================
-//======================================================================
+/*======================================================================
+//                                                                                                                 
+//  8888888b.           888          888            
+//  888  "Y88b          888          888            
+//  888    888          888          888            
+//  888    888  .d88b.  888  .d88b.  888888 .d88b.  
+//  888    888 d8P  Y8b 888 d8P  Y8b 888   d8P  Y8b 
+//  888    888 88888888 888 88888888 888   88888888 
+//  888  .d88P Y8b.     888 Y8b.     Y88b. Y8b.     
+//  8888888P"   "Y8888  888  "Y8888   "Y888 "Y8888
+// 
+//====================================================================*/
 FLASHMEM void DeleteEditor::kill(int idx)
 {
   AudioObjInstance* aoi = objVec.at(idx).p;
@@ -1128,6 +1197,16 @@ FLASHMEM void DeleteEditor::ShowSelection(int op)
 
 
 //======================================================================
+//
+//  8888888888 d8b 888                   
+//  888        Y8P 888                   
+//  888            888                   
+//  8888888    888 888  .d88b.  .d8888b  
+//  888        888 888 d8P  Y8b 88K      
+//  888        888 888 88888888 "Y8888b. 
+//  888        888 888 Y8b.          X88 
+//  888        888 888  "Y8888   88888P' 
+//                    
 //======================================================================
 static void makeFFP(char* buf, const char* base, const char* path, const char* leaf, const char* ext)
 {
@@ -1643,7 +1722,7 @@ FLASHMEM void FileEditor::clearFileList(void)
 
 FLASHMEM void FileEditor::enter(void)
 {
-  enc0.setLimits(0, 2); // load / save / del
+  enc0.setLimits(0, (int) maxMode); // load / save / del
   enc0.setValue(0);
   keyboardVisible = false;
 
@@ -1830,7 +1909,7 @@ FLASHMEM void FileEditor::edit(void)
         case mode_e::del:
           if (!fileList.at(enc1.getValue()).isDir)
           {
-Serial.printf("Delete %s/%s\n", filePath, fileList.at(enc1.getValue()).name.c_str());
+            Serial.printf("Delete %s/%s\n", filePath, fileList.at(enc1.getValue()).name.c_str());
             del(fileList.at(enc1.getValue()).name.c_str());
             fileList.erase(fileList.begin() + enc1.getValue());
             enc1.setLimits(0, fileList.size()-1);

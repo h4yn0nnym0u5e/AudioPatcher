@@ -1190,7 +1190,7 @@ int editLadder(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
-ContextMIDInote filterNoteContext; // dummy context for filter tracking purposes
+const ContextMIDInote filterNoteContext; // dummy context for filter tracking purposes
 //===========================================================================================
 void ContextStateVariable::setParam(int i, AudioObjInstance* aoi)
 {

@@ -194,6 +194,9 @@ class FileListEntry
 
 class FileEditor : public BaseEditor
 {
+  public:
+    enum class mode_e {load,save,del};
+  private:    
     // file names
     static const int MAX_FILE_NAME = 15;
     static const int MAX_FILE_PATH = 42;
@@ -213,7 +216,7 @@ class FileEditor : public BaseEditor
     size_t basePathLen;
     bool keyboardVisible, upperCase;
 
-    enum class mode_e {load,save,del} mode;
+    mode_e mode, maxMode;
     void showMode(bool zapCurrent = true);
     void save(const char* nme);
     void load(const char* nme);
@@ -233,12 +236,14 @@ class FileEditor : public BaseEditor
             AudioPatcherDisplay& d,
             std::vector<AudioObjInstancePtr>& o,
             std::vector<PatchcordInstance_t*>& p,
-            const char* bp
+            const char* bp,
+            mode_e m
             )
             : BaseEditor(d,o,p),
             enc0(e0), enc1(e1), enc2(e2),
             state(0), idx(-1), 
-            fileName{0}, basePath{bp}
+            fileName{0}, basePath{bp},
+            maxMode(m)
             {
               basePathLen = strlen(basePath);
             }

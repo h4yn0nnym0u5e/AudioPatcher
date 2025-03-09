@@ -167,7 +167,7 @@ void processMIDIevent(AudioObjInstance* aoi, MIDIevent* ev){} // no special acti
 
 //=====================================================================================
 template <class TWaveformCtxt>
-void processMIDItoFreqAndAmp(TWaveformCtxt* ctxt, MIDIevent* ev, 
+void processMIDItoFreqAndAmp(const TWaveformCtxt* ctxt, const MIDIevent* ev, 
                              float& freq, float& ampl)
 {
   byte note = ev->note;
@@ -178,7 +178,7 @@ void processMIDItoFreqAndAmp(TWaveformCtxt* ctxt, MIDIevent* ev,
   {
     freq = PatcherVoice::noteToFreq(note);
     freq *= pow(2.0f,ctxt->m.detune.value.f);
-    freq *= ev->pvb.pm.getPitchBend(ctxt->m.PBamount.value.f);
+    //freq *= ev->pvb.pm.getPitchBend(ctxt->m.PBamount.value.f);
   }
   else
   {
@@ -218,47 +218,10 @@ void processMIDIforWaveform(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt*
       float freq, ampl;
       processMIDItoFreqAndAmp(ctxt, ev, freq, ampl);
       ctxt->noteFreq = freq;
-/*
-      byte note = ev->note;
-      
-      note += 12*(ctxt->m.octave.value.i - 4);
-  
-      if (0 == ctxt->m.tuning.value.i) // magic: equal temperament
-      {
-        freq = PatcherVoice::noteToFreq(note);
-        freq *= pow(2.0f,ctxt->m.detune.value.f);
-        ctxt->noteFreq = freq;
-        freq *= ev->pvb.pm.getPitchBend(ctxt->m.PBamount.value.f);
-      }
-      else
-      {
-        note += (int) ctxt->m.detune.value.f; // just use another "tonewheel"
-        freq = PatcherVoice::noteToFreq(note - 12,notesHammond); // Hammond table is an octave up
-        ctxt->noteFreq = freq;
-      }
-  */    
+      freq *= ev->pvb.pm.getPitchBend(ctxt->m.PBamount.value.f);
+
       wav->frequency(freq);
       wav->amplitude(ampl);
-/*      
-      switch (velocityShapes[ctxt->m.velocity.value.i].value)
-      {
-        case 0: // linear     
-          wav->amplitude(ev->velocity / 127.0f);
-          break;
-          
-        case 1: // curved     
-          wav->amplitude(velocity2amplitude[ev->velocity]);
-          break;
-          
-        case 2: // as set     
-          wav->amplitude(ctxt->s.amplitude.value.f);
-          break;
-          
-        case 3: // maximum     
-          wav->amplitude(1.0f);
-          break;
-      }
-          */
     }
     break;
 
@@ -772,17 +735,11 @@ struct WaveformMIDI {ParamValue octave, detune, velocity, tuning, PBamount; };
 class ContextMIDInote : public ContextBase 
 {
   public:
-    //static const ParamEntry _params[1];
     struct {ParamValue amplitude;} s
                  {       {1.0f}    };
 
-    //void setParam(int i, AudioObjInstance* aoi);
-    //static const int boxWidth{260};
-
     //------ MIDI settings ----------
-    //static const ParamEntry MIDIparams[WAVEFORM_MIDI_COUNT];
     WaveformMIDI m {{4},{0.00f},{0},{0}, {0.0f}};
-    //float noteFreq; // basic note frequency before modification with pitch bend
     ContextMIDInote() : ContextBase(1, &s.amplitude, nullptr, nullptr,
                                     WAVEFORM_MIDI_COUNT, &m.octave, nullptr) {}
 };
