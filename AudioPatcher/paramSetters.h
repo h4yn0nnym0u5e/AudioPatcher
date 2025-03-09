@@ -9,6 +9,7 @@
 
 extern LimitedEncoder encM,enc0,enc1,enc2;
 extern const ParamChoice velocityShapes[];
+extern const int16_t arbWAV_sax[];
 
 #if !defined(COUNT_OF)
 #define COUNT_OF(a) (sizeof a / sizeof a[0])
@@ -730,6 +731,13 @@ class ContextNoise : public ContextBase
 struct WaveformMIDI {ParamValue octave, detune, velocity, tuning, PBamount; };
 #define WAVEFORM_MIDI_COUNT (sizeof(WaveformMIDI) / sizeof(ParamValue)) 
 
+template<class Tctxt,class Taudio>
+class ContextWaveformBase
+{
+  //fixArbWAV()
+
+};
+
 //-----------------------------------------------------------------------------------------
 // Waveform-like context for use by filter keyboard tracking etc.
 class ContextMIDInote : public ContextBase 
@@ -761,6 +769,7 @@ class ContextWaveform : public ContextBase
     static const ParamEntry MIDIparams[WAVEFORM_MIDI_COUNT];
     WaveformMIDI m {{4},{0.00f},{0},{0}, {0.0f}};
     float noteFreq; // basic note frequency before modification with pitch bend
+    int16_t* arbWav{(int16_t*) arbWAV_sax};
 };
 
 //-----------------------------------------------------------------------------------------
@@ -796,7 +805,10 @@ class ContextWaveformModulated : public ContextBase
     //------ MIDI settings ----------
     static const ParamEntry MIDIparams[WAVEFORM_MIDI_COUNT];
     WaveformMIDI m {{4},{0.00f},{0},{0},{0.0f}};
+
+    //------ Stuff to remember ----------
     float noteFreq; // basic note frequency before modification with pitch bend
+    int16_t* arbWav{(int16_t*) arbWAV_sax};
 };
 
 //-----------------------------------------------------------------------------------------

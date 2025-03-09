@@ -746,12 +746,11 @@ const ParamEntry ContextWaveformModulated::MIDIparams[]
   {"PB amount",0.0f, 12.0f},
 };
 
-const ParamChoice waveShapes[12] = 
+const ParamChoice waveShapes[13] = 
   {{"sine",0},
    {"saw" , 1},
    {"square" , 2},
    {"triangle" , 3},
-   //{"arbitrary" , 4}, // needs to be loaded, leave for now
    {"pulse" , 5},
    {"saw_rev" , 6},
    {"s&h" , 7},
@@ -759,7 +758,8 @@ const ParamChoice waveShapes[12] =
    {"saw_bl" , 9},
    {"saw_rev_bl" , 10},
    {"square_bl" , 11},
-   {"pulse_bl" , 12}
+   {"pulse_bl" , 12},
+   {"arbitrary" , 4}
   };
   
 ParamChoice modTypes[] = {{"frequency",0},{"phase",1}};
@@ -1347,7 +1347,31 @@ void processMIDIevent<ContextWaveform>(AudioObjInstance* aoi, MIDIevent* ev)
   
 int editWaveform(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
-  return editObjType<AudioSynthWaveform, ContextWaveform>(aoi,mode,params);  
+  int result = editObjType<AudioSynthWaveform, ContextWaveform>(aoi,mode,params);  
+  switch (mode)
+  {
+    default:
+      break;
+
+    case AudioEditMode::constructor:
+    {
+      ContextWaveform* ctxt = (ContextWaveform*) aoi->context;
+      aoi->streamP.Waveform->arbitraryWaveform(ctxt->arbWav,10000.0f);
+    }
+    break;
+
+    case AudioEditMode::destructor:
+    {
+      ContextWaveform* ctxt = (ContextWaveform*) aoi->context;
+
+      if (arbWAV_sax != ctxt->arbWav)
+      {
+        free((void*) ctxt->arbWav);
+      }
+    }
+  }
+
+  return result;
 }
 
 //===========================================================================================

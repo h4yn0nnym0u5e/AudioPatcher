@@ -145,7 +145,8 @@ enum class AudioEditMode {destructor = -1, constructor,
                           enter,edit,exit, 
                           MIDIenter,MIDIedit,MIDIexit, 
                           getParams,setParams, 
-                          getMIDIparams,setMIDIparams,processMIDIevent,checkIfActive};
+                          getMIDIparams,setMIDIparams,
+                          processMIDIevent,checkIfActive};
 struct getSetParams {char* buffer; size_t sz;};
 class AudioObjInstance; // forward declaration needed for editFn()
 struct AudioObjStatic_t
