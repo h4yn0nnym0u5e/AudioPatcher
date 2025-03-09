@@ -859,7 +859,12 @@ void processMIDIevent<ContextWaveformModulated>(AudioObjInstance* aoi, MIDIevent
   
 int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
-  return editObjType<AudioSynthWaveformModulated, ContextWaveformModulated>(aoi,mode,params);  
+  int result = editObjType<AudioSynthWaveformModulated, ContextWaveformModulated>(aoi,mode,params);
+  // Only after construction do we have a context with a default arbitrary 
+  // waveform. Also, may need to free it on destruction
+  ((ContextWaveformModulated*) (aoi->context))->fixArbWAV(aoi->streamP.WaveformModulated, mode);
+  
+  return result;
 }
 
 //===========================================================================================
@@ -1347,29 +1352,10 @@ void processMIDIevent<ContextWaveform>(AudioObjInstance* aoi, MIDIevent* ev)
   
 int editWaveform(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
-  int result = editObjType<AudioSynthWaveform, ContextWaveform>(aoi,mode,params);  
-  switch (mode)
-  {
-    default:
-      break;
-
-    case AudioEditMode::constructor:
-    {
-      ContextWaveform* ctxt = (ContextWaveform*) aoi->context;
-      aoi->streamP.Waveform->arbitraryWaveform(ctxt->arbWav,10000.0f);
-    }
-    break;
-
-    case AudioEditMode::destructor:
-    {
-      ContextWaveform* ctxt = (ContextWaveform*) aoi->context;
-
-      if (arbWAV_sax != ctxt->arbWav)
-      {
-        free((void*) ctxt->arbWav);
-      }
-    }
-  }
+  int result = editObjType<AudioSynthWaveform, ContextWaveform>(aoi,mode,params);
+  // Only after construction do we have a context with a default arbitrary 
+  // waveform. Also, may need to free it on destruction
+  ((ContextWaveform*) (aoi->context))->fixArbWAV(aoi->streamP.Waveform, mode);
 
   return result;
 }

@@ -731,11 +731,29 @@ class ContextNoise : public ContextBase
 struct WaveformMIDI {ParamValue octave, detune, velocity, tuning, PBamount; };
 #define WAVEFORM_MIDI_COUNT (sizeof(WaveformMIDI) / sizeof(ParamValue)) 
 
-template<class Tctxt,class Taudio>
+template<class Taudio>
 class ContextWaveformBase
 {
-  //fixArbWAV()
-
+  public:
+    void fixArbWAV(Taudio* stream, AudioEditMode mode)
+    {
+      switch (mode)
+      {
+        default: break;
+    
+        case AudioEditMode::constructor:
+          stream->arbitraryWaveform(arbWav,10000.0f);
+        break;
+    
+        case AudioEditMode::destructor:
+        {
+          if (arbWAV_sax != arbWav)
+            free((void*) arbWav);
+        }
+        break;
+      }
+    }
+    int16_t* arbWav{(int16_t*) arbWAV_sax};
 };
 
 //-----------------------------------------------------------------------------------------
@@ -753,7 +771,7 @@ class ContextMIDInote : public ContextBase
 };
 
 //-----------------------------------------------------------------------------------------
-class ContextWaveform : public ContextBase 
+class ContextWaveform : public ContextBase, public ContextWaveformBase<AudioSynthWaveform> 
 {
   public:
     ContextWaveform() : ContextBase(COUNT_OF(_params), &s.waveform, _params, nullptr,
@@ -769,7 +787,6 @@ class ContextWaveform : public ContextBase
     static const ParamEntry MIDIparams[WAVEFORM_MIDI_COUNT];
     WaveformMIDI m {{4},{0.00f},{0},{0}, {0.0f}};
     float noteFreq; // basic note frequency before modification with pitch bend
-    int16_t* arbWav{(int16_t*) arbWAV_sax};
 };
 
 //-----------------------------------------------------------------------------------------
@@ -791,7 +808,9 @@ class ContextWaveformDc : public ContextBase
 };
 
 //-----------------------------------------------------------------------------------------
-class ContextWaveformModulated : public ContextBase
+class ContextWaveformModulated 
+    : public ContextBase, 
+      public ContextWaveformBase<AudioSynthWaveformModulated>
 { 
   public:
     ContextWaveformModulated() : ContextBase(COUNT_OF(_params), &s.waveform, _params, nullptr, 
@@ -808,7 +827,6 @@ class ContextWaveformModulated : public ContextBase
 
     //------ Stuff to remember ----------
     float noteFreq; // basic note frequency before modification with pitch bend
-    int16_t* arbWav{(int16_t*) arbWAV_sax};
 };
 
 //-----------------------------------------------------------------------------------------
