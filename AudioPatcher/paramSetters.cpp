@@ -598,10 +598,39 @@ const ParamEntry ContextMixer4::_params[4] =
   {"ch4", 0.0f, 1.0f},
 };
 
+const ParamEntry ContextMixer4::MIDIparams[4] = 
+{
+  {"CC1", -1, 119}, 
+  {"CC2", -1, 119}, 
+  {"CC3", -1, 119}, 
+  {"CC4", -1, 119}  
+};
+
 
 int editMixer4(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioMixer4, ContextMixer4>(aoi,mode,params);    
+}
+
+template <>
+void processMIDIevent<ContextMixer4>(AudioObjInstance* aoi, MIDIevent* ev)
+{
+  ContextMixer4* ctxt = (ContextMixer4*) aoi->context;
+  
+  switch (ev->type)
+  {
+    case midi::ControlChange:
+    {
+      for (int i=0;i<4;i++)
+        if (ev->CCnum == ctxt->CCs[i].value.i)
+        {
+          float ampl = ev->CCval / 127.0f;// map((float) ev->CCval,0.0f,127.0f,ctxt->m.CCmin.value.f,ctxt->m.CCmax.value.f);
+          aoi->streamP.Mixer4->gain(i,ev->CCval / 127.0f);
+          ctxt->gains[i] = ampl;
+        }
+    }
+    break;
+  }
 }
 
 

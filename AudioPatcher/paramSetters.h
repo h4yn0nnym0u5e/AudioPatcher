@@ -694,12 +694,17 @@ class ContextStateVariable : public ContextBase
 class ContextMixer4 : public ContextBase  
 {
   public:
-    ContextMixer4() : ContextBase(COUNT_OF(_params), gains, _params){}
+    ContextMixer4() : ContextBase(COUNT_OF(_params), gains, _params, nullptr,
+                                  COUNT_OF(MIDIparams), CCs, MIDIparams) {}
     static const ParamEntry _params[4];
     ParamValue gains[4]{{0.55f},{0.55f},{0.55f},{0.55f}};
     static constexpr AudioPatcherDisplay::Box box{BOX_DEF(120,COUNT_OF(_params))};
     
     void setParam(int i, AudioObjInstance* aoi);
+
+    //------ MIDI settings ----------
+    static const ParamEntry MIDIparams[4];
+    ParamValue CCs[4]{{19},{23},{27},{31}}; // Akai MIDImix volume 1-4;                         
 };
 
 //-----------------------------------------------------------------------------------------
