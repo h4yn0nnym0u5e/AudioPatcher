@@ -1,0 +1,8 @@
+Power consumption
+=================
+Base synth: Teensy + audio adaptor + 8encoder + 8angle: 290mA
+Alesis Vmini: +40mA
+Akai MIDImix: +30mA
+Hub:          +10mA
+
+Total: 370mA - OK 

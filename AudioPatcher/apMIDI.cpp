@@ -1,8 +1,14 @@
 #include "apMIDI.h"
 
+#define COUNT_OF(a) (int)(sizeof a / sizeof a[0])
+
+/*
+ * MIDI host setup.
+ */
 static USBHost myUSB;
-static MIDIDevice midiHost(myUSB);
+static USBHub hub1{myUSB}; // allow for one hub...
 static PatcherMIDI* pm;
+static MIDIDevice midiHosts[2] = {{myUSB},{myUSB}}; // ... and two controllers
 
 static std::vector<PatcherVoice*> sounding;
 static std::vector<PatcherVoice*> releasing;
@@ -171,14 +177,19 @@ void PatcherMIDI::update(void)
   }
 #endif // defined(USB_MIDI_SELECTED_IN_TOOLS)  
 
-  if (midiHost.read())
+  for (int i=0; i<COUNT_OF(midiHosts); i++)
   {
-    byte type = midiHost.getType();
-    uint8_t* syxP = type == midi::SystemExclusive?midiHost.getSysExArray():nullptr;
-  
-    processEvent(midiHost.getCable(), midiHost.getChannel(), type, midiHost.getData1(), midiHost.getData2(), syxP);
-  }
+    MIDIDevice& midiHost = midiHosts[i];
 
+    if (midiHost.read())
+    {
+      byte type = midiHost.getType();
+      uint8_t* syxP = type == midi::SystemExclusive?midiHost.getSysExArray():nullptr;
+    
+      processEvent(midiHost.getCable(), midiHost.getChannel(), type, midiHost.getData1(), midiHost.getData2(), syxP);
+    }
+  
+  }
   // now see if any releasing voices have finished
   for (int i = releasing.size() - 1; i >= 0; i--)
   {
