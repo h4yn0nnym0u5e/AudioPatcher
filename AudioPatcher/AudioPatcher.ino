@@ -19,6 +19,7 @@
 #error Make sure you have dynamic cores and Audio library!
 #endif // !defined(SAFE_RELEASE_MANY) || !defined(DYNMIXER_H_)
 
+AudioSynthWavetable dummy;
 
 /********************************************************************************************************/
 M5w_8angle    ctrl{0x43, Wire1};
@@ -93,6 +94,7 @@ void doReboot()
 //                                             
 //
 /********************************************************************************************************/
+extern const AudioSynthWavetable::instrument_data Harp;
 void setup() 
 {
   while (!Serial && millis() < 4000)
@@ -106,6 +108,8 @@ void setup()
   display.Splash();
   display.Clear();   
   systemState = 5;
+
+  dummy.setInstrument(Harp);
 
   printHL();
   printFlashID();
@@ -258,8 +262,6 @@ ParamEditor paramEditor(enc0,enc1,enc2,display,objVec,cordVec);
 MIDIEditor midiEditor(enc0,display,objVec,cordVec);
 DeleteEditor deleteEditor(enc0,enc1,enc2,display,objVec,cordVec);
 FileEditor fileEditor(enc0,enc1,enc2,display,objVec,cordVec,patchBase,FileEditor::mode_e::del);
-
-// char dummy_buffer[34000];
 
 PatcherMIDI patcherMIDI(objVec, cordVec);
 /********************************************************************************************************/
@@ -476,12 +478,14 @@ extern "C" {
   void startup_late_hook(void)
   {
     systemState = 1;
-    while (!Serial)
+    while (!Serial && millis() < 4000)
       ;
     systemState = 1;
     Serial.println("Late hook");
     if (CrashReport)
     {
+      while (!Serial) // crashed - ensure we see the report
+        ;
       Serial.print(CrashReport);
     }
     systemState = 3;

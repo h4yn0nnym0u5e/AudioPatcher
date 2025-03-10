@@ -6,6 +6,7 @@
 #include "display.h"
 #include "limitedEncoder.h"
 #include "apMIDI.h"
+#include "Harp_samples.h"
 
 extern LimitedEncoder encM,enc0,enc1,enc2;
 extern const ParamChoice velocityShapes[];
@@ -242,6 +243,7 @@ void processMIDIforWaveform(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt*
   }
 }
 
+
 template <class TWaveformCtxt, class TwaveformObject>
 void processMIDIforKarplusStrong(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt* ctxt, TwaveformObject* wav)
 {
@@ -264,10 +266,32 @@ void processMIDIforKarplusStrong(AudioObjInstance* aoi, MIDIevent* ev, TWaveform
       wav->noteOff(ampl);
     }
       break;
-
   }
 }
 
+
+template <class TWaveformCtxt, class TwaveformObject>
+void processMIDIforWavetable(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt* ctxt, TwaveformObject* wav)
+{
+  switch (ev->type)
+  {
+    case midi::NoteOn:
+    {
+      float freq, ampl;
+      processMIDItoFreqAndAmp(ctxt, ev, freq, ampl);
+      ctxt->noteFreq = freq;
+ 
+      wav->playFrequency(freq,(uint8_t) (ampl * 127.0f));
+    }
+    break;
+
+    case midi::NoteOff:
+    {
+      wav->stop();
+    }
+      break;
+  }
+}
 //=====================================================================================
 template <class Tctxt>
 int isActive(AudioObjInstance* aoi){ return 0; } // most AudioStream classes don't have "active" state
@@ -310,7 +334,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
         result = 1; // claimed
         enterEditMode(myContext,aoi);
         
-        se = new SettingsEditor(display,myContext->box, // {BOX_DEF(Tctxt::boxWidth,rows / cols)},
+        se = new SettingsEditor(display,myContext->box,
                                 myContext->paramCount, myContext->params,myContext->aray,myContext->pages);
         se->Init(aoi->objP->name);
         next = 0;
@@ -855,6 +879,53 @@ class ContextWaveformModulated
     //------ MIDI settings ----------
     static const ParamEntry MIDIparams[WAVEFORM_MIDI_COUNT];
     WaveformMIDI m {{4},{0.00f},{0},{0},{0.0f}};
+};
+
+//-----------------------------------------------------------------------------------------
+class ContextWavetable : public ContextBase
+{ 
+  public:
+    ContextWavetable() : ContextBase(COUNT_OF(_params), &s.waveform, _params, nullptr, 
+                                     COUNT_OF(MIDIparams), &m.octave, MIDIparams) 
+    {
+      display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h);
+    }
+    static const ParamEntry _params[5];
+    struct {ParamValue waveform,frequency,amplitude,offset,modType;} s {{0},{7.0f},{0.5f},{0.0f},{0}};
+    AudioPatcherDisplay::Box box;
+          
+    void setParam(int i, AudioObjInstance* aoi);
+
+    //------ MIDI settings ----------
+    static const ParamEntry MIDIparams[WAVEFORM_MIDI_COUNT];
+    WaveformMIDI m {{4},{0.00f},{0},{0},{0.0f}};
+
+    /*
+      Fix up arbitrary waveform pointer at construction and
+      destruction time, so we don't crash or leak memory.
+     */
+    void fixInstrument(AudioSynthWavetable* stream, AudioEditMode mode)
+    {
+      switch (mode)
+      {
+        default: break;
+    
+        case AudioEditMode::constructor:
+          stream->setInstrument(*instrument);
+        break;
+    
+        case AudioEditMode::destructor:
+        {
+          if (&Harp != instrument)
+            free((void*) instrument);
+        }
+        break;
+      }
+    }
+
+    //------ Stuff to remember ----------
+    float noteFreq; // basic note frequency before modification with pitch bend
+    const AudioSynthWavetable::instrument_data* instrument{&Harp}; // record of aritrary waveform
 };
 
 //-----------------------------------------------------------------------------------------

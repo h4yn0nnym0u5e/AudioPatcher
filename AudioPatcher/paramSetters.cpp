@@ -1367,6 +1367,106 @@ int editWaveform(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
+const ParamEntry ContextWavetable::MIDIparams[] 
+{
+  {"   octave", 0, 9}, // middle C = 261.63Hz = note#60 = octave 4
+  {"   detune", -6.00f, +6.00f}, // semitones / cents
+  {" velocity",PARAM_ENTRY_CHOICES(velocityShapes)},
+  {"   tuning",PARAM_ENTRY_CHOICES(tuningTypes)},
+  {"PB amount",0.0f, 12.0f}
+};
+
+const ParamEntry ContextWavetable::_params[5] = {
+  {"  waveform", PARAM_ENTRY_CHOICES(waveShapes)},
+  {" frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
+  {" amplitude", 0.0f, 1.0f},
+  {"pulseWidth", 0.0f, 1.0f},
+  {"    offset", -1.0f, 1.0f}
+};
+
+
+void ContextWavetable::setParam(int i, AudioObjInstance* aoi)
+{
+  switch (i)
+  {
+    default: break;
+    /*
+    case 0: aoi->streamP.Wavetable->begin(waveShapes[s.waveform.value.i].value); break;
+    case 1: aoi->streamP.Wavetable->frequency(pow(2,s.frequency.value.f)); break;
+    case 2: aoi->streamP.Wavetable->amplitude(s.amplitude.value.f); break;
+    case 3: aoi->streamP.Wavetable->pulseWidth(s.pulseWidth.value.f); break;
+    case 4: aoi->streamP.Wavetable->offset(s.offset.value.f); break;
+    */
+  }
+}
+
+template <>
+void enterEditMode<ContextWavetable>(ContextWavetable* myContext, AudioObjInstance* aoi)
+{
+  // fix up the pot and encoder values
+  int iprt = floor(myContext->s.frequency.value.f - LOG_NOTE_A);
+  float frac = myContext->s.frequency.value.f - iprt - LOG_NOTE_A;
+
+  // Serial.printf("freq is %f -> %f Hz\n",myContext->s.frequency.value.f,pow(2,myContext->s.frequency.value.f));
+  
+  enc0.setLimits(-3,12);
+  if (frac > 0.5f)
+  {
+    frac -= 1.0f;
+    iprt++;
+  }
+  enc0.setValue(iprt);
+
+  ParamValue pv{frac};    
+  HookControl(ctrl,1,freqLimits,pv); // frequency pot is #1: set hook
+
+  Serial.printf("Hook set to %f; encoder to %d\n",pv.value.f,iprt);
+}
+  
+
+template <> // template specialization for setting Wavetable; needed for frequency setting
+void updateFromControls<ContextWavetable>(ContextWavetable* myContext, AudioObjInstance* aoi)
+{
+  for (size_t i=0; i < myContext->paramCount; i++)
+  {
+    if (1 == i) // frequency
+    {
+      enc0.available();
+      if (ScaleFreq(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),enc0.getValue(),0.999f))
+      {
+        se->ShowValue(i);
+        myContext->setParam(i,aoi);
+      }      
+    }
+    else
+    {
+      if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
+      {
+        se->ShowValue(i);
+        myContext->setParam(i,aoi);
+      }
+    }
+  }
+}
+
+template <>
+void processMIDIevent<ContextWavetable>(AudioObjInstance* aoi, MIDIevent* ev)
+{
+  processMIDIforWavetable(aoi,ev,(ContextWavetable*) aoi->context,aoi->streamP.Wavetable);
+}
+
+  
+int editWavetable(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  int result = editObjType<AudioSynthWavetable, ContextWavetable>(aoi,mode,params);
+  // Only after construction do we have a context with a default arbitrary 
+  // waveform. Also, may need to free it on destruction
+  ((ContextWavetable*) (aoi->context))->fixInstrument(aoi->streamP.Wavetable, mode);
+
+  return result;
+}
+
+//===========================================================================================
  const ParamChoice responsesBiquad[] = 
   {{"  (off) "   , 0},
      
