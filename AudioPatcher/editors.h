@@ -11,6 +11,7 @@ extern void lockModeEncoder(void);
 extern void unlockModeEncoder(void);
 
 #define OBJ_PER_VOICE_CHAR '+'
+#define PATCH_ROOT "/patches"
 
 class BaseEditor
 {
@@ -20,8 +21,11 @@ class BaseEditor
     std::vector<PatchcordInstance_t*>& cordVec;
     int epIdx;
     int state;
+    AudioPatcherDisplay::side where;
     const int16_t CURSOR_STEP=10;
     const int16_t CANVAS_STEP=50;
+    const int16_t CORD_SELECT_MIN = 15;
+    static const int32_t NO_FORCE=0xCAFEBABE;
 
   public:
     BaseEditor(AudioPatcherDisplay& d,
@@ -31,7 +35,13 @@ class BaseEditor
             {}
     AudioObjInstance* highlightObjnum(int n, uint16_t colour);
     AudioObjInstance* highlightObj(AudioObjInstance* it, uint16_t colour); 
-    void drawAll(void);
+    int PointToObject(int x, int y);
+    int getSide(void) { return (int) where; }
+    int PointToCord(int x, int y);
+    void SelectByEncoder(LimitedEncoder& enc0, int32_t value=NO_FORCE);
+    int SelectByTouch(LimitedEncoder& enc0, bool onlySetEncoder=false);
+    int SelectCordByTouch(LimitedEncoder& enc0, bool onlySetEncoder=false);
+    void drawAll(bool drawCords = true);
 };
 
 class ObjEditor : public BaseEditor
@@ -65,13 +75,15 @@ class ObjEditor : public BaseEditor
 
 class CordEditor : public BaseEditor
 {
-    enum srctype {nothing,noSrc,noDst};
+    enum srctype {nothing,noSrc,noDst,touchNothing};
     enum class Prioritise {nothing,object,port,srcdst};
     struct settings {int objNum, portNum, srcdst;};
 
     LimitedEncoder& enc0, &enc1, &enc2;
     AudioObjStatic_t (&objList)[];
     int portNum;
+    settings touchedObj;
+    bool setByTouch;
     PatchcordInstance_t editCord;
 
     int findBestSettings(settings& ns, Prioritise pri);
@@ -79,6 +91,7 @@ class CordEditor : public BaseEditor
     int findGoodObj(int epIdx, int ec1, int io);
     void ShowSelection(int io);
     void highlightPort(AudioObjInstance* aoi, int io, int n, bool on);
+    void highlightPort(int epIdx, int io, int n, bool on);
     void greyOut(srctype s);
 
   public:
@@ -90,7 +103,7 @@ class CordEditor : public BaseEditor
             : BaseEditor(d,o,p),
             enc0(e0), enc1(e1), enc2(e2),
             objList(ol),
-            portNum(0)
+            portNum(0), setByTouch{false}
             {}
     void edit(void);
     void enter(void);
@@ -166,36 +179,80 @@ class MIDIEditor : public BaseEditor
     void exit(void); 
 };
 
+class FileListEntry
+{
+  public:
+    FileListEntry(String nm, bool dr) : name{nm}, isDir{dr} {}
+    String name;
+    bool isDir;
+    friend bool operator<(const FileListEntry& lhs, const FileListEntry& rhs)
+    {
+      if (lhs.isDir && !rhs.isDir) return true;
+      return lhs.name < rhs.name;
+    }
+};
+
 class FileEditor : public BaseEditor
 {
-    LimitedEncoder& enc0, &enc1, &enc2;
-    int state;
-    char fileChar;
-    bool keyboardVisible;
+  public:
+    enum class mode_e {load,save,del};
+  private:    
+    // file names
+    static const int MAX_FILE_NAME = 15;
+    static const int MAX_FILE_PATH = 42;
+    static const char NAME_EOL = '\r';
 
-    void showMode(void);
-    void save(void);
-    void load(void);
-    void dump(void);
+    // file selection window
+    static const int MAX_FILE_LINE =  6;
+    static const int FILE_X_OFF =  5;
+    static const int FILE_Y_OFF = 27;
     
-    int getLast(void);
-    void setLast(char fileChar);
+    LimitedEncoder& enc0, &enc1, &enc2;
+    int state, idx;
+    std::vector<FileListEntry> fileList;
+    char fileName[MAX_FILE_NAME+1];
+    char filePath[MAX_FILE_PATH+1];
+    const char* basePath;
+    size_t basePathLen;
+    bool keyboardVisible, upperCase;
+
+    mode_e mode, maxMode;
+    void showMode(bool zapCurrent = true);
+    void save(const char* nme);
+    void load(const char* nme);
+    void del(const char* nme);
+    void dump(const char* nme);
+    
+    int getLast(char* buf, int maxn);
+    void setLast(const char* nme);
+
+    void createFileList(const char* path, mode_e mode);
+    void clearFileList(void);
+    void showFileList(const int item, bool showAll = false);
+    int fileListTop, fileListCurrent;
      
   public:    
     FileEditor(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2, 
             AudioPatcherDisplay& d,
             std::vector<AudioObjInstancePtr>& o,
-            std::vector<PatchcordInstance_t*>& p
+            std::vector<PatchcordInstance_t*>& p,
+            const char* bp,
+            mode_e m
             )
             : BaseEditor(d,o,p),
             enc0(e0), enc1(e1), enc2(e2),
-            state(0), fileChar('A')
-            {}
+            state(0), idx(-1), 
+            fileName{0}, basePath{bp},
+            maxMode(m)
+            {
+              basePathLen = strlen(basePath);
+            }
     void edit(void);
     void enter(void);
     void exit(void); 
     
     int loadLast(void);
+    void newKey(AudioPatcherDisplay::keyInfo key);
 };
 
 #endif // !defined(_EDITORS_H_)
