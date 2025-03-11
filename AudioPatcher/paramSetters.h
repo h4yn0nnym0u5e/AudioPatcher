@@ -36,11 +36,11 @@ class FileLoader : public FileBase
   public:    
     FileLoader(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2, 
             AudioPatcherDisplay& d,
-            const char* bp,
+            const char* bp, const char* fe, 
             mode_e m,
             Tctxt& c
             )
-            : FileBase(e0,e1,e2,d,bp,m),
+            : FileBase(e0,e1,e2,d,bp,fe,m),
             context(c)
             {}
     virtual ~FileLoader() {};            

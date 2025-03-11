@@ -1663,6 +1663,8 @@ CrashReport.breadcrumb(1,2);
         if (zapCurrent)
         {
           int i;
+          bool gotFile = false;
+
           clearFileList();
 CrashReport.breadcrumb(1,3);
           createFileList(filePath, mode);
@@ -1670,9 +1672,13 @@ CrashReport.breadcrumb(1,4);
           enc1.setLimits(0, fileList.size() - 1);
           for (i = 1; i < (int) fileList.size(); i++)
             if (!fileList.at(i).isDir)
+            {
+              gotFile = true;
               break;
+            }
+              
 CrashReport.breadcrumb(1,5);
-          if (fileList.at(i).isDir) // no files, only folders
+          if (!gotFile) // no files, only folders
             i = 0 == fileList.size() ? 0 : 1;
           enc1.setValue(i);
           fileListTop = -MAX_FILE_LINE - 1;
@@ -1712,16 +1718,16 @@ FLASHMEM void FileBase::createFileList(const char* path, mode_e theMode)
 
     {
       String nme = String(entry.name());
-
+Serial.println(nme);
       if (!nme.startsWith('!')) // ignore ! at start
       {
         if (entry.isDirectory())
           fileList.push_back({nme, true});
         else
         {
-          if (nme.endsWith(".txt")) // ignore !last.txt, thing.exe etc.
+          if (nme.endsWith(fileExtn)) // ignore !last.txt, thing.exe etc.
           {
-            nme.replace(".txt", "");
+            nme.replace(fileExtn, "");
             fileList.push_back({nme, false});
           }
         }

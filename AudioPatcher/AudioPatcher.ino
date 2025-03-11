@@ -261,7 +261,7 @@ CordEditor cordEditor(enc0,enc1,enc2,display,objVec,cordVec,objList);
 ParamEditor paramEditor(enc0,enc1,enc2,display,objVec,cordVec);
 MIDIEditor midiEditor(enc0,display,objVec,cordVec);
 DeleteEditor deleteEditor(enc0,enc1,enc2,display,objVec,cordVec);
-FileEditor fileEditor(enc0,enc1,enc2,display,objVec,cordVec,patchBase,FileBase::mode_e::del);
+FileEditor fileEditor(enc0,enc1,enc2,display,objVec,cordVec,patchBase,".txt",FileBase::mode_e::del);
 
 PatcherMIDI patcherMIDI(objVec, cordVec);
 /********************************************************************************************************/

@@ -866,13 +866,20 @@ void updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myCo
 {
   if (nullptr != myContext->fileSelector)
   {
+    static uint32_t exitAt = 0; // flag to track "exit" encoder button state
+    int keepChoosing = testExit(exitAt);
+
     myContext->fileSelector->edit();
-    if (myContext->arbWAVloaded) // user selected a different wave...
+
+    if (myContext->arbWAVloaded || !keepChoosing) // user selected a different wave, or quit...
     {
-      myContext->setParam(ContextWaveformModulated::ARBWAV_PARAM,aoi);  // ...tell the object about it
+      if (myContext->arbWAVloaded)
+        myContext->setParam(ContextWaveformModulated::ARBWAV_PARAM,aoi);  // ...tell the object about it
       myContext->fileSelector->exit();
       delete myContext->fileSelector;
       myContext->fileSelector = nullptr;
+
+      settingsEditor->Init(aoi->objP->name);
     }
   }
   else
@@ -907,7 +914,8 @@ void updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myCo
         myContext->encPressed = -1;
         myContext->fileSelector = new FileLoader(enc0,enc1,enc2,
                                             settingsEditor->display,
-                                            "/arbWavs",FileBase::mode_e::load,
+                                            "/arbWavs", ".snd", 
+                                            FileBase::mode_e::load,
                                             *myContext);
         myContext->fileSelector->enter(false); // area is already saved, don't repeat that
         myContext->arbWAVloaded = false;
@@ -942,6 +950,7 @@ void ContextWaveformBase<Taudio>::loadArbWAV(const char* base, const char* path,
   File f;
 
   makeFFP(buf,base,path,nme,extn);
+  Serial.print(buf);
 
   do
   {
@@ -966,6 +975,7 @@ void ContextWaveformBase<Taudio>::loadArbWAV(const char* base, const char* path,
     // copy the data and point to it
     memcpy(mem,tmp,sizeof tmp);
     arbWav = mem;
+    Serial.println(": loaded");
     
   } while (0);
 

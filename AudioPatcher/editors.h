@@ -215,6 +215,7 @@ class FileBase
     char fileName[MAX_FILE_NAME+1];
     char filePath[MAX_FILE_PATH+1];
     const char* basePath;
+    const char* fileExtn;
     size_t basePathLen;
     bool keyboardVisible, upperCase;
 
@@ -236,13 +237,13 @@ class FileBase
   public:    
     FileBase(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2, 
             AudioPatcherDisplay& d,
-            const char* bp,
+            const char* bp, const char* fe,
             mode_e m
             )
             : fileDisplay(d.getInstance()),
             enc0(e0), enc1(e1), enc2(e2),
             state(0), idx(-1), 
-            fileName{0}, basePath{bp},
+            fileName{0}, basePath{bp}, fileExtn{fe},
             maxMode(m)
             {
               basePathLen = strlen(basePath);
@@ -262,10 +263,10 @@ class FileEditor : public BaseEditor, public FileBase
             AudioPatcherDisplay& d,
             std::vector<AudioObjInstancePtr>& o,
             std::vector<PatchcordInstance_t*>& p,
-            const char* bp,
+            const char* bp, const char* fe,
             mode_e m
             )
-            : BaseEditor(d,o,p), FileBase(e0,e1,e2,d,bp,m)
+            : BaseEditor(d,o,p), FileBase(e0,e1,e2,d,bp,fe,m)
             {}
     void save(const char* nme);
     void load(const char* nme);
