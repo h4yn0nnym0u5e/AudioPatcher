@@ -601,12 +601,13 @@ void AudioPatcherDisplay::ShowAreaText(const char* txt, int xoff, int yoff, int 
   
   tft.setFontAdafruit();
   tft.setTextSize(2);
-  int16_t tw = tft.measureTextWidth(txt),
+  int16_t tw = nullptr == txt ? 0 : tft.measureTextWidth(txt),
           th = tft.fontLineSpace()+AREA_EXTRA; // assume it's going to fit on one line!
   yoff += savedArea.y + row*th;
   tft.setTextColor(fg,bg);
   tft.setCursor(xoff,yoff);
-  tft.print(txt);
+  if (nullptr != txt)
+    tft.print(txt);
   tft.fillRect(xoff,yoff+th-AREA_EXTRA,tw,AREA_EXTRA, bg);
   tft.fillRect(xoff+tw,yoff,eraseTo - tw,th, bg);
 }

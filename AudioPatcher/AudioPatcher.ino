@@ -13,7 +13,7 @@
 #include <vector>
 #include <algorithm>
 
-//#include "TeensyDebug.h"
+// #include "TeensyDebug.h"
 
 #if !defined(SAFE_RELEASE_MANY) || !defined(DYNMIXER_H_)
 #error Make sure you have dynamic cores and Audio library!
@@ -261,7 +261,7 @@ CordEditor cordEditor(enc0,enc1,enc2,display,objVec,cordVec,objList);
 ParamEditor paramEditor(enc0,enc1,enc2,display,objVec,cordVec);
 MIDIEditor midiEditor(enc0,display,objVec,cordVec);
 DeleteEditor deleteEditor(enc0,enc1,enc2,display,objVec,cordVec);
-FileEditor fileEditor(enc0,enc1,enc2,display,objVec,cordVec,patchBase,FileEditor::mode_e::del);
+FileEditor fileEditor(enc0,enc1,enc2,display,objVec,cordVec,patchBase,FileBase::mode_e::del);
 
 PatcherMIDI patcherMIDI(objVec, cordVec);
 /********************************************************************************************************/

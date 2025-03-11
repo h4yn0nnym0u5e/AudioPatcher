@@ -6,6 +6,7 @@
 #include "display.h"
 #include "limitedEncoder.h"
 #include "apMIDI.h"
+#include "editors.h"
 #include "Harp_samples.h"
 
 extern LimitedEncoder encM,enc0,enc1,enc2;
@@ -28,6 +29,24 @@ extern ;
 extern void HookControl(M5w_8angle& ctrl, int ch, const ParamEntry& pe, ParamValue& pv);
 extern bool Scale(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filter);
 
+//==========================================================================
+template<class Tctxt>
+class FileLoader : public FileBase
+{
+  public:    
+    FileLoader(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2, 
+            AudioPatcherDisplay& d,
+            const char* bp,
+            mode_e m,
+            Tctxt& c
+            )
+            : FileBase(e0,e1,e2,d,bp,m),
+            context(c)
+            {}
+    virtual ~FileLoader() {};            
+    Tctxt& context;            
+    void load(const char* nme) { context.loadArbWAV(basePath,filePath,nme,".snd"); };
+};
 
 //==========================================================================
 class SettingsEditor 
@@ -67,7 +86,7 @@ class SettingsEditor
 };
 
 //==========================================================================
-extern SettingsEditor* se;
+extern SettingsEditor* settingsEditor;
 extern M5w_8angle    ctrl;
 extern M5w_8encoder  encr;
 extern int testExit(uint32_t& exitAt);
@@ -81,36 +100,36 @@ extern int testExit(uint32_t& exitAt);
 template <class Tctxt>
 void updateFromControls(Tctxt* myContext, AudioObjInstance* aoi)
 {
-  size_t pOff = 0, pCount = se->paramCount;
+  size_t pOff = 0, pCount = settingsEditor->paramCount;
   
   if (encM.available()) // attempt to change page
   {
-    int oldPage = se->currentPage;
+    int oldPage = settingsEditor->currentPage;
     int newPage = oldPage + encM.getValue();
     encM.setValue(0);
-    if (se->ChangePage(newPage))
+    if (settingsEditor->ChangePage(newPage))
     {
       // unhook from old parameter values
-      for (int i=0; i < se->pages[oldPage].count; i++)
+      for (int i=0; i < settingsEditor->pages[oldPage].count; i++)
         ctrl.clearHook(i);
 
-      se->ShowPage();
+      settingsEditor->ShowPage();
     }
   }
 
-  if (nullptr != se->pages)
+  if (nullptr != settingsEditor->pages)
   {
-    pOff = se->pages[se->currentPage].start;
-    pCount = se->pages[se->currentPage].count;
+    pOff = settingsEditor->pages[settingsEditor->currentPage].start;
+    pCount = settingsEditor->pages[settingsEditor->currentPage].count;
   }
     
   for (size_t i=0; i < pCount; i++)
   {
     int pNum = i + pOff;
     
-    if (Scale(se->params[pNum],se->aray[pNum],ctrl.getPot16(i),0.999f))
+    if (Scale(settingsEditor->params[pNum],settingsEditor->aray[pNum],ctrl.getPot16(i),0.999f))
     {
-      se->ShowValue(pNum);
+      settingsEditor->ShowValue(pNum);
       myContext->setParam(pNum,aoi);
     }
   }
@@ -334,9 +353,9 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
         result = 1; // claimed
         enterEditMode(myContext,aoi);
         
-        se = new SettingsEditor(display,myContext->box,
+        settingsEditor = new SettingsEditor(display,myContext->box,
                                 myContext->paramCount, myContext->params,myContext->aray,myContext->pages);
-        se->Init(aoi->objP->name);
+        settingsEditor->Init(aoi->objP->name);
         next = 0;
       }
       break;      
@@ -354,8 +373,8 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
       exitEditMode(myContext,aoi);
       for (size_t i=0; i < myContext->paramCount; i++)
         ctrl.clearHook(i);
-      delete se;
-      se = nullptr;
+      delete settingsEditor;
+      settingsEditor = nullptr;
       break;  
 
     //---------------------------------------------------------------------------------------------------
@@ -370,11 +389,11 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
           if (myContext->MIDIparamCount > 1 && 0 != myContext->MIDIparams[1].xoff) // multi-column - assume just 2!
             cols = 2;
             
-          se = new SettingsEditor(display, {BOX_DEF(myContext->box.w,rows / cols)},
+          settingsEditor = new SettingsEditor(display, {BOX_DEF(myContext->box.w,rows / cols)},
                                   myContext->MIDIparamCount, myContext->MIDIparams,myContext->MIDIvalues,nullptr);
   
-          se->Init(aoi->objP->name);
-          se->ShowVoiceFlag(aoi->perVoice);
+          settingsEditor->Init(aoi->objP->name);
+          settingsEditor->ShowVoiceFlag(aoi->perVoice);
           enc0.setValue(aoi->perVoice);
           next = 0;
         }
@@ -393,7 +412,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
         if (enc0.available())
         {
           aoi->perVoice = enc0.getValue() & 1;
-          se->ShowVoiceFlag(aoi->perVoice);
+          settingsEditor->ShowVoiceFlag(aoi->perVoice);
         }
           
       }
@@ -403,8 +422,8 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
     case AudioEditMode::MIDIexit: // finish editing an object's MIDI settings
       for (size_t i=0; i < myContext->paramCount; i++)
         ctrl.clearHook(i);
-      delete se;
-      se = nullptr;
+      delete settingsEditor;
+      settingsEditor = nullptr;
       display.DrawPerVoice(*aoi); // in case it was changed
       break;  
 
@@ -472,13 +491,16 @@ class ContextBase
   public:
     ContextBase(int nParam, ParamValue* ppv, const ParamEntry* ppe, const ParamPage* ppg = nullptr,
                 int nMIDI = 0, ParamValue* pmv = nullptr, const ParamEntry* pme = nullptr) 
-      : paramCount(nParam),    params(ppe),     aray(ppv),      pages(ppg),
+      : encPressed{-1},
+        paramCount(nParam),    params(ppe),     aray(ppv),      pages(ppg),
         MIDIparamCount(nMIDI), MIDIparams(pme), MIDIvalues(pmv)
       {}
     virtual ~ContextBase(){}
     virtual void setParam(int i, AudioObjInstance* aoi){}
     virtual void copyParamsTo(ContextBase& dst);
 
+    int encPressed;
+    static constexpr int ARBWAV_PARAM = 0xCAFED00D;
     // ------ stream object settings ----------
     const size_t paramCount;
     const ParamEntry* params;
@@ -779,6 +801,7 @@ template<class Taudio>
 class ContextWaveformBase
 {
   public:
+  ContextWaveformBase() : arbWAVloaded{false} {}
     /*
       Fix up arbitrary waveform pointer at construction and
       destruction time, so we don't crash or leak memory.
@@ -794,17 +817,32 @@ class ContextWaveformBase
         break;
     
         case AudioEditMode::destructor:
-        {
-          if (arbWAV_sax != arbWav)
-            free((void*) arbWav);
-        }
-        break;
+          resetArbWAV();
+          break;
       }
     }
+
+    /*
+      Reset arbitrary waveform to safe value, and 
+      free the memory it's using.
+     */
+    void resetArbWAV(void)
+    {
+      int16_t* oldArbWAV = arbWav;
+
+      if (arbWAV_sax != arbWav)
+      {
+        arbWav = (int16_t*) arbWAV_sax;      // reset to safe default
+        free((void*) oldArbWAV);  // free the memory
+      }
+    }
+
+    void loadArbWAV(const char* base, const char* path, const char* nme, const char* extn);
 
     //------ Stuff to remember ----------
     float noteFreq; // basic note frequency before modification with pitch bend
     int16_t* arbWav{(int16_t*) arbWAV_sax}; // record of aritrary waveform
+    bool arbWAVloaded;
 };
 
 
@@ -884,6 +922,9 @@ class ContextWaveformModulated
     //------ MIDI settings ----------
     static const ParamEntry MIDIparams[WAVEFORM_MIDI_COUNT];
     WaveformMIDI m {{4},{0.00f},{0},{0},{0.0f}};
+
+    // File loader
+    FileLoader<ContextWaveformModulated>* fileSelector;
 };
 
 //-----------------------------------------------------------------------------------------

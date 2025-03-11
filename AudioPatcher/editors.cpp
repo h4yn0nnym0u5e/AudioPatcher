@@ -69,7 +69,7 @@ FLASHMEM void BaseEditor::drawAll(bool drawCords /* = true */)
 FLASHMEM int BaseEditor::PointToObject(int x, int y)
 {
   int result = -1;
-  AudioPatcherDisplay::side side;
+  AudioPatcherDisplay::side side = AudioPatcherDisplay::side::out;
 
   for (unsigned int i = 0; i < objVec.size(); i++)
     if (AudioPatcherDisplay::side::out != (side = display.PointIsInObj(*objVec.at(i).p, x, y)))
@@ -1208,7 +1208,7 @@ FLASHMEM void DeleteEditor::ShowSelection(int op)
 //  888        888 888  "Y8888   88888P' 
 //                    
 //======================================================================
-static void makeFFP(char* buf, const char* base, const char* path, const char* leaf, const char* ext)
+FLASHMEM void makeFFP(char* buf, const char* base, const char* path, const char* leaf, const char* ext)
 {
   char* p = buf; // assumed that caller 
   if (nullptr != base)
@@ -1226,7 +1226,7 @@ static void makeFFP(char* buf, const char* base, const char* path, const char* l
 
 static const char* lastFile = "!last.txt";
 static const size_t LAST_FILE_LEN = 9;
-FLASHMEM void FileEditor::setLast(const char* nme)
+FLASHMEM void FileBase::setLast(const char* nme)
 {
   File saveTo;
   char buf[basePathLen + LAST_FILE_LEN + 1];
@@ -1245,7 +1245,7 @@ FLASHMEM void FileEditor::setLast(const char* nme)
 
 
 // last file used, or -1
-FLASHMEM int FileEditor::getLast(char* buf, int maxn)
+FLASHMEM int FileBase::getLast(char* buf, int maxn)
 {
   int result = -1;
   File loadFrom;
@@ -1534,7 +1534,7 @@ FLASHMEM void FileEditor::load(const char* nme)
   }
 }
 
-FLASHMEM int FileEditor::loadLast(void)
+FLASHMEM int FileBase::loadLast(void)
 {
   const size_t BUF_LEN = basePathLen + MAX_FILE_PATH + 1 + MAX_FILE_NAME + 1;
   char buf[BUF_LEN];  // maximum possible (?)
@@ -1581,7 +1581,7 @@ FLASHMEM int FileEditor::loadLast(void)
 }
 
 
-void FileEditor::showFileList(const int item, bool showAll)
+void FileBase::showFileList(const int item, bool showAll)
 {
   // we assume the item number is sane...
   if (item < fileListTop || item > fileListTop + MAX_FILE_LINE)
@@ -1593,26 +1593,36 @@ void FileEditor::showFileList(const int item, bool showAll)
     if (fileListTop < 0) fileListTop = 0;
   }
 
+CrashReport.breadcrumb(4,showAll);
   if (showAll)
   {
     for (int i = 0; i <= MAX_FILE_LINE && i + fileListTop < (int) fileList.size(); i++)
     {
-      display.ShowAreaText(fileList.at(i + fileListTop).name.c_str(), FILE_X_OFF, FILE_Y_OFF, i,
+CrashReport.breadcrumb(2,i);
+CrashReport.breadcrumb(3,fileListTop);
+CrashReport.breadcrumb(5,&fileDisplay);
+CrashReport.breadcrumb(6,&display);
+
+      fileDisplay.ShowAreaText(fileList.at(i + fileListTop).name.c_str(), FILE_X_OFF, FILE_Y_OFF, i,
                            fileList.at(i + fileListTop).isDir
-                           ? DIR_NAME_COLOUR
-                           : KEY_CAP_COLOUR,
+                              ? DIR_NAME_COLOUR
+                              : KEY_CAP_COLOUR,
                            i == (item - fileListTop)
-                           ? KEY_ACTIVE_BKGND
-                           : EDIT_BKGND);
+                              ? KEY_ACTIVE_BKGND
+                              : EDIT_BKGND);
     }
   }
   else
   {
+CrashReport.breadcrumb(2,fileListCurrent);
+CrashReport.breadcrumb(3,item);
+        // clear old highlight
     display.ShowAreaText(fileList.at(fileListCurrent).name.c_str(), FILE_X_OFF, FILE_Y_OFF, fileListCurrent - fileListTop,
                          fileList.at(fileListCurrent).isDir
                          ? DIR_NAME_COLOUR
                          : KEY_CAP_COLOUR,
                          EDIT_BKGND);
+    // highlight new filename
     display.ShowAreaText(fileList.at(item           ).name.c_str(), FILE_X_OFF, FILE_Y_OFF, item            - fileListTop,
                          fileList.at(item).isDir
                          ? DIR_NAME_COLOUR
@@ -1624,7 +1634,7 @@ void FileEditor::showFileList(const int item, bool showAll)
 }
 
 
-void FileEditor::showMode(bool zapCurrent /* = true */)
+void FileBase::showMode(bool zapCurrent /* = true */)
 {
   char buffer[5 + MAX_FILE_NAME + 1];
   int theMode = enc0.getValue();
@@ -1646,24 +1656,31 @@ void FileEditor::showMode(bool zapCurrent /* = true */)
         if (!keyboardVisible)
           display.SaveArea(x, y, w, h);
         display.InitArea(x, y, w, h);
+CrashReport.breadcrumb(1,1);
         display.ShowTitle("File list", 5, 5);
+CrashReport.breadcrumb(1,2);
 
         if (zapCurrent)
         {
           int i;
           clearFileList();
+CrashReport.breadcrumb(1,3);
           createFileList(filePath, mode);
+CrashReport.breadcrumb(1,4);
           enc1.setLimits(0, fileList.size() - 1);
           for (i = 1; i < (int) fileList.size(); i++)
             if (!fileList.at(i).isDir)
               break;
+CrashReport.breadcrumb(1,5);
           if (fileList.at(i).isDir) // no files, only folders
             i = 0 == fileList.size() ? 0 : 1;
           enc1.setValue(i);
           fileListTop = -MAX_FILE_LINE - 1;
           fileListCurrent = -1;
         }
+CrashReport.breadcrumb(1,6);
         showFileList(enc1.getValue(), true);
+CrashReport.breadcrumb(1,7);
 
         keyboardVisible = true;
       }
@@ -1672,9 +1689,10 @@ void FileEditor::showMode(bool zapCurrent /* = true */)
   const char* labels[] = {"load", "save", " del"};
   sprintf(buffer, "%s:%s", labels[(int) mode], fileName);
   display.ShowBottomText(buffer, display.getModeColour());
+CrashReport.breadcrumb(1,8);
 }
 
-FLASHMEM void FileEditor::createFileList(const char* path, mode_e theMode)
+FLASHMEM void FileBase::createFileList(const char* path, mode_e theMode)
 {
   File root;
   size_t plen = strlen(path);
@@ -1709,6 +1727,7 @@ FLASHMEM void FileEditor::createFileList(const char* path, mode_e theMode)
         }
       }
     }
+  CrashReport.breadcrumb(5,fileList.size());
   }
 
   std::stable_sort(fileList.begin(), fileList.end());
@@ -1717,16 +1736,16 @@ FLASHMEM void FileEditor::createFileList(const char* path, mode_e theMode)
   //  Serial.println(s.c_str());
 }
 
-FLASHMEM void FileEditor::clearFileList(void)
+FLASHMEM void FileBase::clearFileList(void)
 {
   fileList.clear();
 }
 
-FLASHMEM void FileEditor::enter(void)
+FLASHMEM void FileBase::enter(bool saveArea /* = true */)
 {
   enc0.setLimits(0, (int) maxMode); // load / save / del
   enc0.setValue(0);
-  keyboardVisible = false;
+  keyboardVisible = !saveArea;
 
   //initialise filename on entry
   if (idx < 0) // first time ever
@@ -1736,28 +1755,28 @@ FLASHMEM void FileEditor::enter(void)
   showMode();
 }
 
-FLASHMEM void FileEditor::exit(void)
+FLASHMEM void FileBase::exit(void)
 {
   if (keyboardVisible)
-    display.RestoreArea();
+    fileDisplay.RestoreArea();
   clearFileList();
 }
 
-FLASHMEM void FileEditor::newKey(AudioPatcherDisplay::keyInfo key)
+FLASHMEM void FileBase::newKey(AudioPatcherDisplay::keyInfo key)
 {
   static AudioPatcherDisplay::keyInfo lastKey;
 
   if (key.ch != lastKey.ch)
   {
     if (lastKey.ch != 0)
-      display.ShowKey(lastKey, KEY_CAP_COLOUR, EDIT_BKGND, upperCase);
+      fileDisplay.ShowKey(lastKey, KEY_CAP_COLOUR, EDIT_BKGND, upperCase);
     lastKey = key;
     if (lastKey.ch != 0)
-      display.ShowKey(lastKey, KEY_CAP_COLOUR, KEY_ACTIVE_BKGND, upperCase);
+      fileDisplay.ShowKey(lastKey, KEY_CAP_COLOUR, KEY_ACTIVE_BKGND, upperCase);
   }
 }
 
-FLASHMEM void FileEditor::edit(void)
+FLASHMEM void FileBase::edit(void)
 {
   // Deal with touch
   if (keyboardVisible)
@@ -1769,7 +1788,7 @@ FLASHMEM void FileEditor::edit(void)
         {
           AudioPatcherDisplay::keyInfo key;
           TS_Point p = touch.getPoint();
-          key = display.KeyAt(p.x, p.y);
+          key = fileDisplay.KeyAt(p.x, p.y);
           newKey(key);
         }
         else
@@ -1778,7 +1797,7 @@ FLASHMEM void FileEditor::edit(void)
           {
             AudioPatcherDisplay::keyInfo key;
             TS_Point p = touch.getLastPoint();
-            key = display.KeyAt(p.x, p.y);
+            key = fileDisplay.KeyAt(p.x, p.y);
 
             if (key.ch > 0)
             {
@@ -1790,7 +1809,7 @@ FLASHMEM void FileEditor::edit(void)
                 fileName[idx++] = key.ch;
                 fileName[idx] = 0;
                 sprintf(buf, "save:%s", fileName);
-                display.ShowBottomText(buf);
+                fileDisplay.ShowBottomText(buf);
               }
             }
             else
@@ -1799,7 +1818,7 @@ FLASHMEM void FileEditor::edit(void)
               {
                 case -10: // toggle case
                   upperCase = !upperCase;
-                  display.RedrawKeyboard(upperCase);
+                  fileDisplay.RedrawKeyboard(upperCase);
                   break;
 
                 case -11: // delete
@@ -1810,7 +1829,7 @@ FLASHMEM void FileEditor::edit(void)
                     idx--;
                     fileName[idx] = 0;
                     sprintf(buf, "save:%s", fileName);
-                    display.ShowBottomText(buf);
+                    fileDisplay.ShowBottomText(buf);
                   }
                   break;
 
@@ -1897,7 +1916,7 @@ FLASHMEM void FileEditor::edit(void)
             {
               strcpy(fileName, entry.name.c_str());
               idx = strlen(fileName);
-              display.RestoreArea();
+              fileDisplay.RestoreArea();
               keyboardVisible = false;
               load(fileName);
               setLast(fileName);
@@ -1918,8 +1937,6 @@ FLASHMEM void FileEditor::edit(void)
             showMode(false);
           }
           break;
-
-
       }
       state = 0;
     }
