@@ -45,7 +45,10 @@ class FileLoader : public FileBase
             {}
     virtual ~FileLoader() {};            
     Tctxt& context;            
-    void load(const char* nme) { context.loadArbWAV(basePath,filePath,nme,".snd"); };
+    void load(const char* nme) 
+    { 
+      context.arbWAVloaded = context.loadArbWAV(basePath,filePath,nme,".snd"); 
+    };
 };
 
 //==========================================================================
@@ -845,7 +848,7 @@ class ContextWaveformBase
       }
     }
 
-    void loadArbWAV(const char* base, const char* path, const char* nme, const char* extn);
+    bool loadArbWAV(const char* base, const char* path, const char* nme, const char* extn);
 
     //------ Stuff to remember ----------
     float noteFreq; // basic note frequency before modification with pitch bend

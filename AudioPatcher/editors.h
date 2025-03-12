@@ -242,7 +242,7 @@ class FileBase
             : fileDisplay(d.getInstance()),
             enc0(e0), enc1(e1), enc2(e2),
             state(0), idx(-1), 
-            fileName{0}, basePath{bp}, fileExtn{fe},
+            fileName{0}, filePath{0}, basePath{bp}, fileExtn{fe},
             maxMode(m)
             {
               basePathLen = strlen(basePath);

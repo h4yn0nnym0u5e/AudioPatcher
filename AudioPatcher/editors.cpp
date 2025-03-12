@@ -1690,7 +1690,7 @@ FLASHMEM void FileBase::createFileList(const char* path, mode_e theMode)
 
   makeFFP(buf, basePath, nullptr, filePath, nullptr);
   root = SD.open(buf);
-
+Serial.printf("Listing %s:\n",buf);
   fileList.push_back({"..", true});
 
   while (true)

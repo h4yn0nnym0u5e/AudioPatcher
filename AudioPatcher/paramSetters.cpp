@@ -834,7 +834,10 @@ void ContextWaveformModulated::setParam(int i, AudioObjInstance* aoi)
       }
       break;
 
-    case ARBWAV_PARAM: aoi->streamP.WaveformModulated->arbitraryWaveform(arbWav,10000.0f); break;
+    case ARBWAV_PARAM: 
+      aoi->streamP.WaveformModulated->arbitraryWaveform(arbWav,10000.0f);
+      Serial.printf("Set arbWAV to %08X; fingerprint %04X,%04X\n",arbWav,arbWav[0],arbWav[1]);
+      break;
   }
 }
 
@@ -883,9 +886,11 @@ bool updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myCo
       delete myContext->fileSelector;
       myContext->fileSelector = nullptr;
 
+      // fix up the display
       settingsEditor->InitArea();
       settingsEditor->Init(aoi->objP->name);
-
+      // restore settings and encoder limits
+      enterEditMode(myContext,aoi);
     }
     result = true; // don't exit parent settings page
   }
@@ -951,8 +956,9 @@ int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode, void* param
 }
 
 template<class Taudio>
-void ContextWaveformBase<Taudio>::loadArbWAV(const char* base, const char* path, const char* nme, const char* extn)
+bool ContextWaveformBase<Taudio>::loadArbWAV(const char* base, const char* path, const char* nme, const char* extn)
 {
+  bool result = false;
   char buf[100];
   int16_t tmp[256]; // space for the waveform
   File f;
@@ -984,12 +990,14 @@ void ContextWaveformBase<Taudio>::loadArbWAV(const char* base, const char* path,
     memcpy(mem,tmp,sizeof tmp);
     arbWav = mem;
     Serial.println(": loaded");
+    result = true;
     
   } while (0);
 
   if (f)
     f.close();
   
+  return result;
 }
 
 //===========================================================================================
