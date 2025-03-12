@@ -117,7 +117,7 @@ int testExit(uint32_t& exitAt)
 }
 
 //===========================================================================================
-void updateFromControls(AudioObjInstance* aoi)
+bool updateFromControls(AudioObjInstance* aoi)
 {
   if (nullptr != settingsEditor)
   {
@@ -129,6 +129,8 @@ void updateFromControls(AudioObjInstance* aoi)
       }
     }
   }
+
+  return false;
 }
 
 //===========================================================================================
@@ -862,8 +864,10 @@ void enterEditMode<ContextWaveformModulated>(ContextWaveformModulated* myContext
 // template specialization for setting WaveformModulated; needed for frequency setting
 // and arbitrary waveform load
 template <> 
-void updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myContext, AudioObjInstance* aoi)
+bool updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myContext, AudioObjInstance* aoi)
 {
+  bool result = false;
+
   if (nullptr != myContext->fileSelector)
   {
     static uint32_t exitAt = 0; // flag to track "exit" encoder button state
@@ -881,7 +885,9 @@ void updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myCo
 
       settingsEditor->InitArea();
       settingsEditor->Init(aoi->objP->name);
+
     }
+    result = true; // don't exit parent settings page
   }
   else
   {
@@ -923,7 +929,8 @@ void updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myCo
       }
     }      
   }
-      
+  
+  return result;
 }
 
 
@@ -1035,7 +1042,7 @@ void enterEditMode<ContextKarplusStrong>(ContextKarplusStrong* myContext, AudioO
   
 
 template <> // template specialization for setting ContextKarplusStrong; needed for frequency setting
-void updateFromControls<ContextKarplusStrong>(ContextKarplusStrong* myContext, AudioObjInstance* aoi)
+bool updateFromControls<ContextKarplusStrong>(ContextKarplusStrong* myContext, AudioObjInstance* aoi)
 {
   for (size_t i=0; i < myContext->paramCount; i++)
   {
@@ -1057,6 +1064,7 @@ void updateFromControls<ContextKarplusStrong>(ContextKarplusStrong* myContext, A
       }
     }
   }
+  return false;
 }
 
 
@@ -1436,7 +1444,7 @@ void enterEditMode<ContextWaveform>(ContextWaveform* myContext, AudioObjInstance
   
 
 template <> // template specialization for setting Waveform; needed for frequency setting
-void updateFromControls<ContextWaveform>(ContextWaveform* myContext, AudioObjInstance* aoi)
+bool updateFromControls<ContextWaveform>(ContextWaveform* myContext, AudioObjInstance* aoi)
 {
   for (size_t i=0; i < myContext->paramCount; i++)
   {
@@ -1458,6 +1466,7 @@ void updateFromControls<ContextWaveform>(ContextWaveform* myContext, AudioObjIns
       }
     }
   }
+  return false;
 }
 
 template <>
@@ -1536,7 +1545,7 @@ void enterEditMode<ContextWavetable>(ContextWavetable* myContext, AudioObjInstan
   
 
 template <> // template specialization for setting Wavetable; needed for frequency setting
-void updateFromControls<ContextWavetable>(ContextWavetable* myContext, AudioObjInstance* aoi)
+bool updateFromControls<ContextWavetable>(ContextWavetable* myContext, AudioObjInstance* aoi)
 {
   for (size_t i=0; i < myContext->paramCount; i++)
   {
@@ -1558,6 +1567,7 @@ void updateFromControls<ContextWavetable>(ContextWavetable* myContext, AudioObjI
       }
     }
   }
+  return false;
 }
 
 template <>

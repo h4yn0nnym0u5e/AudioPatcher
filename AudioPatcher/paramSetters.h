@@ -98,8 +98,10 @@ extern int testExit(uint32_t& exitAt);
     (int16_t)(width),(int16_t)(27+(lines)*16+16)
 
 //=====================================================================================
+// Read controls and update object's settings accordingly
+// \return true if nested setting used "exit" press; don't exit next level up
 template <class Tctxt>
-void updateFromControls(Tctxt* myContext, AudioObjInstance* aoi)
+bool updateFromControls(Tctxt* myContext, AudioObjInstance* aoi)
 {
   size_t pOff = 0, pCount = settingsEditor->paramCount;
   
@@ -134,9 +136,11 @@ void updateFromControls(Tctxt* myContext, AudioObjInstance* aoi)
       myContext->setParam(pNum,aoi);
     }
   }
+
+  return false;
 }
 
-extern void updateFromControls(AudioObjInstance* aoi);
+extern bool updateFromControls(AudioObjInstance* aoi);
 
 
 //=====================================================================================
@@ -365,9 +369,12 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
       if (millis() >= next)
       {
         next = millis() + 10;
-        updateFromControls(myContext,aoi);
+        if (updateFromControls(myContext,aoi)) // update zapped "exit" event
+          exitAt = 0;
+        result = testExit(exitAt);
       }
-      result = testExit(exitAt);
+      else 
+        result = 1;
       break;      
 
     case AudioEditMode::exit: // finish editing an object's settings
