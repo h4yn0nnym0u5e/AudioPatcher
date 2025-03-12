@@ -879,6 +879,7 @@ void updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myCo
       delete myContext->fileSelector;
       myContext->fileSelector = nullptr;
 
+      settingsEditor->InitArea();
       settingsEditor->Init(aoi->objP->name);
     }
   }

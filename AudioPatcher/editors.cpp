@@ -1593,16 +1593,11 @@ void FileBase::showFileList(const int item, bool showAll)
     if (fileListTop < 0) fileListTop = 0;
   }
 
-CrashReport.breadcrumb(4,showAll);
+
   if (showAll)
   {
     for (int i = 0; i <= MAX_FILE_LINE && i + fileListTop < (int) fileList.size(); i++)
     {
-CrashReport.breadcrumb(2,i);
-CrashReport.breadcrumb(3,fileListTop);
-CrashReport.breadcrumb(5,&fileDisplay);
-CrashReport.breadcrumb(6,&display);
-
       fileDisplay.ShowAreaText(fileList.at(i + fileListTop).name.c_str(), FILE_X_OFF, FILE_Y_OFF, i,
                            fileList.at(i + fileListTop).isDir
                               ? DIR_NAME_COLOUR
@@ -1614,16 +1609,14 @@ CrashReport.breadcrumb(6,&display);
   }
   else
   {
-CrashReport.breadcrumb(2,fileListCurrent);
-CrashReport.breadcrumb(3,item);
         // clear old highlight
-    display.ShowAreaText(fileList.at(fileListCurrent).name.c_str(), FILE_X_OFF, FILE_Y_OFF, fileListCurrent - fileListTop,
+    fileDisplay.ShowAreaText(fileList.at(fileListCurrent).name.c_str(), FILE_X_OFF, FILE_Y_OFF, fileListCurrent - fileListTop,
                          fileList.at(fileListCurrent).isDir
                          ? DIR_NAME_COLOUR
                          : KEY_CAP_COLOUR,
                          EDIT_BKGND);
     // highlight new filename
-    display.ShowAreaText(fileList.at(item           ).name.c_str(), FILE_X_OFF, FILE_Y_OFF, item            - fileListTop,
+    fileDisplay.ShowAreaText(fileList.at(item           ).name.c_str(), FILE_X_OFF, FILE_Y_OFF, item            - fileListTop,
                          fileList.at(item).isDir
                          ? DIR_NAME_COLOUR
                          : KEY_CAP_COLOUR,
@@ -1643,7 +1636,7 @@ void FileBase::showMode(bool zapCurrent /* = true */)
   switch (mode) // saving - show keyboard to create filename
   {
     case mode_e::save:
-      display.ShowKeyboard(20, 40, "File name", !keyboardVisible);
+      fileDisplay.ShowKeyboard(20, 40, "File name", !keyboardVisible);
       keyboardVisible = true;
       break;
 
@@ -1651,14 +1644,12 @@ void FileBase::showMode(bool zapCurrent /* = true */)
     case mode_e::del:
       {
         int16_t x,y,w,h;
-        display.GetDefaultKeyboardArea(x,y,w,h);
+        fileDisplay.GetDefaultKeyboardArea(x,y,w,h);
 
         if (!keyboardVisible)
-          display.SaveArea(x, y, w, h);
-        display.InitArea(x, y, w, h);
-CrashReport.breadcrumb(1,1);
-        display.ShowTitle("File list", 5, 5);
-CrashReport.breadcrumb(1,2);
+          fileDisplay.SaveArea(x, y, w, h);
+        fileDisplay.InitArea(x, y, w, h);
+        fileDisplay.ShowTitle("File list", 5, 5);
 
         if (zapCurrent)
         {
@@ -1666,9 +1657,7 @@ CrashReport.breadcrumb(1,2);
           bool gotFile = false;
 
           clearFileList();
-CrashReport.breadcrumb(1,3);
           createFileList(filePath, mode);
-CrashReport.breadcrumb(1,4);
           enc1.setLimits(0, fileList.size() - 1);
           for (i = 1; i < (int) fileList.size(); i++)
             if (!fileList.at(i).isDir)
@@ -1677,25 +1666,20 @@ CrashReport.breadcrumb(1,4);
               break;
             }
               
-CrashReport.breadcrumb(1,5);
           if (!gotFile) // no files, only folders
             i = 0 == fileList.size() ? 0 : 1;
           enc1.setValue(i);
           fileListTop = -MAX_FILE_LINE - 1;
           fileListCurrent = -1;
         }
-CrashReport.breadcrumb(1,6);
         showFileList(enc1.getValue(), true);
-CrashReport.breadcrumb(1,7);
-
         keyboardVisible = true;
       }
       break;
   }
   const char* labels[] = {"load", "save", " del"};
   sprintf(buffer, "%s:%s", labels[(int) mode], fileName);
-  display.ShowBottomText(buffer, display.getModeColour());
-CrashReport.breadcrumb(1,8);
+  fileDisplay.ShowBottomText(buffer, fileDisplay.getModeColour());
 }
 
 FLASHMEM void FileBase::createFileList(const char* path, mode_e theMode)
@@ -1733,7 +1717,6 @@ Serial.println(nme);
         }
       }
     }
-  CrashReport.breadcrumb(5,fileList.size());
   }
 
   std::stable_sort(fileList.begin(), fileList.end());
@@ -1781,6 +1764,7 @@ FLASHMEM void FileBase::newKey(AudioPatcherDisplay::keyInfo key)
       fileDisplay.ShowKey(lastKey, KEY_CAP_COLOUR, KEY_ACTIVE_BKGND, upperCase);
   }
 }
+
 
 FLASHMEM void FileBase::edit(void)
 {
@@ -1856,7 +1840,7 @@ FLASHMEM void FileBase::edit(void)
         if (!touch.isTouched() && touch.isLifted()) // tap on file list
         {
           TS_Point p = touch.getLastPoint();
-          AudioPatcherDisplay::keyInfo line = display.LineAt(p.x,p.y,FILE_X_OFF,FILE_Y_OFF);
+          AudioPatcherDisplay::keyInfo line = fileDisplay.LineAt(p.x,p.y,FILE_X_OFF,FILE_Y_OFF);
           if (line.ch >= -2)
             enc1.setValue(line.ch + fileListTop, true); // fake encoder jump to new value
         }

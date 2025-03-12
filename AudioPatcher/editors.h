@@ -233,7 +233,6 @@ class FileBase
     void clearFileList(void);
     void showFileList(const int item, bool showAll = false);
     int fileListTop, fileListCurrent;
-     
   public:    
     FileBase(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2, 
             AudioPatcherDisplay& d,

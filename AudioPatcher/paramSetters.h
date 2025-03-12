@@ -64,7 +64,7 @@ class SettingsEditor
       workArea{box}
     {
       display.SaveArea(box.x,box.y,box.w,box.h);
-      display.InitArea(box.x,box.y,box.w,box.h);
+      InitArea();
     }
     ~SettingsEditor() { display.RestoreArea(); }
     
@@ -76,6 +76,7 @@ class SettingsEditor
     const ParamPage* pages;
     AudioPatcherDisplay::Box workArea;
 
+    void InitArea(void) { display.InitArea(workArea.x,workArea.y,workArea.w,workArea.h); }
     void Init(const char* title);
     void BlankRow(int row, int16_t yoff) { display.FillRect(workArea.x+1, workArea.y+yoff+row*16, workArea.w-2, 16, EDIT_BKGND); }
     void ShowLabel(int i, int row, int xoff, int yoff) { display.ShowLabel(params[i],aray[i],row,xoff,yoff); }
@@ -909,7 +910,8 @@ class ContextWaveformModulated
 { 
   public:
     ContextWaveformModulated() : ContextBase(COUNT_OF(_params), &s.waveform, _params, nullptr, 
-                                            COUNT_OF(MIDIparams), &m.octave, MIDIparams) 
+                                            COUNT_OF(MIDIparams), &m.octave, MIDIparams),
+                                fileSelector{nullptr} 
     {
       display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h);
     }
