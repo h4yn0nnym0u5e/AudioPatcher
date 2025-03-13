@@ -1690,7 +1690,6 @@ FLASHMEM void FileBase::createFileList(const char* path, mode_e theMode)
 
   makeFFP(buf, basePath, nullptr, filePath, nullptr);
   root = SD.open(buf);
-Serial.printf("Listing %s:\n",buf);
   fileList.push_back({"..", true});
 
   while (true)
@@ -1702,7 +1701,7 @@ Serial.printf("Listing %s:\n",buf);
 
     {
       String nme = String(entry.name());
-Serial.println(nme);
+
       if (!nme.startsWith('!')) // ignore ! at start
       {
         if (entry.isDirectory())

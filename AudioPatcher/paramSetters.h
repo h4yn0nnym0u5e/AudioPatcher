@@ -353,6 +353,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
       
     case AudioEditMode::destructor:
       delete myContext;
+      aoi->context = nullptr;
       break;
 
     //---------------------------------------------------------------------------------------------------
@@ -812,11 +813,21 @@ template<class Taudio>
 class ContextWaveformBase
 {
   public:
-  ContextWaveformBase() : arbWAVloaded{false} {}
+    ContextWaveformBase() 
+      : arbWAVloaded{false} 
+      {
+        resetArbWAV();
+Serial.printf("arbWAV at %08X -> %08X\n",&arbWAV, arbWAV.sampleData); Serial.flush();
+      }
+
     /*
       Fix up arbitrary waveform pointer at construction and
       destruction time, so we don't crash or leak memory.
-     */
+
+      This context object doesn't have direct access to the 
+      stream or AudioObjInstance, so we can't put this code
+      in the constructor and destructor.
+    */
     void fixArbWAV(Taudio* stream, AudioEditMode mode)
     {
       switch (mode)
@@ -824,11 +835,13 @@ class ContextWaveformBase
         default: break;
     
         case AudioEditMode::constructor:
-          stream->arbitraryWaveform(arbWav,10000.0f);
-        break;
+          stream->arbitraryWaveform(arbWAV.sampleData,10000.0f);
+          break;
     
         case AudioEditMode::destructor:
+          stream->arbitraryWaveform(nullptr,10000.0f);
           resetArbWAV();
+          arbWAV.sampleData = nullptr; // don't free, it's pointing to default
           break;
       }
     }
@@ -836,24 +849,27 @@ class ContextWaveformBase
     /*
       Reset arbitrary waveform to safe value, and 
       free the memory it's using.
-     */
+    */
     void resetArbWAV(void)
     {
-      int16_t* oldArbWAV = arbWav;
+      int16_t* oldArbWAV = arbWAV.sampleData;
 
-      if (arbWAV_sax != arbWav)
+      if (arbWAV_sax != oldArbWAV)
       {
-        arbWav = (int16_t*) arbWAV_sax;      // reset to safe default
+        arbWAV = {(int16_t*) arbWAV_sax,(char*) "/<sax>.",0,true}; // reset to safe default
+Serial.printf("Free %08X\n",oldArbWAV);  Serial.flush();
         free((void*) oldArbWAV);  // free the memory
       }
     }
 
     bool loadArbWAV(const char* base, const char* path, const char* nme, const char* extn);
+    bool loadArbWAV(const char* fullPath);
 
     //------ Stuff to remember ----------
     float noteFreq; // basic note frequency before modification with pitch bend
-    int16_t* arbWav{(int16_t*) arbWAV_sax}; // record of aritrary waveform
-    bool arbWAVloaded;
+    struct arbWAVrecord arbWAV // record of arbitrary waveform
+        {(int16_t*) arbWAV_sax,nullptr,0,false}; 
+    bool arbWAVloaded; // temporary flag while user is seeking a waveform to load
 };
 
 
@@ -921,12 +937,18 @@ class ContextWaveformModulated
   public:
     ContextWaveformModulated() : ContextBase(COUNT_OF(_params), &s.waveform, _params, nullptr, 
                                             COUNT_OF(MIDIparams), &m.octave, MIDIparams),
-                                fileSelector{nullptr} 
+                                 fileSelector{nullptr} 
     {
       display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h);
     }
-    static const ParamEntry _params[6];
-    struct {ParamValue waveform,frequency,amplitude,offset,modType,modDepth;} s {{0},{7.0f},{0.5f},{0.0f},{0},{1.0f}};
+    ~ContextWaveformModulated() 
+    {
+      if (nullptr != arbWAV.sampleData)
+        free(arbWAV.sampleData);
+    }
+    static const ParamEntry _params[7];
+    struct {ParamValue waveform,frequency,amplitude,offset,modType,modDepth,arbWAV;} s 
+                            {{0},{7.0f},{0.5f},{0.0f},{0},{1.0f},{&arbWAV}};
     AudioPatcherDisplay::Box box;
           
     void setParam(int i, AudioObjInstance* aoi);

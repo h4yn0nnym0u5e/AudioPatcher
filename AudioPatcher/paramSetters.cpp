@@ -80,6 +80,9 @@ bool Scale(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filter = 1.0
     case 'i': result = ScaleI(pe,pv,raw); break;
 
     case 'r': result = ScaleIminMax(1, pe.max.i, pv, raw); break;
+
+    // string, arbitrary waveform, ...
+    default: break;
   }
   return result;
 }
@@ -88,6 +91,8 @@ void HookControl(M5w_8angle& ctrl, int ch, const ParamEntry& pe, ParamValue& pv)
 {
   switch (pe.ValType)
   {
+    default: break; // catches string values
+
     case 'n':
     case 'l':
     case 'f': ctrl.setHook(ch, map(pv.value.f, pe.min.f, pe.max.f, M5ANGLE_MIN, M5ANGLE_MAX)); break;
@@ -224,6 +229,8 @@ int editGetParamsAny(const ParamEntry* params, const ParamValue* aray, const siz
       case 'c':
       case 'r':
       case 'i': off = sprintf(ptr,"%d,",aray[i].value.i); break;
+      case 's': off = sprintf(ptr,"%s,",aray[i].value.s); break;
+      case 'w': off = sprintf(ptr,"%s,",aray[i].value.w->path); break;
     }
 
     ptr += off;
@@ -245,6 +252,7 @@ int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const size_t pa
     
     switch (params[i].ValType)
     {
+      // floating point value
       case 'n':
       case 'f':
       case 'l':
@@ -255,6 +263,7 @@ int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const size_t pa
         aray[i].value.f = value.f;
         break;
         
+      // integer or list selection
       case 'i':
       case 'c':
         sscanf(ptr,"%d,%n",&value.i,&off);
@@ -263,13 +272,68 @@ int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const size_t pa
         Serial.printf("%s = %d ... ",params[i].label,value.i);
         aray[i].value.i = value.i;
         break;
-        
+      
+      // reciprocal
       case 'r':
         sscanf(ptr,"%d,%n",&value.i,&off);
         if (value.i < 1 || value.i > params[i].max.i)
           value.i = (1 + params[i].max.i) / 2;
         Serial.printf("%s = %d ... ",params[i].label,value.i);
         aray[i].value.i = value.i;
+        break;
+
+      // string or arbitrary waveform
+      case 's':
+      case 'w':
+        off = 0; // skip parameter if we fail (This Never Happens)
+        do 
+        {
+          char* mem;
+          size_t extra = 0, spaceNeeded;
+
+Serial.printf("Parsing <%s> ... ",ptr); Serial.flush();
+
+          if ('w' == params[i].ValType)
+            extra = 256*sizeof(int16_t);
+
+          char* comma = strchr(ptr,',');
+Serial.printf("comma at %08X vs %08X ... ",comma,ptr); Serial.flush();
+
+          // find comma that terminates the string
+          if (nullptr == comma) // oh heck - now what?
+            break;
+          
+          // allocate space to store it
+          spaceNeeded = extra + comma - ptr + 1;
+          spaceNeeded = (spaceNeeded + 16 ) & ~16;
+Serial.printf("needs %d ... ",spaceNeeded); Serial.flush();
+          mem = (char*) malloc(spaceNeeded); // just enough space
+          if (nullptr == mem)
+            break;
+          
+          // scan string into buffer
+          //sscanf(ptr,"%s,%n",mem + extra,&off);
+          memcpy(mem+extra,ptr,comma-ptr); // sscanf can't do this job ...
+          mem[extra+comma-ptr+1] = 0; // .. do it ourselves, with terminator...
+          off = comma-ptr+1;
+Serial.printf("used %d characters ... ",off); Serial.flush();
+
+          if ('w' == params[i].ValType)
+          {
+            // it's a path to an arbitrary waveform, which
+            // hasn't yet been loaded in
+Serial.printf("load to %08X ... ",aray[i].value.w); Serial.flush();
+            *aray[i].value.w = {(int16_t*) mem, mem+extra, spaceNeeded, false};
+            Serial.printf("%s = <%s> ... ",params[i].label,aray[i].value.w->path);
+          }
+          else
+          {
+            value.s = mem;
+            Serial.printf("%s = %s ... ",params[i].label,value.s);
+            aray[i].value.s = value.s;
+          }
+          Serial.flush();
+        } while (0);
         break;
     }
 
@@ -802,14 +866,15 @@ const ParamChoice waveShapes[13] =
 ParamChoice modTypes[] = {{"frequency",0},{"phase",1}};
 
 
-const ParamEntry ContextWaveformModulated::_params[6] = 
+const ParamEntry ContextWaveformModulated::_params[7] = 
 {
   {" waveform", PARAM_ENTRY_CHOICES(waveShapes)},
   {"frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
   {"amplitude", 0.0f, 1.0f},
   {"   offset", -1.0f, 1.0f},
   {" mod type",PARAM_ENTRY_CHOICES(modTypes)},
-  {"mod depth",0.0f, 100.0f} // use 0-100%; frequency is 0.0 - 12.0 octaves; phase modulation could be 9000°
+  {"mod depth",0.0f, 100.0f}, // use 0-100%; frequency is 0.0 - 12.0 octaves; phase modulation could be 9000°
+  {" arb. WAV", 'w'}
 };
 
 void ContextWaveformModulated::setParam(int i, AudioObjInstance* aoi)
@@ -834,9 +899,23 @@ void ContextWaveformModulated::setParam(int i, AudioObjInstance* aoi)
       }
       break;
 
-    case ARBWAV_PARAM: 
-      aoi->streamP.WaveformModulated->arbitraryWaveform(arbWav,10000.0f);
-      Serial.printf("Set arbWAV to %08X; fingerprint %04X,%04X\n",arbWav,arbWav[0],arbWav[1]);
+    case 7:
+    case ARBWAV_PARAM:
+    {
+      arbWAVrecord& arb = *s.arbWAV.value.w;
+
+      if (!arb.loaded
+        && arb.path != nullptr) // file hasn't been loaded
+        loadArbWAV(arb.path);
+      if (nullptr != arb.sampleData)
+      {
+        aoi->streamP.WaveformModulated->arbitraryWaveform(arb.sampleData,10000.0f);
+        Serial.printf("Set arbWAV from %s to %08X -> %08X; fingerprint %04.4X,%04.4X\n",
+                        arb.path, &arb, arb.sampleData,
+                        ((uint32_t) arb.sampleData[0]) & 0xFFFF, 
+                        ((uint32_t) arb.sampleData[1]) & 0xFFFF);
+      }
+    }
       break;
   }
 }
@@ -909,6 +988,8 @@ bool updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myCo
       }
       else
       {
+        // Note this is safe for the arbitrary waveform, because
+        // Scale() is always false for a string value
         if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
         {
           settingsEditor->ShowValue(i);
@@ -947,28 +1028,35 @@ void processMIDIevent<ContextWaveformModulated>(AudioObjInstance* aoi, MIDIevent
   
 int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
+  // fix up arbitrary waveform if we're about to be destroyed
+  if (nullptr != aoi->context)
+    ((ContextWaveformModulated*) (aoi->context))->fixArbWAV(aoi->streamP.WaveformModulated, mode);
+
   int result = editObjType<AudioSynthWaveformModulated, ContextWaveformModulated>(aoi,mode,params);
-  // Only after construction do we have a context with a default arbitrary 
-  // waveform. Also, may need to free it on destruction
-  ((ContextWaveformModulated*) (aoi->context))->fixArbWAV(aoi->streamP.WaveformModulated, mode);
+
+  // Only after construction do we have a context with 
+  // a default arbitrary waveform.
+  if (nullptr != aoi->context)
+    ((ContextWaveformModulated*) (aoi->context))->fixArbWAV(aoi->streamP.WaveformModulated, mode);
   
   return result;
 }
 
 template<class Taudio>
-bool ContextWaveformBase<Taudio>::loadArbWAV(const char* base, const char* path, const char* nme, const char* extn)
+bool ContextWaveformBase<Taudio>::loadArbWAV(const char* buf)
 {
   bool result = false;
-  char buf[100];
-  int16_t tmp[256]; // space for the waveform
+  int16_t tmp[256]; // temporary space for the waveform
+  size_t spaceNeeded = sizeof tmp + strlen(buf) + 1;
   File f;
 
-  makeFFP(buf,base,path,nme,extn);
-  Serial.print(buf);
+  Serial.printf("Load %s\n",buf); Serial.flush();
 
+  spaceNeeded = (spaceNeeded + 16) & ~16; // round up a bit
   do
   {
-    int16_t* mem = arbWav;
+    int16_t* mem = arbWAV.sampleData;
+    char* path;
 
     // open the file
     f = SD.open(buf,FILE_READ);
@@ -979,17 +1067,20 @@ bool ContextWaveformBase<Taudio>::loadArbWAV(const char* base, const char* path,
       break;
 
     // allocate storage if necessary
-    if (arbWAV_sax == arbWav) // using default
-    {
-      mem = (int16_t*) malloc(sizeof tmp);
+    if (arbWAV_sax == arbWAV.sampleData // using default...
+      || arbWAV.recSize < spaceNeeded)  // ...or not enough space
+    {        
+      mem = (int16_t*) malloc(spaceNeeded);
       if (nullptr == mem)
         break;
+      resetArbWAV();
     }
+    path = (char*) mem + sizeof tmp;
 
     // copy the data and point to it
-    memcpy(mem,tmp,sizeof tmp);
-    arbWav = mem;
-    Serial.println(": loaded");
+    memcpy(mem,tmp,sizeof tmp); // get sample data
+    strcpy(path, buf);          // and where it was loaded from
+    arbWAV = {mem, path, spaceNeeded, true};
     result = true;
     
   } while (0);
@@ -998,6 +1089,15 @@ bool ContextWaveformBase<Taudio>::loadArbWAV(const char* base, const char* path,
     f.close();
   
   return result;
+}
+
+template<class Taudio>
+bool ContextWaveformBase<Taudio>::loadArbWAV(const char* base, const char* path, const char* nme, const char* extn)
+{
+  char buf[100];
+
+  makeFFP(buf,base,path,nme,extn);
+  return loadArbWAV(buf);
 }
 
 //===========================================================================================
@@ -1486,10 +1586,15 @@ void processMIDIevent<ContextWaveform>(AudioObjInstance* aoi, MIDIevent* ev)
   
 int editWaveform(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
+  // fix up arbitrary waveform if we're about to be destroyed
+  if (nullptr != aoi->context)
+    ((ContextWaveform*) (aoi->context))->fixArbWAV(aoi->streamP.Waveform, mode);
+
   int result = editObjType<AudioSynthWaveform, ContextWaveform>(aoi,mode,params);
   // Only after construction do we have a context with a default arbitrary 
   // waveform. Also, may need to free it on destruction
-  ((ContextWaveform*) (aoi->context))->fixArbWAV(aoi->streamP.Waveform, mode);
+  if (nullptr != aoi->context)
+    ((ContextWaveform*) (aoi->context))->fixArbWAV(aoi->streamP.Waveform, mode);
 
   return result;
 }

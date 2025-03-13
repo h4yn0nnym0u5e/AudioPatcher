@@ -149,6 +149,8 @@ void AudioPatcherDisplay::FillRect(int16_t x, int16_t y, int16_t w, int16_t h, i
 
 void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t n)
 {
+  char* stringValue;
+
   if (nullptr != p.label)
   {
     tft.setCursor(v.labelEndX,v.labelEndY);
@@ -163,6 +165,31 @@ void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t 
       case 'c': tft.print(p.choices[v.value.i].text); break;
       case 'l': tft.printf("%.2f",pow(2.0f,v.value.f)); break;
       case 'r': tft.printf("%.2f",p.min.f / v.value.i); break;
+      case 's':
+      case 'w':
+        stringValue = p.ValType == 's'
+                        ?v.value.s
+                        :v.value.w->path;
+Serial.printf("Display ShowValue: %s",stringValue); Serial.flush();
+        if (nullptr != stringValue)
+        {
+          char* st,*nd;
+          // make some assumptions here!
+          // Just print the leaf name of a file, leaving
+          // off the path and extension
+          st = strrchr(stringValue, '/');
+          nd = strrchr(stringValue, '.');
+          if (nullptr != st && nullptr != nd)
+          {
+            int leafLen = nd - st - 1;
+            tft.printf("%*.*s", leafLen, leafLen, st+1); 
+          }
+          else
+            tft.print("???"); 
+        }
+        else
+          tft.print("???"); 
+        break;
     }
   
     int16_t x,y;
