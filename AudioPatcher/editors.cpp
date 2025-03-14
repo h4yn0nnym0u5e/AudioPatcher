@@ -602,9 +602,9 @@ FLASHMEM void CordEditor::edit(void)
 
       // show status on encoder LED
       if (setByTouch)
-        enc2.setLED(0x2F00'2000);
+        enc1.setLED(0x2F00'2000);
       else
-        enc2.setLED(0x2F00'0020);
+        enc1.setLED(0x2F00'0020);
       
       touchedObj.objNum = -1; // remains until another touch
     }
@@ -650,7 +650,7 @@ FLASHMEM void CordEditor::edit(void)
       newSettings = {epIdx, portNum, io};
     }
     setByTouch = false;
-    enc2.setLED(0x2F00'0000);
+    enc1.setLED(0x2F00'0000);
   }
 
   if (enc2.available()) // src / dst switch
@@ -659,7 +659,7 @@ FLASHMEM void CordEditor::edit(void)
     findBestSettings(newSettings, Prioritise::srcdst);
     redrawSelected = true;
     setByTouch = false;
-    enc2.setLED(0x2F00'0000);
+    enc1.setLED(0x2F00'0000);
   }
 
   //-----------------------------------------------
@@ -760,7 +760,7 @@ FLASHMEM void CordEditor::edit(void)
 
         editCord = blankPatch;
         setByTouch = false;
-        enc2.setLED(0x2F00'0000);
+        enc1.setLED(0x2F00'0000);
 
         int ec1;
         do
@@ -832,7 +832,7 @@ FLASHMEM void CordEditor::exit(void)
   highlightObjnum(epIdx, ILI9341_BLACK);
   greyOut(nothing);
   drawAll(false);
-  enc2.setLED(0x2F00'0000);
+  enc1.setLED(0x2F00'0000);
 }
 
 FLASHMEM void CordEditor::greyOut(srctype s)

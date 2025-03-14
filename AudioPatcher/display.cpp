@@ -158,7 +158,7 @@ void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t 
     tft.setTextColor(ILI9341_LIGHTGREY,EDIT_BKGND);
     switch (p.ValType)
     {
-      default: tft.print("???"); break;
+      default: tft.print("bad type"); break;
       case 'i': tft.print(v.value.i); break;
       case 'n':
       case 'f': tft.printf("%.2f",v.value.f); break;
@@ -184,10 +184,10 @@ void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t 
             tft.printf("%*.*s", leafLen, leafLen, st+1); 
           }
           else
-            tft.print("???"); 
+            tft.print("no / or . "); 
         }
         else
-          tft.print("???"); 
+          tft.print("no path"); 
         break;
     }
   

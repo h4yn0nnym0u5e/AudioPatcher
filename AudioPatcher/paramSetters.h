@@ -12,6 +12,8 @@
 extern LimitedEncoder encM,enc0,enc1,enc2;
 extern const ParamChoice velocityShapes[];
 extern const int16_t arbWAV_sax[];
+extern AudioObjStatic_t objList[];
+
 
 #if !defined(COUNT_OF)
 #define COUNT_OF(a) (sizeof a / sizeof a[0])
@@ -47,7 +49,7 @@ class FileLoader : public FileBase
     Tctxt& context;            
     void load(const char* nme) 
     { 
-      context.arbWAVloaded = context.loadArbWAV(basePath,filePath,nme,".snd"); 
+      context.arbWAVloaded = context.arbWAV.load(basePath,filePath,nme,".snd"); 
     };
 };
 
@@ -342,7 +344,7 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
   {
     case AudioEditMode::constructor: // construction
       { 
-        myContext = new Tctxt;
+        myContext = new Tctxt(*aoi);
         aoi->context = myContext;
         if (!aoi->isAcopy) // making a real object
           editSetStreamParams(*aoi);
@@ -501,9 +503,11 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 class ContextBase
 {
   public:
-    ContextBase(int nParam, ParamValue* ppv, const ParamEntry* ppe, const ParamPage* ppg = nullptr,
+    ContextBase(AudioObjInstance& _aoi,
+                int nParam, ParamValue* ppv, const ParamEntry* ppe, const ParamPage* ppg = nullptr,
                 int nMIDI = 0, ParamValue* pmv = nullptr, const ParamEntry* pme = nullptr) 
-      : encPressed{-1},
+      : aoi(_aoi),
+        encPressed{-1},
         paramCount(nParam),    params(ppe),     aray(ppv),      pages(ppg),
         MIDIparamCount(nMIDI), MIDIparams(pme), MIDIvalues(pmv)
       {}
@@ -511,6 +515,7 @@ class ContextBase
     virtual void setParam(int i, AudioObjInstance* aoi){}
     virtual void copyParamsTo(ContextBase& dst);
 
+    AudioObjInstance& aoi;
     int encPressed;
     static constexpr int ARBWAV_PARAM = 0xCAFED00D;
     // ------ stream object settings ----------
@@ -530,7 +535,7 @@ class ContextBase
 class ContextBitcrusher  : public ContextBase
 {
   public:
-    ContextBitcrusher() : ContextBase(COUNT_OF(_params), &s.bits, _params) {}
+    ContextBitcrusher(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.bits, _params) {}
     ~ContextBitcrusher() {}
     static const ParamEntry _params[2];
     struct {ParamValue bits,  sampleRate;} s
@@ -547,7 +552,7 @@ class ContextBitcrusher  : public ContextBase
 class ContextChorus  : public ContextBase
 {
   public:
-    ContextChorus() : ContextBase(COUNT_OF(_params), &s.length, _params), mem{0}, tmp{0} {}
+    ContextChorus(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.length, _params), mem{0}, tmp{0} {}
     ~ContextChorus() 
     { 
       if (nullptr != mem.ptr) free(mem.ptr); 
@@ -570,7 +575,7 @@ class ContextChorus  : public ContextBase
 class ContextFlange  : public ContextBase
 {
   public:
-    ContextFlange() : ContextBase(COUNT_OF(_params), &s.length, _params), mem{0}, tmp{0} {}
+    ContextFlange(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.length, _params), mem{0}, tmp{0} {}
     ~ContextFlange() 
     { 
       if (nullptr != mem.ptr) free(mem.ptr); 
@@ -592,7 +597,7 @@ class ContextFlange  : public ContextBase
 class ContextEnvelope : public ContextBase
 {
   public:
-    ContextEnvelope() : ContextBase(COUNT_OF(_params), &s.delay, _params) {}
+    ContextEnvelope(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.delay, _params) {}
     static const ParamEntry _params[7];
     struct {ParamValue delay,  attack, hold,   decay,   sustain, release,  releaseNoteOn;} s
                 {      {0.0f}, {3.392f},{1.322f}, {5.129f}, {0.5f},  {8.229f}, {2.322f}      };
@@ -605,7 +610,7 @@ class ContextEnvelope : public ContextBase
 class ContextExpEnvelope : public ContextBase
 {
   public:
-    ContextExpEnvelope() : ContextBase(COUNT_OF(_params), &s.delay, _params) {}
+    ContextExpEnvelope(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.delay, _params) {}
     static const ParamEntry _params[7];
     struct {ParamValue delay,  attack,  hold,     decay,    sustain, release,  shape;} s
                 {      {0.0f}, {3.392f},{1.322f}, {5.129f}, {0.5f},  {8.229f}, {0.90f}      };
@@ -618,7 +623,7 @@ class ContextExpEnvelope : public ContextBase
 class ContextHammondVibrato : public ContextBase
 {
   public:
-    ContextHammondVibrato() : ContextBase(COUNT_OF(_params), &s.mode, _params) {}
+    ContextHammondVibrato(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.mode, _params) {}
     static const ParamEntry _params[2];
     struct {ParamValue mode, depth;} s
                 {      {1},  {1}     };
@@ -631,7 +636,7 @@ class ContextHammondVibrato : public ContextBase
 class ContextFreeverb : public ContextBase
 {
   public:
-    ContextFreeverb() : ContextBase(COUNT_OF(_params), &s.roomsize, _params) {}
+    ContextFreeverb(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.roomsize, _params) {}
     static const ParamEntry _params[2];
     struct {ParamValue roomsize, damping;} s
                 {      {0.5f},  {0.5f}     };
@@ -644,7 +649,7 @@ class ContextFreeverb : public ContextBase
 class ContextFreeverbStereo : public ContextBase
 {
   public:
-    ContextFreeverbStereo() : ContextBase(COUNT_OF(_params), &s.roomsize, _params) {}
+    ContextFreeverbStereo(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.roomsize, _params) {}
     static const ParamEntry _params[2];
     struct {ParamValue roomsize, damping;} s
                 {      {0.5f},  {0.5f}     };
@@ -658,7 +663,7 @@ class ContextFreeverbStereo : public ContextBase
 class ContextReverb : public ContextBase
 {
   public:
-    ContextReverb() : ContextBase(COUNT_OF(_params), &s.reverbTime, _params) {}
+    ContextReverb(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.reverbTime, _params) {}
     static const ParamEntry _params[1];
     struct {ParamValue reverbTime;} s
                 {      {1.0f},       };
@@ -672,8 +677,8 @@ class ContextReverb : public ContextBase
 class ContextBiquad : public ContextBase
 {
   public:
-    ContextBiquad()
-     : ContextBase(COUNT_OF(_params), &s.stage, _params) 
+    ContextBiquad(AudioObjInstance& _aoi)
+     : ContextBase(_aoi, COUNT_OF(_params), &s.stage, _params) 
     {
       for (size_t i = 0;i<4;i++)
       {
@@ -699,7 +704,7 @@ class ContextLadder : public ContextBase
     struct {ParamValue frequency, resonance,octaves,drive,  gain,   interpolation;} s
                    {          {11.0f},   {0.5f},   {2.0f}, {1.0f}, {0.2f}, {1}    };
   public:
-    ContextLadder() : ContextBase(COUNT_OF(_params), &s.frequency, _params) {}
+    ContextLadder(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.frequency, _params) {}
     ~ContextLadder(){}
     void setParam(int i, AudioObjInstance* aoi);
     static constexpr AudioPatcherDisplay::Box box{BOX_DEF(270,COUNT_OF(_params))};
@@ -709,7 +714,7 @@ class ContextLadder : public ContextBase
 class ContextStateVariable : public ContextBase 
 {
   public:
-    ContextStateVariable() : ContextBase(COUNT_OF(_params), &s.frequency, _params, nullptr,
+    ContextStateVariable(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.frequency, _params, nullptr,
                                          COUNT_OF(MIDIparams), &m.CCnum, MIDIparams) {}
     static const ParamEntry _params[4];
     struct {ParamValue frequency,resonance,octaves,tracking;} s
@@ -728,7 +733,7 @@ class ContextStateVariable : public ContextBase
 class ContextMixer4 : public ContextBase  
 {
   public:
-    ContextMixer4() : ContextBase(COUNT_OF(_params), gains, _params, nullptr,
+    ContextMixer4(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), gains, _params, nullptr,
                                   COUNT_OF(MIDIparams), CCs, MIDIparams) {}
     static const ParamEntry _params[4];
     ParamValue gains[4]{{0.55f},{0.55f},{0.55f},{0.55f}};
@@ -746,7 +751,7 @@ class ContextMixer : public ContextBase
 {    
     static const ParamPage _pages[2];
   public:
-    ContextMixer() : ContextBase(COUNT_OF(_params), gainEtc, _params, _pages) {}
+    ContextMixer(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), gainEtc, _params, _pages) {}
     static const ParamEntry _params[10];
     ParamValue gainEtc[10]{
         {0.55f}, {0.55f}, 
@@ -769,7 +774,7 @@ class ContextMixerStereo : public ContextBase
 {    
     static const ParamPage _pages[3];
   public:
-    ContextMixerStereo() : ContextBase(COUNT_OF(_params), gainOrPan, _params, _pages) {}
+    ContextMixerStereo(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), gainOrPan, _params, _pages) {}
     static const ParamEntry _params[20];
     ParamValue gainOrPan[20]{
         {0.55f},{0.0f},
@@ -797,7 +802,7 @@ class ContextMixerStereo : public ContextBase
 class ContextNoise : public ContextBase
 {
   public:
-    ContextNoise() : ContextBase(COUNT_OF(_params), &amplitude, _params) {}
+    ContextNoise(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &amplitude, _params) {}
     static const ParamEntry _params[1];
     ParamValue amplitude{0.0f};
 
@@ -816,8 +821,7 @@ class ContextWaveformBase
     ContextWaveformBase() 
       : arbWAVloaded{false} 
       {
-        resetArbWAV();
-Serial.printf("arbWAV at %08X -> %08X\n",&arbWAV, arbWAV.sampleData); Serial.flush();
+        arbWAV.reset();
       }
 
     /*
@@ -840,35 +844,19 @@ Serial.printf("arbWAV at %08X -> %08X\n",&arbWAV, arbWAV.sampleData); Serial.flu
     
         case AudioEditMode::destructor:
           stream->arbitraryWaveform(nullptr,10000.0f);
-          resetArbWAV();
+          arbWAV.reset();
           arbWAV.sampleData = nullptr; // don't free, it's pointing to default
           break;
       }
     }
 
-    /*
-      Reset arbitrary waveform to safe value, and 
-      free the memory it's using.
-    */
-    void resetArbWAV(void)
-    {
-      int16_t* oldArbWAV = arbWAV.sampleData;
-
-      if (arbWAV_sax != oldArbWAV)
-      {
-        arbWAV = {(int16_t*) arbWAV_sax,(char*) "/<sax>.",0,true}; // reset to safe default
-Serial.printf("Free %08X\n",oldArbWAV);  Serial.flush();
-        free((void*) oldArbWAV);  // free the memory
-      }
-    }
-
-    bool loadArbWAV(const char* base, const char* path, const char* nme, const char* extn);
-    bool loadArbWAV(const char* fullPath);
+    //bool loadArbWAV(const char* base, const char* path, const char* nme, const char* extn);
+    //bool loadArbWAV(const char* fullPath);
 
     //------ Stuff to remember ----------
     float noteFreq; // basic note frequency before modification with pitch bend
     struct arbWAVrecord arbWAV // record of arbitrary waveform
-        {(int16_t*) arbWAV_sax,nullptr,0,false}; 
+        {nullptr,nullptr,0,false}; 
     bool arbWAVloaded; // temporary flag while user is seeking a waveform to load
 };
 
@@ -877,14 +865,16 @@ Serial.printf("Free %08X\n",oldArbWAV);  Serial.flush();
 // Waveform-like context for use by filter keyboard tracking etc.
 class ContextMIDInote : public ContextBase 
 {
+    AudioObjInstance dummyAOI{objList[0]}; // dummy object: do not use!
   public:
     struct {ParamValue amplitude;} s
                  {       {1.0f}    };
 
     //------ MIDI settings ----------
     WaveformMIDI m {{4},{0.00f},{0},{0}, {0.0f}};
-    ContextMIDInote() : ContextBase(1, &s.amplitude, nullptr, nullptr,
-                                    WAVEFORM_MIDI_COUNT, &m.octave, nullptr) {}
+    ContextMIDInote() 
+        : ContextBase(dummyAOI, 1, &s.amplitude, nullptr, nullptr,
+                      WAVEFORM_MIDI_COUNT, &m.octave, nullptr) {}
 };
 
 
@@ -892,7 +882,7 @@ class ContextMIDInote : public ContextBase
 class ContextWaveform : public ContextBase, public ContextWaveformBase<AudioSynthWaveform> 
 {
   public:
-    ContextWaveform() : ContextBase(COUNT_OF(_params), &s.waveform, _params, nullptr,
+    ContextWaveform(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.waveform, _params, nullptr,
                                     COUNT_OF(MIDIparams), &m.octave, MIDIparams)
     {
       display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h);
@@ -914,7 +904,7 @@ class ContextWaveform : public ContextBase, public ContextWaveformBase<AudioSynt
 class ContextWaveformDc : public ContextBase
 {
   public:
-    ContextWaveformDc() : ContextBase(COUNT_OF(_params), &amplitude, _params, nullptr, 
+    ContextWaveformDc(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &amplitude, _params, nullptr, 
                                       COUNT_OF(MIDIparams), &m.CCnum, MIDIparams) {}
     static const ParamEntry _params[1];
     ParamValue amplitude{0.0f};
@@ -935,7 +925,7 @@ class ContextWaveformModulated
       public ContextWaveformBase<AudioSynthWaveformModulated>
 { 
   public:
-    ContextWaveformModulated() : ContextBase(COUNT_OF(_params), &s.waveform, _params, nullptr, 
+    ContextWaveformModulated(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.waveform, _params, nullptr, 
                                             COUNT_OF(MIDIparams), &m.octave, MIDIparams),
                                  fileSelector{nullptr} 
     {
@@ -965,7 +955,7 @@ class ContextWaveformModulated
 class ContextWavetable : public ContextBase
 { 
   public:
-    ContextWavetable() : ContextBase(COUNT_OF(_params), &s.waveform, _params, nullptr, 
+    ContextWavetable(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.waveform, _params, nullptr, 
                                      COUNT_OF(MIDIparams), &m.octave, MIDIparams) 
     {
       display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h);
@@ -1012,7 +1002,7 @@ class ContextWavetable : public ContextBase
 class ContextKarplusStrong : public ContextBase
 { 
   public:
-    ContextKarplusStrong() : ContextBase(COUNT_OF(_params), &s.frequency, _params, nullptr, 
+    ContextKarplusStrong(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.frequency, _params, nullptr, 
                                          COUNT_OF(MIDIparams), &m.octave, MIDIparams) {}
     static const ParamEntry _params[2];
     struct {ParamValue frequency,amplitude;} s {{7.0f},{0.5f}};
@@ -1030,7 +1020,7 @@ class ContextKarplusStrong : public ContextBase
 class ContextControlSGTL5000 : public ContextBase
 { 
   public:
-    ContextControlSGTL5000() : ContextBase(COUNT_OF(_params), &s.volume, _params) {}
+    ContextControlSGTL5000(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.volume, _params) {}
     static const ParamEntry _params[6];
     struct {ParamValue volume,  inputSelect,micGain,autoVolume,lineInLevel,lineOutLevel;} s
                  {             {0.25f}, {0},        {20},   {0},       {10},       {11}           };

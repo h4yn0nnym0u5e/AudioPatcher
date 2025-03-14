@@ -282,39 +282,44 @@ int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const size_t pa
         aray[i].value.i = value.i;
         break;
 
-      // string or arbitrary waveform
+      // string or arbitrary waveform (*arbWAVrecord)
       case 's':
       case 'w':
         off = 0; // skip parameter if we fail (This Never Happens)
         do 
         {
-          char* mem;
-          size_t extra = 0, spaceNeeded;
+          char* mem, *path;
+          size_t spaceNeeded;
 
 Serial.printf("Parsing <%s> ... ",ptr); Serial.flush();
-
-          if ('w' == params[i].ValType)
-            extra = 256*sizeof(int16_t);
-
+          // find comma that terminates the string
           char* comma = strchr(ptr,',');
 Serial.printf("comma at %08X vs %08X ... ",comma,ptr); Serial.flush();
-
-          // find comma that terminates the string
           if (nullptr == comma) // oh heck - now what?
             break;
           
           // allocate space to store it
-          spaceNeeded = extra + comma - ptr + 1;
-          spaceNeeded = (spaceNeeded + 16 ) & ~16;
+          if ('w' == params[i].ValType)
+          {
+            mem = aray[i].value.w->prepare(comma - ptr);
+Serial.printf("prepared %d ... ",aray[i].value.w->recSize); Serial.flush();
+            path = aray[i].value.w->path;
+          }
+          else
+          {            
+            spaceNeeded = comma - ptr + 1;
+            spaceNeeded = (spaceNeeded + 16 ) & ~16;
 Serial.printf("needs %d ... ",spaceNeeded); Serial.flush();
-          mem = (char*) malloc(spaceNeeded); // just enough space
+            mem = (char*) malloc(spaceNeeded); // just enough space
+            path = mem;
+          }
           if (nullptr == mem)
             break;
           
           // scan string into buffer
           //sscanf(ptr,"%s,%n",mem + extra,&off);
-          memcpy(mem+extra,ptr,comma-ptr); // sscanf can't do this job ...
-          mem[extra+comma-ptr] = 0; // .. do it ourselves, with terminator...
+          memcpy(path,ptr,comma-ptr); // sscanf can't do this job ...
+          path[comma-ptr] = 0; // .. do it ourselves, with terminator...
           off = comma-ptr+1;
 Serial.printf("used %d characters ... ",off); Serial.flush();
 
@@ -323,7 +328,7 @@ Serial.printf("used %d characters ... ",off); Serial.flush();
             // it's a path to an arbitrary waveform, which
             // hasn't yet been loaded in
 Serial.printf("load to %08X ... ",aray[i].value.w); Serial.flush();
-            *aray[i].value.w = {(int16_t*) mem, mem+extra, spaceNeeded, false};
+            aray[i].value.w->loaded = false;
             Serial.printf("%s = <%s> ... ",params[i].label,aray[i].value.w->path);
           }
           else
@@ -906,7 +911,7 @@ void ContextWaveformModulated::setParam(int i, AudioObjInstance* aoi)
 
       if (!arb.loaded
         && arb.path != nullptr) // file hasn't been loaded
-        loadArbWAV(arb.path);
+        arb.load(arb.path);
       if (nullptr != arb.sampleData)
       {
         aoi->streamP.WaveformModulated->arbitraryWaveform(arb.sampleData,10000.0f);
@@ -927,7 +932,7 @@ void enterEditMode<ContextWaveformModulated>(ContextWaveformModulated* myContext
   int iprt = floor(myContext->s.frequency.value.f - LOG_NOTE_A);
   float frac = myContext->s.frequency.value.f - iprt - LOG_NOTE_A;
 
-  Serial.printf("freq is %f -> %f Hz\n",myContext->s.frequency.value.f,pow(2,myContext->s.frequency.value.f));
+  // Serial.printf("freq is %f -> %f Hz\n",myContext->s.frequency.value.f,pow(2,myContext->s.frequency.value.f));
   
   enc0.setLimits(-3,12);
   if (frac > 0.5f)
@@ -1042,8 +1047,11 @@ int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode, void* param
   return result;
 }
 
-template<class Taudio>
-bool ContextWaveformBase<Taudio>::loadArbWAV(const char* buf)
+
+/*
+ * Load arbitrary waveform using given complete path
+ */
+bool arbWAVrecord::load(const char* buf)
 {
   bool result = false;
   int16_t tmp[256]; // temporary space for the waveform
@@ -1055,7 +1063,7 @@ bool ContextWaveformBase<Taudio>::loadArbWAV(const char* buf)
   spaceNeeded = (spaceNeeded + 16) & ~16; // round up a bit
   do
   {
-    int16_t* mem = arbWAV.sampleData;
+    int16_t* mem = sampleData;
     char* path;
 
     // open the file
@@ -1067,20 +1075,20 @@ bool ContextWaveformBase<Taudio>::loadArbWAV(const char* buf)
       break;
 
     // allocate storage if necessary
-    if (arbWAV_sax == arbWAV.sampleData // using default...
-      || arbWAV.recSize < spaceNeeded)  // ...or not enough space
+    if (arbWAV_sax == sampleData // using default...
+      || recSize < spaceNeeded)  // ...or not enough space
     {        
       mem = (int16_t*) malloc(spaceNeeded);
       if (nullptr == mem)
         break;
-      resetArbWAV();
+      reset();
     }
     path = (char*) mem + sizeof tmp;
 
     // copy the data and point to it
     memcpy(mem,tmp,sizeof tmp); // get sample data
     strcpy(path, buf);          // and where it was loaded from
-    arbWAV = {mem, path, spaceNeeded, true};
+    *this = {mem, path, spaceNeeded, true};
     result = true;
     
   } while (0);
@@ -1091,13 +1099,70 @@ bool ContextWaveformBase<Taudio>::loadArbWAV(const char* buf)
   return result;
 }
 
-template<class Taudio>
-bool ContextWaveformBase<Taudio>::loadArbWAV(const char* base, const char* path, const char* nme, const char* extn)
+
+/*
+ * Load arbitrary waveform using separate path elements
+ */
+bool arbWAVrecord::load(const char* base, const char* path, const char* nme, const char* extn)
 {
   char buf[100];
 
   makeFFP(buf,base,path,nme,extn);
-  return loadArbWAV(buf);
+  return load(buf);
+}
+
+/*
+  Reset arbitrary waveform to safe value, and 
+  free the memory it's using.
+*/
+void arbWAVrecord::reset(void)
+{
+  int16_t* oldArbWAV = sampleData;
+
+  if (arbWAV_sax != oldArbWAV)
+  {
+    *this = {(int16_t*) arbWAV_sax,(char*) "/<sax>.",0,true}; // reset to safe default
+    free((void*) oldArbWAV);  // free the memory
+  }
+}
+
+
+/*
+  Prepare memory to store waveform and its source path
+  \return pointer to memory; may be nullptr
+*/
+char* arbWAVrecord::prepare(size_t pathLen)
+{
+  // allocate space to store it
+  char* mem = (char*) sampleData; // assume we can use what we have
+  size_t spaceNeeded = ARB_WAV_SAMPLES*sizeof *sampleData + pathLen + 1;
+  spaceNeeded = (spaceNeeded + 16 ) & ~16;
+Serial.printf("needs %d ... ",spaceNeeded); Serial.flush();
+
+  if (isDefault() || spaceNeeded > recSize)
+  {
+    mem = (char*) malloc(spaceNeeded); // just enough space
+    if (!isDefault())   // old space was allocated...
+      free(sampleData); // ...so free it
+
+    // update to show new allocation size
+    if (nullptr != mem)
+    {
+      sampleData = (int16_t*) mem;
+      path = (char*) (sampleData+ARB_WAV_SAMPLES);
+      *path = 0;
+      recSize = spaceNeeded;
+    }
+    else
+    {
+      sampleData = nullptr;
+      path = nullptr;
+      recSize = 0;      
+    }
+    loaded = false;
+  }
+
+  return mem;
 }
 
 //===========================================================================================
@@ -1133,7 +1198,7 @@ void enterEditMode<ContextKarplusStrong>(ContextKarplusStrong* myContext, AudioO
   int iprt = floor(myContext->s.frequency.value.f - LOG_NOTE_A);
   float frac = myContext->s.frequency.value.f - iprt - LOG_NOTE_A;
 
-  Serial.printf("freq is %f -> %f Hz\n",myContext->s.frequency.value.f,pow(2,myContext->s.frequency.value.f));
+  // Serial.printf("freq is %f -> %f Hz\n",myContext->s.frequency.value.f,pow(2,myContext->s.frequency.value.f));
   
   // octave encoder
   enc0.setLimits(-3,12);

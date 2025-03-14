@@ -6,12 +6,28 @@
 #endif // !defined(COUNT_OF)
 
 
-struct arbWAVrecord
+extern const int16_t arbWAV_sax[];
+class arbWAVrecord
 {
-  int16_t* sampleData; // actual 256-sample data block
-  char* path;          // where it was loaded from
-  size_t recSize;
-  bool loaded;
+    static const int ARB_WAV_SAMPLES = 256;
+  public:
+    int16_t* sampleData; // actual 256-sample data block
+    char* path;          // where it was loaded from
+    size_t recSize;
+    bool loaded;
+
+    bool load(const char* base, const char* path, const char* nme, const char* extn);
+    bool load(const char* buf);
+    char* prepare(size_t pathLen);
+    void reset(void); // reset to default waveform
+    void setAll(int16_t* s, char* p, size_t sz, bool l)
+    {
+      sampleData = s; 
+      path = p;
+      recSize = sz;
+      loaded = l;
+    }
+    bool isDefault(void) {return sampleData == arbWAV_sax; }
 };
 
 class ParamChoice
