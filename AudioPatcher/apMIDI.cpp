@@ -14,7 +14,7 @@ static std::vector<PatcherVoice*> sounding;
 static std::vector<PatcherVoice*> releasing;
 
 //=================================================================
-const float velocity2amplitude[128] = {0.00000,
+PROGMEM const float velocity2amplitude[128] = {0.00000,
 0.01778,0.01966,0.02164,0.02371,0.02588,0.02814,0.03049,0.03294,0.03549,0.03812,
 0.04086,0.04369,0.04661,0.04963,0.05274,0.05594,0.05924,0.06264,0.06613,0.06972,
 0.07340,0.07717,0.08104,0.08500,0.08906,0.09321,0.09746,0.10180,0.10624,0.11077,
@@ -30,7 +30,7 @@ const float velocity2amplitude[128] = {0.00000,
 0.91917,0.93240,0.94573,0.95916,0.97268,0.98629,1.00000
 };
 //=================================================================
-const float PatcherVoice::notesFromC0orMIDI_12[] 
+PROGMEM const float PatcherVoice::notesFromC0orMIDI_12[] 
   {
     16.3515978312875f, // C
     17.3239144360545f, // C#
@@ -48,7 +48,7 @@ const float PatcherVoice::notesFromC0orMIDI_12[]
 
 // Reproduce most of the Hammond tonewheel ratios
 static const float HAMMOND_BASE = 1200.0f / 60.0f * 2.0f;
-const float notesHammond[] 
+PROGMEM const float notesHammond[] 
   {
     85.0f /104.0f * HAMMOND_BASE, // C
     71.0f /82.0f * HAMMOND_BASE, // C#

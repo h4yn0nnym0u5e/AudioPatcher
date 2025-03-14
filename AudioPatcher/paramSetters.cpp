@@ -13,7 +13,7 @@ extern M5w_8angle ctrl;
 SettingsEditor* settingsEditor;
 const float LOG_NOTE_A = 0.781359714f;           // frac(log2(440.0)) - 
 const float MIDDLE_C = 16.3515978312875f*16.0f;  // middle C in Hz
-const ParamEntry freqLimits{nullptr,-1.0f,1.0f}; // special, for setting hook control
+PROGMEM const ParamEntry freqLimits{nullptr,-1.0f,1.0f}; // special, for setting hook control
 
 //===========================================================================================
 size_t milliseconds2bytes(float ms) { return 2*AUDIO_SAMPLE_RATE_EXACT*ms/1000.0f; }
@@ -396,7 +396,7 @@ FLASHMEM void ContextBitcrusher::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-const ParamEntry ContextBitcrusher::_params[2] = 
+PROGMEM const ParamEntry ContextBitcrusher::_params[2] = 
 {
   {"       bits", 1, 16},
   {"sample rate", AUDIO_SAMPLE_RATE, 50},
@@ -440,7 +440,7 @@ FLASHMEM void ContextChorus::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-const ParamEntry ContextChorus::_params[2] = 
+PROGMEM const ParamEntry ContextChorus::_params[2] = 
 {
   {"length [ms]", 10.0f, 200.0f},
   {"     voices", 1, 20},
@@ -537,7 +537,7 @@ FLASHMEM void ContextFlange::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-const ParamEntry ContextFlange::_params[4] = 
+PROGMEM const ParamEntry ContextFlange::_params[4] = 
 {
   {"length [ms]", 10.0f, 200.0f},
   {"     offset", 0.0f,  1.0f},
@@ -601,7 +601,7 @@ FLASHMEM void ContextFreeverb::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-const ParamEntry ContextFreeverb::_params[2] = 
+PROGMEM const ParamEntry ContextFreeverb::_params[2] = 
 {
   {"room size", 0.0f, 1.0f},
   {"  damping", 0.0f, 1.0f},
@@ -623,7 +623,7 @@ FLASHMEM void ContextFreeverbStereo::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-const ParamEntry ContextFreeverbStereo::_params[2] = 
+PROGMEM const ParamEntry ContextFreeverbStereo::_params[2] = 
 {
   {"room size", 0.0f, 1.0f},
   {"  damping", 0.0f, 1.0f},
@@ -644,7 +644,7 @@ FLASHMEM void ContextReverb::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-const ParamEntry ContextReverb::_params[1] = 
+PROGMEM const ParamEntry ContextReverb::_params[1] = 
 {
   {"reverb time", 0.0f, 10.0f},
 };
@@ -661,7 +661,7 @@ FLASHMEM void ContextMixer4::setParam(int i, AudioObjInstance* aoi)
   aoi->streamP.Mixer4->gain(i,gains[i].value.f); 
 }
 
-const ParamEntry ContextMixer4::_params[4] = 
+PROGMEM const ParamEntry ContextMixer4::_params[4] = 
 {
   {"ch1", 0.0f, 1.0f},
   {"ch2", 0.0f, 1.0f},
@@ -669,7 +669,7 @@ const ParamEntry ContextMixer4::_params[4] =
   {"ch4", 0.0f, 1.0f},
 };
 
-const ParamEntry ContextMixer4::MIDIparams[4] = 
+PROGMEM const ParamEntry ContextMixer4::MIDIparams[4] = 
 {
   {"CC1", -1, 119}, 
   {"CC2", -1, 119}, 
@@ -759,7 +759,7 @@ FLASHMEM void ContextMixerStereo::setParam(int i, AudioObjInstance* aoi)
 
 const ParamPage ContextMixerStereo::_pages[3] {{0,8},{8,8},{16,4}};
 
-const ParamEntry ContextMixerStereo::_params[20] = 
+PROGMEM const ParamEntry ContextMixerStereo::_params[20] = 
 {
   {"ch1", 0.0f, 1.0f}, {"pan1", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
   {"ch2", 0.0f, 1.0f}, {"pan2", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
@@ -809,7 +809,7 @@ FLASHMEM void ContextMixer::setParam(int i, AudioObjInstance* aoi)
 
 const ParamPage ContextMixer::_pages[2] {{0,8},{8,2}};
 
-const ParamEntry ContextMixer::_params[10] = 
+PROGMEM const ParamEntry ContextMixer::_params[10] = 
 {
   {"ch1", 0.0f, 1.0f}, 
   {"ch2", 0.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
@@ -843,7 +843,7 @@ const ParamChoice tuningTypes[]
    {"Hammond", 1},
   };
 
-const ParamEntry ContextWaveformModulated::MIDIparams[] 
+PROGMEM const ParamEntry ContextWaveformModulated::MIDIparams[] 
 {
   {"   octave", 0, 9}, // middle C = 261.63Hz = note#60 = octave 4
   {"   detune", -6.00f, +6.00f}, // semitones / cents
@@ -871,7 +871,7 @@ const ParamChoice waveShapes[13] =
 ParamChoice modTypes[] = {{"frequency",0},{"phase",1}};
 
 
-const ParamEntry ContextWaveformModulated::_params[7] = 
+PROGMEM const ParamEntry ContextWaveformModulated::_params[7] = 
 {
   {" waveform", PARAM_ENTRY_CHOICES(waveShapes)},
   {"frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
@@ -1204,7 +1204,7 @@ Serial.printf("needs %d ... ",spaceNeeded); Serial.flush();
 }
 
 //===========================================================================================
-const ParamEntry ContextKarplusStrong::MIDIparams[] 
+PROGMEM const ParamEntry ContextKarplusStrong::MIDIparams[] 
 {
   {"   octave", 0, 9}, // middle C = 261.63Hz = note#60 = octave 4
   {"   detune", -6.00f, +6.00f}, // semitones / cents
@@ -1214,7 +1214,7 @@ const ParamEntry ContextKarplusStrong::MIDIparams[]
 };
 
 
-const ParamEntry ContextKarplusStrong::_params[2] = 
+PROGMEM const ParamEntry ContextKarplusStrong::_params[2] = 
 {
   {"frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
   {"amplitude", 0.0f, 1.0f},
@@ -1293,12 +1293,12 @@ FLASHMEM int editKarplusStrong(AudioObjInstance* aoi, AudioEditMode mode, void* 
 //===========================================================================================
 
 //===========================================================================================
-const ParamEntry ContextWaveformDc::_params[] = {
+PROGMEM const ParamEntry ContextWaveformDc::_params[] = {
   {"value", -1.0f, 1.0f},
 };
 
 
-const ParamEntry ContextWaveformDc::MIDIparams[]
+PROGMEM const ParamEntry ContextWaveformDc::MIDIparams[]
 {                         // -3    -2     -1        0           1           2    ...
   {"CC number", -3, 119}, // off, note, velocity, bank select, modulation, breath...
   {"min", -1.00f, +1.00f},
@@ -1371,7 +1371,7 @@ void processMIDIevent<ContextWaveformDc>(AudioObjInstance* aoi, MIDIevent* ev)
 }
 
 //===========================================================================================
-const ParamEntry ContextNoise::_params[] = {
+PROGMEM const ParamEntry ContextNoise::_params[] = {
   {"amplitude", 0.0f, 1.0f}
 };
 
@@ -1516,7 +1516,7 @@ FLASHMEM void ContextLadder::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-const ParamEntry ContextLadder::_params[6]  {
+PROGMEM const ParamEntry ContextLadder::_params[6]  {
         {"    frequency", 3.0f, 13.2877123795495f, 'l'}, // 8.0 .. 10,000.0 Hz
         {"    resonance", 0.0f, 1.8f},
         {"      octaves", 0.0f, 7.0f},
@@ -1543,7 +1543,7 @@ FLASHMEM void ContextStateVariable::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-const ParamEntry ContextStateVariable::_params[4] = {
+PROGMEM const ParamEntry ContextStateVariable::_params[4] = {
         {"frequency", 3.0f, 13.2877123795495f, 'l'}, // 8.0 .. 10,000.0 Hz
         {"resonance", 0.7f, 5.0f},
         {"  octaves", 0.0f, 7.0f},
@@ -1555,7 +1555,7 @@ FLASHMEM int editStateVariable(AudioObjInstance* aoi, AudioEditMode mode, void* 
   return editObjType<AudioFilterStateVariable, ContextStateVariable>(aoi,mode,params);
 }
 
-const ParamEntry ContextStateVariable::MIDIparams[]
+PROGMEM const ParamEntry ContextStateVariable::MIDIparams[]
 {
   {"Resonance CC", -1, 119}, // off, bank select, modulation, breath...
   {"min", 0.7f, +5.00f},
@@ -1600,7 +1600,7 @@ void processMIDIevent<ContextStateVariable>(AudioObjInstance* aoi, MIDIevent* ev
 }
 
 //===========================================================================================
-const ParamEntry ContextWaveform::MIDIparams[] 
+PROGMEM const ParamEntry ContextWaveform::MIDIparams[] 
 {
   {"   octave", 0, 9}, // middle C = 261.63Hz = note#60 = octave 4
   {"   detune", -6.00f, +6.00f}, // semitones / cents
@@ -1609,7 +1609,7 @@ const ParamEntry ContextWaveform::MIDIparams[]
   {"PB amount",0.0f, 12.0f},
 };
 
-const ParamEntry ContextWaveform::_params[] = {
+PROGMEM const ParamEntry ContextWaveform::_params[] = {
   {"  waveform", PARAM_ENTRY_CHOICES(waveShapes)},
   {" frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
   {" amplitude", 0.0f, 1.0f},
@@ -1724,7 +1724,7 @@ FLASHMEM int editWaveform(AudioObjInstance* aoi, AudioEditMode mode, void* param
 }
 
 //===========================================================================================
-const ParamEntry ContextWavetable::MIDIparams[] 
+PROGMEM const ParamEntry ContextWavetable::MIDIparams[] 
 {
   {"   octave", 0, 9}, // middle C = 261.63Hz = note#60 = octave 4
   {"   detune", -6.00f, +6.00f}, // semitones / cents
@@ -1733,7 +1733,7 @@ const ParamEntry ContextWavetable::MIDIparams[]
   {"PB amount",0.0f, 12.0f}
 };
 
-const ParamEntry ContextWavetable::_params[5] = {
+PROGMEM const ParamEntry ContextWavetable::_params[5] = {
   {"  waveform", PARAM_ENTRY_CHOICES(waveShapes)},
   {" frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
   {" amplitude", 0.0f, 1.0f},
@@ -1841,7 +1841,7 @@ FLASHMEM int editWavetable(AudioObjInstance* aoi, AudioEditMode mode, void* para
 #endif // defined(AUDIO_BIQUAD_HAS_PASSTHRU)      
   };
   
-const ParamEntry ContextBiquad::_params[] = {
+PROGMEM const ParamEntry ContextBiquad::_params[] = {
   {"    stage", 0,3},
   {" response", PARAM_ENTRY_CHOICES(responsesBiquad)},
   {"frequency", 8.0f, 13.2877123795495f, 'l'},
@@ -1994,7 +1994,7 @@ FLASHMEM void ContextEnvelope::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-const ParamEntry ContextEnvelope::_params[7] = {
+PROGMEM const ParamEntry ContextEnvelope::_params[7] = {
         {"    delay", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
         {"   attack", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
         {"     hold", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
@@ -2045,7 +2045,7 @@ FLASHMEM void ContextExpEnvelope::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-const ParamEntry ContextExpEnvelope::_params[7] = {
+PROGMEM const ParamEntry ContextExpEnvelope::_params[7] = {
         {"  delay", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
         {" attack", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
         {"   hold", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
@@ -2114,7 +2114,7 @@ FLASHMEM void ContextHammondVibrato::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-const ParamEntry ContextHammondVibrato::_params[2] = {
+PROGMEM const ParamEntry ContextHammondVibrato::_params[2] = {
         {" mode", PARAM_ENTRY_CHOICES(modesHammondVibrato)},
         {"depth", 1, 3 }, 
     };
