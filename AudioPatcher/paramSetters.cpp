@@ -19,7 +19,7 @@ const ParamEntry freqLimits{nullptr,-1.0f,1.0f}; // special, for setting hook co
 size_t milliseconds2bytes(float ms) { return 2*AUDIO_SAMPLE_RATE_EXACT*ms/1000.0f; }
 
 //===========================================================================================
-bool ScaleF(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filter)
+FLASHMEM bool ScaleF(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filter)
 {
   bool result = false;
   float newVal = map((float) raw, M5ANGLE_MIN, M5ANGLE_MAX, pe.min.f, pe.max.f);
@@ -33,7 +33,7 @@ bool ScaleF(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filter)
 }
 
 
-bool ScaleFreq(const ParamEntry& pe, ParamValue& pv, int16_t raw, int16_t pow2, float filter)
+FLASHMEM bool ScaleFreq(const ParamEntry& pe, ParamValue& pv, int16_t raw, int16_t pow2, float filter)
 {
   bool result = false;
   float newVal = map((float) raw, M5ANGLE_MIN, M5ANGLE_MAX, -1.0f, 1.0f); // get a value
@@ -48,7 +48,7 @@ bool ScaleFreq(const ParamEntry& pe, ParamValue& pv, int16_t raw, int16_t pow2, 
 }
 
 
-bool ScaleIminMax(int min, int max, ParamValue& pv, int16_t raw)
+FLASHMEM bool ScaleIminMax(int min, int max, ParamValue& pv, int16_t raw)
 {
   bool result = false;
   int newVal = constrain(map(raw, M5ANGLE_MIN, M5ANGLE_MAX, min, max), min, max);
@@ -61,7 +61,7 @@ bool ScaleIminMax(int min, int max, ParamValue& pv, int16_t raw)
 }
 
 
-bool ScaleI(const ParamEntry& pe, ParamValue& pv, int16_t raw)
+FLASHMEM bool ScaleI(const ParamEntry& pe, ParamValue& pv, int16_t raw)
 {
   return ScaleIminMax(pe.min.i, pe.max.i, pv, raw);;
 }
@@ -87,7 +87,7 @@ bool Scale(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filter = 1.0
   return result;
 }
 
-void HookControl(M5w_8angle& ctrl, int ch, const ParamEntry& pe, ParamValue& pv)
+FLASHMEM void HookControl(M5w_8angle& ctrl, int ch, const ParamEntry& pe, ParamValue& pv)
 {
   switch (pe.ValType)
   {
@@ -104,7 +104,7 @@ void HookControl(M5w_8angle& ctrl, int ch, const ParamEntry& pe, ParamValue& pv)
   }
 }
 
-int testExit(uint32_t& exitAt)
+FLASHMEM int testExit(uint32_t& exitAt)
 {
   int result = 1; // assume we'll keep claiming UI
   
@@ -122,7 +122,7 @@ int testExit(uint32_t& exitAt)
 }
 
 //===========================================================================================
-bool updateFromControls(AudioObjInstance* aoi)
+FLASHMEM bool updateFromControls(AudioObjInstance* aoi)
 {
   if (nullptr != settingsEditor)
   {
@@ -139,14 +139,14 @@ bool updateFromControls(AudioObjInstance* aoi)
 }
 
 //===========================================================================================
-void SettingsEditor::Init(const char* title)
+FLASHMEM void SettingsEditor::Init(const char* title)
 {
   display.ShowTitle(title,5,5);
   ShowPage();
 }
 
 
-void SettingsEditor::ShowPage(void)
+FLASHMEM void SettingsEditor::ShowPage(void)
 {
   int row = 0, tmpLast = lastRowShown;
   size_t first = 0, nCtrl = paramCount;
@@ -181,7 +181,7 @@ void SettingsEditor::ShowPage(void)
 // Change currentPage to a new parameters page number, if possible
 // Does not update screen
 // \return true if valid page number
-bool SettingsEditor::ChangePage(int newPage)
+FLASHMEM bool SettingsEditor::ChangePage(int newPage)
 {
   bool result = false;
   
@@ -207,13 +207,13 @@ bool SettingsEditor::ChangePage(int newPage)
 }
 
 
-void SettingsEditor::ShowVoiceFlag(bool flag)
+FLASHMEM void SettingsEditor::ShowVoiceFlag(bool flag)
 {
   display.ShowVoiceFlag(flag);
 }
 
 //===========================================================================================
-int editGetParamsAny(const ParamEntry* params, const ParamValue* aray, const size_t paramCount, getSetParams* p)
+FLASHMEM int editGetParamsAny(const ParamEntry* params, const ParamValue* aray, const size_t paramCount, getSetParams* p)
 {
   size_t left = p->sz;
   char* ptr = p->buffer;
@@ -241,7 +241,7 @@ int editGetParamsAny(const ParamEntry* params, const ParamValue* aray, const siz
   return paramCount != 0;
 }
 
-int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const size_t paramCount, getSetParams* p)
+FLASHMEM int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const size_t paramCount, getSetParams* p)
 {
   char* ptr = p->buffer;
   int off = 0;
@@ -351,7 +351,7 @@ Serial.printf("load to %08X ... ",aray[i].value.w); Serial.flush();
 
 //=====================================================================================
 // Set AudioStream object's parameters from the stored ones
-int editSetStreamParams(AudioObjInstance& aoi)
+FLASHMEM int editSetStreamParams(AudioObjInstance& aoi)
 {
   int result = 0;
   ContextBase* myContext = (ContextBase*) aoi.context;
@@ -371,13 +371,13 @@ int editSetStreamParams(AudioObjInstance& aoi)
 
 
 //=====================================================================================
-void ContextBase::copyParamsTo(ContextBase& dst)
+FLASHMEM void ContextBase::copyParamsTo(ContextBase& dst)
 {
   memcpy(dst.aray, aray, paramCount * sizeof aray[0]);
   memcpy(dst.MIDIvalues, MIDIvalues, MIDIparamCount * sizeof MIDIvalues[0]);
 }
 
-void CopyContext(void* src, void* dst)
+FLASHMEM void CopyContext(void* src, void* dst)
 {
   // some objects don't need a context, e.g. AudioEffectMultiply
   if (nullptr != src && nullptr != dst)
@@ -387,7 +387,7 @@ void CopyContext(void* src, void* dst)
 //===========================================================================================
 // Strong definitions of setup controls
 //===========================================================================================
-void ContextBitcrusher::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextBitcrusher::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
@@ -403,13 +403,13 @@ const ParamEntry ContextBitcrusher::_params[2] =
 };
 
 
-int editBitcrusher(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editBitcrusher(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioEffectBitcrusher, ContextBitcrusher>(aoi,mode,params);    
 }
 
 //===========================================================================================
-void ContextChorus::allocMem(memRecord& mem, size_t newsize, AudioObjInstance* aoi)
+FLASHMEM void ContextChorus::allocMem(memRecord& mem, size_t newsize, AudioObjInstance* aoi)
 {
   if (nullptr != mem.ptr)
     free(mem.ptr);
@@ -420,7 +420,7 @@ void ContextChorus::allocMem(memRecord& mem, size_t newsize, AudioObjInstance* a
   AudioInterrupts();  
 }
 
-void ContextChorus::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextChorus::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
@@ -446,7 +446,7 @@ const ParamEntry ContextChorus::_params[2] =
   {"     voices", 1, 20},
 };
 
-void ContextChorus::enterEditMode(AudioObjInstance* aoi)
+FLASHMEM void ContextChorus::enterEditMode(AudioObjInstance* aoi)
 {
   tmp = mem;
   AudioNoInterrupts();
@@ -460,7 +460,7 @@ void enterEditMode<ContextChorus>(ContextChorus* myContext, AudioObjInstance* ao
   myContext->enterEditMode(aoi);
 }
 
-void ContextChorus::exitEditMode(AudioObjInstance* aoi)
+FLASHMEM void ContextChorus::exitEditMode(AudioObjInstance* aoi)
 {
   if (milliseconds2bytes(s.length.value.f) <= tmp.sz) // old allocation is OK for new setting
   {
@@ -482,14 +482,14 @@ void exitEditMode<ContextChorus>(ContextChorus* myContext, AudioObjInstance* aoi
   myContext->exitEditMode(aoi);
 }
 
-int editChorus(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editChorus(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioEffectChorus, ContextChorus>(aoi,mode,params); 
 }
 
 //===========================================================================================
 /// TODO: see if we can make much of this code common with the Chorus effect
-void ContextFlange::allocMem(memRecord& mem, size_t newsize, AudioObjInstance* aoi)
+FLASHMEM void ContextFlange::allocMem(memRecord& mem, size_t newsize, AudioObjInstance* aoi)
 {
   if (nullptr != mem.ptr)
     free(mem.ptr);
@@ -505,7 +505,7 @@ void ContextFlange::allocMem(memRecord& mem, size_t newsize, AudioObjInstance* a
   AudioInterrupts();  
 }
 
-void ContextFlange::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextFlange::setParam(int i, AudioObjInstance* aoi)
 { 
   switch (i)
   {
@@ -545,7 +545,7 @@ const ParamEntry ContextFlange::_params[4] =
   {"       rate",   -5.0f,  4.0f, 'l'}, // 0.03 .. 16Hz
 };
 
-void ContextFlange::enterEditMode(AudioObjInstance* aoi)
+FLASHMEM void ContextFlange::enterEditMode(AudioObjInstance* aoi)
 {
   tmp = mem;
   AudioNoInterrupts();
@@ -559,7 +559,7 @@ void enterEditMode<ContextFlange>(ContextFlange* myContext, AudioObjInstance* ao
   myContext->enterEditMode(aoi);
 }
 
-void ContextFlange::exitEditMode(AudioObjInstance* aoi)
+FLASHMEM void ContextFlange::exitEditMode(AudioObjInstance* aoi)
 {
   if (milliseconds2bytes(s.length.value.f) <= tmp.sz) // old allocation is OK for new setting
   {
@@ -586,13 +586,13 @@ void exitEditMode<ContextFlange>(ContextFlange* myContext, AudioObjInstance* aoi
   myContext->exitEditMode(aoi);
 }
 
-int editFlange(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editFlange(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioEffectFlange, ContextFlange>(aoi,mode,params); 
 }
 
 //===========================================================================================
-void ContextFreeverb::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextFreeverb::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
@@ -608,13 +608,13 @@ const ParamEntry ContextFreeverb::_params[2] =
 };
 
 
-int editFreeverb(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editFreeverb(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioEffectFreeverb, ContextFreeverb>(aoi,mode,params);    
 }
 
 //===========================================================================================
-void ContextFreeverbStereo::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextFreeverbStereo::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
@@ -630,13 +630,13 @@ const ParamEntry ContextFreeverbStereo::_params[2] =
 };
 
 
-int editFreeverbStereo(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editFreeverbStereo(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioEffectFreeverbStereo, ContextFreeverbStereo>(aoi,mode,params);    
 }
 
 //===========================================================================================
-void ContextReverb::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextReverb::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
@@ -650,13 +650,13 @@ const ParamEntry ContextReverb::_params[1] =
 };
 
 
-int editReverb(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editReverb(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioEffectReverb, ContextReverb>(aoi,mode,params);    
 }
 
 //===========================================================================================
-void ContextMixer4::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextMixer4::setParam(int i, AudioObjInstance* aoi)
 {
   aoi->streamP.Mixer4->gain(i,gains[i].value.f); 
 }
@@ -678,7 +678,7 @@ const ParamEntry ContextMixer4::MIDIparams[4] =
 };
 
 
-int editMixer4(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editMixer4(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioMixer4, ContextMixer4>(aoi,mode,params);    
 }
@@ -711,7 +711,7 @@ const ParamChoice panLawTypes[]
    {"DAW", 1},
   };
 
-void ContextMixerStereo::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextMixerStereo::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
@@ -776,14 +776,14 @@ const ParamEntry ContextMixerStereo::_params[20] =
   
 };
 
-int editMixerStereo(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editMixerStereo(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioMixerStereo, ContextMixerStereo>(aoi,mode,params);    
 }
 
 
 //===========================================================================================
-void ContextMixer::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextMixer::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
@@ -824,7 +824,7 @@ const ParamEntry ContextMixer::_params[10] =
   {"soft knee", 0.0f, 1.0f}
 };
 
-int editMixer(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editMixer(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioMixer, ContextMixer>(aoi,mode,params);    
 }
@@ -882,7 +882,7 @@ const ParamEntry ContextWaveformModulated::_params[7] =
   {" arb. WAV", 'w'}
 };
 
-void ContextWaveformModulated::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextWaveformModulated::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
@@ -1052,7 +1052,7 @@ void processMIDIevent<ContextWaveformModulated>(AudioObjInstance* aoi, MIDIevent
   processMIDIforWaveform(aoi,ev,(ContextWaveformModulated*) aoi->context,aoi->streamP.WaveformModulated);
 }
   
-int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   // fix up arbitrary waveform if we're about to be destroyed
   if (nullptr != aoi->context)
@@ -1072,7 +1072,7 @@ int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode, void* param
 /*
  * Load arbitrary waveform using given complete path
  */
-bool arbWAVrecord::load(const char* buf)
+FLASHMEM bool arbWAVrecord::load(const char* buf)
 {
   bool result = false;
   int16_t tmp[256]; // temporary space for the waveform
@@ -1124,7 +1124,7 @@ bool arbWAVrecord::load(const char* buf)
 /*
  * Load arbitrary waveform using separate path elements
  */
-bool arbWAVrecord::load(const char* base, const char* path, const char* nme, const char* extn)
+FLASHMEM bool arbWAVrecord::load(const char* base, const char* path, const char* nme, const char* extn)
 {
   char buf[100];
 
@@ -1136,7 +1136,7 @@ bool arbWAVrecord::load(const char* base, const char* path, const char* nme, con
  * Load arbitrary waveform if it's not already been done
  * \returns true if it's available for use
  */
-bool arbWAVrecord::loadIfNeeded(void)
+FLASHMEM bool arbWAVrecord::loadIfNeeded(void)
 {
   if (!loaded
     && path != nullptr) // file hasn't been loaded
@@ -1153,7 +1153,7 @@ bool arbWAVrecord::loadIfNeeded(void)
   Reset arbitrary waveform to safe value, and 
   free the memory it's using.
 */
-void arbWAVrecord::reset(void)
+FLASHMEM void arbWAVrecord::reset(void)
 {
   int16_t* oldArbWAV = sampleData;
 
@@ -1169,7 +1169,7 @@ void arbWAVrecord::reset(void)
   Prepare memory to store waveform and its source path
   \return pointer to memory; may be nullptr
 */
-char* arbWAVrecord::prepare(size_t pathLen)
+FLASHMEM char* arbWAVrecord::prepare(size_t pathLen)
 {
   // allocate space to store it
   char* mem = (char*) sampleData; // assume we can use what we have
@@ -1220,7 +1220,7 @@ const ParamEntry ContextKarplusStrong::_params[2] =
   {"amplitude", 0.0f, 1.0f},
 };
 
-void ContextKarplusStrong::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextKarplusStrong::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
@@ -1285,7 +1285,7 @@ void processMIDIevent<ContextKarplusStrong>(AudioObjInstance* aoi, MIDIevent* ev
   processMIDIforKarplusStrong(aoi,ev,(ContextKarplusStrong*) aoi->context,aoi->streamP.KarplusStrong);
 }
   
-int editKarplusStrong(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editKarplusStrong(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioSynthKarplusStrong, ContextKarplusStrong>(aoi,mode,params);  
 }
@@ -1314,7 +1314,7 @@ void ContextWaveformDc::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-int editWaveformDc(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editWaveformDc(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioSynthWaveformDc, ContextWaveformDc>(aoi,mode,params);    
 }
@@ -1375,7 +1375,7 @@ const ParamEntry ContextNoise::_params[] = {
   {"amplitude", 0.0f, 1.0f}
 };
 
-void ContextNoise::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextNoise::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
@@ -1390,12 +1390,12 @@ void ContextNoise::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-int editNoiseWhite(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editNoiseWhite(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioSynthNoiseWhite, ContextNoise>(aoi,mode,params);    
 }
 
-int editNoisePink(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editNoisePink(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioSynthNoisePink, ContextNoise>(aoi,mode,params);    
 }
@@ -1465,7 +1465,7 @@ int editNoisePink(AudioObjInstance* aoi, AudioEditMode mode, void* params)
   {"output [Vpkpk]", PARAM_ENTRY_CHOICES(outputLevelsSGTL5000)},
 };
 
-void ContextControlSGTL5000::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextControlSGTL5000::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   { // volume,inputSelect,micGain,lineInLevel,lineOutLevel,autoVolume
@@ -1491,7 +1491,7 @@ void ContextControlSGTL5000::setParam(int i, AudioObjInstance* aoi)
   }  
 }
 
-int editControlSGTL5000(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editControlSGTL5000(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioControlSGTL5000, ContextControlSGTL5000>(aoi,mode,params);
 }
@@ -1503,7 +1503,7 @@ int editControlSGTL5000(AudioObjInstance* aoi, AudioEditMode mode, void* params)
     {"linear", LADDER_FILTER_INTERPOLATION_LINEAR}
   };
   
-void ContextLadder::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextLadder::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
@@ -1525,7 +1525,7 @@ const ParamEntry ContextLadder::_params[6]  {
         {"interpolation", PARAM_ENTRY_CHOICES(ladderInterpolation)}
     };
 
-int editLadder(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editLadder(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioFilterLadder, ContextLadder>(aoi,mode,params);
 }
@@ -1533,7 +1533,7 @@ int editLadder(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 //===========================================================================================
 const ContextMIDInote filterNoteContext; // dummy context for filter tracking purposes
 //===========================================================================================
-void ContextStateVariable::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextStateVariable::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
@@ -1550,7 +1550,7 @@ const ParamEntry ContextStateVariable::_params[4] = {
         {" tracking", 0.0f, 3.0f}
     };
 
-int editStateVariable(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editStateVariable(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioFilterStateVariable, ContextStateVariable>(aoi,mode,params);
 }
@@ -1619,7 +1619,7 @@ const ParamEntry ContextWaveform::_params[] = {
 };
 
 
-void ContextWaveform::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextWaveform::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
@@ -1708,7 +1708,7 @@ void processMIDIevent<ContextWaveform>(AudioObjInstance* aoi, MIDIevent* ev)
 }
 
   
-int editWaveform(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editWaveform(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   // fix up arbitrary waveform if we're about to be destroyed
   if (nullptr != aoi->context)
@@ -1742,7 +1742,7 @@ const ParamEntry ContextWavetable::_params[5] = {
 };
 
 
-void ContextWavetable::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextWavetable::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
@@ -1814,7 +1814,7 @@ void processMIDIevent<ContextWavetable>(AudioObjInstance* aoi, MIDIevent* ev)
 }
 
   
-int editWavetable(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editWavetable(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   int result = editObjType<AudioSynthWavetable, ContextWavetable>(aoi,mode,params);
   // Only after construction do we have a context with a default arbitrary 
@@ -1863,7 +1863,7 @@ static void (AudioFilterBiquad::* pFGS[])(uint32_t,float,float,float)
    &AudioFilterBiquad::setHighShelf
   };
 
-void ContextBiquad::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextBiquad::setParam(int i, AudioObjInstance* aoi)
 {
   int stge = s.stage.value.i;
 
@@ -1923,7 +1923,7 @@ void ContextBiquad::setParam(int i, AudioObjInstance* aoi)
   } 
 }
 
-int editBiquad(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editBiquad(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   int result = 0;
   switch (mode)
@@ -1980,7 +1980,7 @@ int editBiquad(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
-void ContextEnvelope::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextEnvelope::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
@@ -2004,7 +2004,7 @@ const ParamEntry ContextEnvelope::_params[7] = {
         {"relNoteOn", 0.0f, 13.2877123795495f, 'l'} // 1.0 .. 10,000.0ms
     };
 
-int editEnvelope(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editEnvelope(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioEffectEnvelope, ContextEnvelope>(aoi,mode,params);
 }
@@ -2027,7 +2027,7 @@ int isActive<ContextEnvelope>(AudioObjInstance* aoi)
 }
 
 //===========================================================================================
-void ContextExpEnvelope::setParam(int i, AudioObjInstance* aoi)
+FLASHMEM void ContextExpEnvelope::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
@@ -2055,7 +2055,7 @@ const ParamEntry ContextExpEnvelope::_params[7] = {
         {"  shape", 0.1f, 0.99f} // 
     };
 
-int editExpEnvelope(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editExpEnvelope(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioEffectExpEnvelope, ContextExpEnvelope>(aoi,mode,params);
 }
@@ -2083,8 +2083,8 @@ int isActive<ContextExpEnvelope>(AudioObjInstance* aoi)
    {"vibrato", 1},
    {"chorus",  2},
   };
-  
-void ContextHammondVibrato::setParam(int i, AudioObjInstance* aoi)
+
+FLASHMEM void ContextHammondVibrato::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
@@ -2119,7 +2119,7 @@ const ParamEntry ContextHammondVibrato::_params[2] = {
         {"depth", 1, 3 }, 
     };
 
-int editHammondVibrato(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+FLASHMEM int editHammondVibrato(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<ContextHammondVibrato, ContextHammondVibrato>(aoi,mode,params);
 }
