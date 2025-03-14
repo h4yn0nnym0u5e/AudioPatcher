@@ -882,8 +882,10 @@ class ContextMIDInote : public ContextBase
 class ContextWaveform : public ContextBase, public ContextWaveformBase<AudioSynthWaveform> 
 {
   public:
-    ContextWaveform(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.waveform, _params, nullptr,
-                                    COUNT_OF(MIDIparams), &m.octave, MIDIparams)
+    ContextWaveform(AudioObjInstance& _aoi) : ContextBase(
+              _aoi, COUNT_OF(_params), &s.waveform, _params, nullptr,
+              COUNT_OF(MIDIparams), &m.octave, MIDIparams),
+            fileSelector{nullptr} 
     {
       display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h);
     }

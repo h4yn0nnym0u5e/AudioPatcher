@@ -939,11 +939,9 @@ void enterEditMode<ContextWaveformModulated>(ContextWaveformModulated* myContext
 
   // Serial.printf("Hook set to %f; encoder to %d\n",pv.value.f,iprt);
 }
-  
-// template specialization for setting WaveformModulated; needed for frequency setting
-// and arbitrary waveform load
-template <> 
-bool updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myContext, AudioObjInstance* aoi)
+
+template<class Tctxt>
+bool selectArbWAVfile(Tctxt* myContext, AudioObjInstance* aoi)
 {
   bool result = false;
 
@@ -968,6 +966,52 @@ bool updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myCo
       // restore settings and encoder limits
       enterEditMode(myContext,aoi);
     }
+    result = true; // file selector is or was active
+  }
+
+  return result;
+}
+
+/*
+ * Poll encoder button used to enter arbitrary waveform file
+ * selection dialogue
+ */
+template<class Tctxt>
+bool pollFileSelect(Tctxt* myContext, LimitedEncoder& enc)
+{
+  bool result = false;
+
+  if (enc.getButton())
+    myContext->encPressed = 0;
+  else
+  {
+    if (0 == myContext->encPressed)
+    {
+      myContext->encPressed = -1;
+      myContext->fileSelector = new FileLoader(enc0,enc1,enc2,
+                                          settingsEditor->display,
+                                          "/arbWavs", ".snd", 
+                                          FileBase::mode_e::load,
+                                          *myContext);
+      myContext->fileSelector->enter(false); // area is already saved, don't repeat that
+      myContext->arbWAVloaded = false;
+      result = true;
+    }
+  }
+
+  return result;
+}
+
+
+// template specialization for setting WaveformModulated; needed for frequency setting
+// and arbitrary waveform load
+template <> 
+bool updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myContext, AudioObjInstance* aoi)
+{
+  bool result = false;
+
+  if (selectArbWAVfile(myContext, aoi))
+  {
     result = true; // don't exit parent settings page
   }
   else
@@ -995,22 +1039,7 @@ bool updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myCo
       }
     }
 
-    if (enc0.getButton())
-      myContext->encPressed = 0;
-    else
-    {
-      if (0 == myContext->encPressed)
-      {
-        myContext->encPressed = -1;
-        myContext->fileSelector = new FileLoader(enc0,enc1,enc2,
-                                            settingsEditor->display,
-                                            "/arbWavs", ".snd", 
-                                            FileBase::mode_e::load,
-                                            *myContext);
-        myContext->fileSelector->enter(false); // area is already saved, don't repeat that
-        myContext->arbWAVloaded = false;
-      }
-    }      
+    pollFileSelect(myContext, enc0);
   }
   
   return result;
@@ -1638,27 +1667,38 @@ void enterEditMode<ContextWaveform>(ContextWaveform* myContext, AudioObjInstance
 template <> // template specialization for setting Waveform; needed for frequency setting
 bool updateFromControls<ContextWaveform>(ContextWaveform* myContext, AudioObjInstance* aoi)
 {
-  for (size_t i=0; i < myContext->paramCount; i++)
+  bool result = false;
+
+  if (selectArbWAVfile(myContext, aoi))
   {
-    if (1 == i) // frequency
+    result = true; // don't exit parent settings page
+  }
+  else
+  {
+    for (size_t i=0; i < myContext->paramCount; i++)
     {
-      enc0.available();
-      if (ScaleFreq(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),enc0.getValue(),0.999f))
+      if (1 == i) // frequency
       {
-        settingsEditor->ShowValue(i);
-        myContext->setParam(i,aoi);
-      }      
-    }
-    else
-    {
-      if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
+        enc0.available();
+        if (ScaleFreq(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),enc0.getValue(),0.999f))
+        {
+          settingsEditor->ShowValue(i);
+          myContext->setParam(i,aoi);
+        }      
+      }
+      else
       {
-        settingsEditor->ShowValue(i);
-        myContext->setParam(i,aoi);
+        if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
+        {
+          settingsEditor->ShowValue(i);
+          myContext->setParam(i,aoi);
+        }
       }
     }
+
+    pollFileSelect(myContext, enc0);
   }
-  return false;
+  return result;
 }
 
 template <>
