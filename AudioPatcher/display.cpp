@@ -149,6 +149,8 @@ void AudioPatcherDisplay::FillRect(int16_t x, int16_t y, int16_t w, int16_t h, i
 
 void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t n)
 {
+  char* stringValue;
+
   if (nullptr != p.label)
   {
     tft.setCursor(v.labelEndX,v.labelEndY);
@@ -156,13 +158,37 @@ void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t 
     tft.setTextColor(ILI9341_LIGHTGREY,EDIT_BKGND);
     switch (p.ValType)
     {
-      default: tft.print("???"); break;
+      default: tft.print("bad type"); break;
       case 'i': tft.print(v.value.i); break;
       case 'n':
       case 'f': tft.printf("%.2f",v.value.f); break;
       case 'c': tft.print(p.choices[v.value.i].text); break;
       case 'l': tft.printf("%.2f",pow(2.0f,v.value.f)); break;
       case 'r': tft.printf("%.2f",p.min.f / v.value.i); break;
+      case 's':
+      case 'w':
+        stringValue = p.ValType == 's'
+                        ?v.value.s
+                        :v.value.w->path;
+        if (nullptr != stringValue)
+        {
+          char* st,*nd;
+          // make some assumptions here!
+          // Just print the leaf name of a file, leaving
+          // off the path and extension
+          st = strrchr(stringValue, '/');
+          nd = strrchr(stringValue, '.');
+          if (nullptr != st && nullptr != nd)
+          {
+            int leafLen = nd - st - 1;
+            tft.printf("%*.*s", leafLen, leafLen, st+1); 
+          }
+          else
+            tft.print("no / or . "); 
+        }
+        else
+          tft.print("no path"); 
+        break;
     }
   
     int16_t x,y;
@@ -601,12 +627,13 @@ void AudioPatcherDisplay::ShowAreaText(const char* txt, int xoff, int yoff, int 
   
   tft.setFontAdafruit();
   tft.setTextSize(2);
-  int16_t tw = tft.measureTextWidth(txt),
+  int16_t tw = nullptr == txt ? 0 : tft.measureTextWidth(txt),
           th = tft.fontLineSpace()+AREA_EXTRA; // assume it's going to fit on one line!
   yoff += savedArea.y + row*th;
   tft.setTextColor(fg,bg);
   tft.setCursor(xoff,yoff);
-  tft.print(txt);
+  if (nullptr != txt)
+    tft.print(txt);
   tft.fillRect(xoff,yoff+th-AREA_EXTRA,tw,AREA_EXTRA, bg);
   tft.fillRect(xoff+tw,yoff,eraseTo - tw,th, bg);
 }

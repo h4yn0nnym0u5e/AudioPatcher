@@ -10,7 +10,7 @@ extern M5w_8angle ctrl;
 // #define BOX_DEF(width,lines) (320/2 - (width)/2),(240/2 - (27+(lines)*16+16)/2),(width),(27+(lines)*16+16)
 
 //===========================================================================================
-SettingsEditor* se;
+SettingsEditor* settingsEditor;
 const float LOG_NOTE_A = 0.781359714f;           // frac(log2(440.0)) - 
 const float MIDDLE_C = 16.3515978312875f*16.0f;  // middle C in Hz
 const ParamEntry freqLimits{nullptr,-1.0f,1.0f}; // special, for setting hook control
@@ -80,6 +80,9 @@ bool Scale(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filter = 1.0
     case 'i': result = ScaleI(pe,pv,raw); break;
 
     case 'r': result = ScaleIminMax(1, pe.max.i, pv, raw); break;
+
+    // string, arbitrary waveform, ...
+    default: break;
   }
   return result;
 }
@@ -88,6 +91,8 @@ void HookControl(M5w_8angle& ctrl, int ch, const ParamEntry& pe, ParamValue& pv)
 {
   switch (pe.ValType)
   {
+    default: break; // catches string values
+
     case 'n':
     case 'l':
     case 'f': ctrl.setHook(ch, map(pv.value.f, pe.min.f, pe.max.f, M5ANGLE_MIN, M5ANGLE_MAX)); break;
@@ -117,18 +122,20 @@ int testExit(uint32_t& exitAt)
 }
 
 //===========================================================================================
-void updateFromControls(AudioObjInstance* aoi)
+bool updateFromControls(AudioObjInstance* aoi)
 {
-  if (nullptr != se)
+  if (nullptr != settingsEditor)
   {
-    for (size_t i=0; i < se->paramCount; i++)
+    for (size_t i=0; i < settingsEditor->paramCount; i++)
     {
-      if (Scale(se->params[i],se->aray[i],ctrl.getPot16(i),0.999f))
+      if (Scale(settingsEditor->params[i],settingsEditor->aray[i],ctrl.getPot16(i),0.999f))
       {
-        se->ShowValue(i);
+        settingsEditor->ShowValue(i);
       }
     }
   }
+
+  return false;
 }
 
 //===========================================================================================
@@ -222,6 +229,8 @@ int editGetParamsAny(const ParamEntry* params, const ParamValue* aray, const siz
       case 'c':
       case 'r':
       case 'i': off = sprintf(ptr,"%d,",aray[i].value.i); break;
+      case 's': off = sprintf(ptr,"%s,",aray[i].value.s); break;
+      case 'w': off = sprintf(ptr,"%s,",aray[i].value.w->path); break;
     }
 
     ptr += off;
@@ -243,6 +252,7 @@ int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const size_t pa
     
     switch (params[i].ValType)
     {
+      // floating point value
       case 'n':
       case 'f':
       case 'l':
@@ -253,6 +263,7 @@ int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const size_t pa
         aray[i].value.f = value.f;
         break;
         
+      // integer or list selection
       case 'i':
       case 'c':
         sscanf(ptr,"%d,%n",&value.i,&off);
@@ -261,13 +272,73 @@ int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const size_t pa
         Serial.printf("%s = %d ... ",params[i].label,value.i);
         aray[i].value.i = value.i;
         break;
-        
+      
+      // reciprocal
       case 'r':
         sscanf(ptr,"%d,%n",&value.i,&off);
         if (value.i < 1 || value.i > params[i].max.i)
           value.i = (1 + params[i].max.i) / 2;
         Serial.printf("%s = %d ... ",params[i].label,value.i);
         aray[i].value.i = value.i;
+        break;
+
+      // string or arbitrary waveform (*arbWAVrecord)
+      case 's':
+      case 'w':
+        off = 0; // skip parameter if we fail (This Never Happens)
+        do 
+        {
+          char* mem, *path;
+          size_t spaceNeeded;
+
+Serial.printf("Parsing <%s> ... ",ptr); Serial.flush();
+          // find comma that terminates the string
+          char* comma = strchr(ptr,',');
+Serial.printf("comma at %08X vs %08X ... ",comma,ptr); Serial.flush();
+          if (nullptr == comma) // oh heck - now what?
+            break;
+          
+          // allocate space to store it
+          if ('w' == params[i].ValType)
+          {
+            mem = aray[i].value.w->prepare(comma - ptr);
+Serial.printf("prepared %d ... ",aray[i].value.w->recSize); Serial.flush();
+            path = aray[i].value.w->path;
+          }
+          else
+          {            
+            spaceNeeded = comma - ptr + 1;
+            spaceNeeded = (spaceNeeded + 16 ) & ~16;
+Serial.printf("needs %d ... ",spaceNeeded); Serial.flush();
+            mem = (char*) malloc(spaceNeeded); // just enough space
+            path = mem;
+          }
+          if (nullptr == mem)
+            break;
+          
+          // scan string into buffer
+          //sscanf(ptr,"%s,%n",mem + extra,&off);
+          memcpy(path,ptr,comma-ptr); // sscanf can't do this job ...
+          path[comma-ptr] = 0; // .. do it ourselves, with terminator...
+          off = comma-ptr+1;
+Serial.printf("used %d characters ... ",off); Serial.flush();
+
+          if ('w' == params[i].ValType)
+          {
+            // it's a path to an arbitrary waveform, which
+            // hasn't yet been loaded in
+Serial.printf("load to %08X ... ",aray[i].value.w); Serial.flush();
+            aray[i].value.w->loaded = false;
+            Serial.printf("%s = <%s> ... ",params[i].label,aray[i].value.w->path);
+          }
+          else
+          {
+            value.s = mem;
+            Serial.printf("%s = %s ... ",params[i].label,value.s);
+            aray[i].value.s = value.s;
+          }
+          Serial.flush();
+        } while (0);
         break;
     }
 
@@ -800,14 +871,15 @@ const ParamChoice waveShapes[13] =
 ParamChoice modTypes[] = {{"frequency",0},{"phase",1}};
 
 
-const ParamEntry ContextWaveformModulated::_params[6] = 
+const ParamEntry ContextWaveformModulated::_params[7] = 
 {
   {" waveform", PARAM_ENTRY_CHOICES(waveShapes)},
   {"frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
   {"amplitude", 0.0f, 1.0f},
   {"   offset", -1.0f, 1.0f},
   {" mod type",PARAM_ENTRY_CHOICES(modTypes)},
-  {"mod depth",0.0f, 100.0f} // use 0-100%; frequency is 0.0 - 12.0 octaves; phase modulation could be 9000°
+  {"mod depth",0.0f, 100.0f}, // use 0-100%; frequency is 0.0 - 12.0 octaves; phase modulation could be 9000°
+  {" arb. WAV", 'w'}
 };
 
 void ContextWaveformModulated::setParam(int i, AudioObjInstance* aoi)
@@ -831,10 +903,19 @@ void ContextWaveformModulated::setParam(int i, AudioObjInstance* aoi)
           break;
       }
       break;
-      
-    
+
+    case 7:
+    case ARBWAV_PARAM:
+    {
+      arbWAVrecord& arb = *s.arbWAV.value.w;
+
+      if (arb.loadIfNeeded())
+        aoi->streamP.WaveformModulated->arbitraryWaveform(arb.sampleData,10000.0f);
+    }
+      break;
   }
 }
+
 
 template <>
 void enterEditMode<ContextWaveformModulated>(ContextWaveformModulated* myContext, AudioObjInstance* aoi)
@@ -843,7 +924,7 @@ void enterEditMode<ContextWaveformModulated>(ContextWaveformModulated* myContext
   int iprt = floor(myContext->s.frequency.value.f - LOG_NOTE_A);
   float frac = myContext->s.frequency.value.f - iprt - LOG_NOTE_A;
 
-  Serial.printf("freq is %f -> %f Hz\n",myContext->s.frequency.value.f,pow(2,myContext->s.frequency.value.f));
+  // Serial.printf("freq is %f -> %f Hz\n",myContext->s.frequency.value.f,pow(2,myContext->s.frequency.value.f));
   
   enc0.setLimits(-3,12);
   if (frac > 0.5f)
@@ -858,31 +939,110 @@ void enterEditMode<ContextWaveformModulated>(ContextWaveformModulated* myContext
 
   // Serial.printf("Hook set to %f; encoder to %d\n",pv.value.f,iprt);
 }
-  
 
-template <> // template specialization for setting WaveformModulated; needed for frequency setting
-void updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myContext, AudioObjInstance* aoi)
+template<class Tctxt>
+bool selectArbWAVfile(Tctxt* myContext, AudioObjInstance* aoi)
 {
-  for (size_t i=0; i < myContext->paramCount; i++)
+  bool result = false;
+
+  if (nullptr != myContext->fileSelector)
   {
-    if (1 == i) // frequency
+    static uint32_t exitAt = 0; // flag to track "exit" encoder button state
+    int keepChoosing = testExit(exitAt);
+
+    myContext->fileSelector->edit();
+
+    if (myContext->arbWAVloaded || !keepChoosing) // user selected a different wave, or quit...
     {
-      enc0.available();
-      if (ScaleFreq(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),enc0.getValue(),0.999f))
-      {
-        se->ShowValue(i);
-        myContext->setParam(i,aoi);
-      }      
+      if (myContext->arbWAVloaded)
+        myContext->setParam(ContextWaveformModulated::ARBWAV_PARAM,aoi);  // ...tell the object about it
+      myContext->fileSelector->exit();
+      delete myContext->fileSelector;
+      myContext->fileSelector = nullptr;
+
+      // fix up the display
+      settingsEditor->InitArea();
+      settingsEditor->Init(aoi->objP->name);
+      // restore settings and encoder limits
+      enterEditMode(myContext,aoi);
     }
-    else
+    result = true; // file selector is or was active
+  }
+
+  return result;
+}
+
+/*
+ * Poll encoder button used to enter arbitrary waveform file
+ * selection dialogue
+ */
+template<class Tctxt>
+bool pollFileSelect(Tctxt* myContext, LimitedEncoder& enc)
+{
+  bool result = false;
+
+  if (enc.getButton())
+    myContext->encPressed = 0;
+  else
+  {
+    if (0 == myContext->encPressed)
     {
-      if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
-      {
-        se->ShowValue(i);
-        myContext->setParam(i,aoi);
-      }
+      myContext->encPressed = -1;
+      myContext->fileSelector = new FileLoader(enc0,enc1,enc2,
+                                          settingsEditor->display,
+                                          "/arbWavs", ".snd", 
+                                          FileBase::mode_e::load,
+                                          *myContext);
+      myContext->fileSelector->enter(false); // area is already saved, don't repeat that
+      myContext->arbWAVloaded = false;
+      result = true;
     }
   }
+
+  return result;
+}
+
+
+// template specialization for setting WaveformModulated; needed for frequency setting
+// and arbitrary waveform load
+template <> 
+bool updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myContext, AudioObjInstance* aoi)
+{
+  bool result = false;
+
+  if (selectArbWAVfile(myContext, aoi))
+  {
+    result = true; // don't exit parent settings page
+  }
+  else
+  {
+    for (size_t i=0; i < myContext->paramCount; i++)
+    {
+      if (1 == i) // frequency
+      {
+        enc0.available();
+        if (ScaleFreq(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),enc0.getValue(),0.999f))
+        {
+          settingsEditor->ShowValue(i);
+          myContext->setParam(i,aoi);
+        }      
+      }
+      else
+      {
+        // Note this is safe for the arbitrary waveform, because
+        // Scale() is always false for a string value
+        if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
+        {
+          settingsEditor->ShowValue(i);
+          myContext->setParam(i,aoi);
+        }
+      }
+    }
+
+    pollFileSelect(myContext, enc0);
+  }
+  
+  return result;
 }
 
 
@@ -894,12 +1054,153 @@ void processMIDIevent<ContextWaveformModulated>(AudioObjInstance* aoi, MIDIevent
   
 int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
+  // fix up arbitrary waveform if we're about to be destroyed
+  if (nullptr != aoi->context)
+    ((ContextWaveformModulated*) (aoi->context))->fixArbWAV(aoi->streamP.WaveformModulated, mode);
+
   int result = editObjType<AudioSynthWaveformModulated, ContextWaveformModulated>(aoi,mode,params);
-  // Only after construction do we have a context with a default arbitrary 
-  // waveform. Also, may need to free it on destruction
-  ((ContextWaveformModulated*) (aoi->context))->fixArbWAV(aoi->streamP.WaveformModulated, mode);
+
+  // Only after construction do we have a context with 
+  // a default arbitrary waveform.
+  if (nullptr != aoi->context)
+    ((ContextWaveformModulated*) (aoi->context))->fixArbWAV(aoi->streamP.WaveformModulated, mode);
   
   return result;
+}
+
+
+/*
+ * Load arbitrary waveform using given complete path
+ */
+bool arbWAVrecord::load(const char* buf)
+{
+  bool result = false;
+  int16_t tmp[256]; // temporary space for the waveform
+  size_t spaceNeeded = sizeof tmp + strlen(buf) + 1;
+  File f;
+
+  Serial.printf("Load %s\n",buf); Serial.flush();
+
+  spaceNeeded = (spaceNeeded + 16) & ~16; // round up a bit
+  do
+  {
+    int16_t* mem = sampleData;
+    char* path;
+
+    // open the file
+    f = SD.open(buf,FILE_READ);
+    if (!f) break;
+
+    // read the file
+    if (sizeof tmp != f.read(tmp, sizeof tmp)) 
+      break;
+
+    // allocate storage if necessary
+    if (arbWAV_sax == sampleData // using default...
+      || recSize < spaceNeeded)  // ...or not enough space
+    {        
+      mem = (int16_t*) malloc(spaceNeeded);
+      if (nullptr == mem)
+        break;
+      reset();
+    }
+    path = (char*) mem + sizeof tmp;
+
+    // copy the data and point to it
+    memcpy(mem,tmp,sizeof tmp); // get sample data
+    strcpy(path, buf);          // and where it was loaded from
+    *this = {mem, path, spaceNeeded, true};
+    result = true;
+    
+  } while (0);
+
+  if (f)
+    f.close();
+  
+  return result;
+}
+
+
+/*
+ * Load arbitrary waveform using separate path elements
+ */
+bool arbWAVrecord::load(const char* base, const char* path, const char* nme, const char* extn)
+{
+  char buf[100];
+
+  makeFFP(buf,base,path,nme,extn);
+  return load(buf);
+}
+
+/*
+ * Load arbitrary waveform if it's not already been done
+ * \returns true if it's available for use
+ */
+bool arbWAVrecord::loadIfNeeded(void)
+{
+  if (!loaded
+    && path != nullptr) // file hasn't been loaded
+  {
+    if (load(path))
+      Serial.printf("Set arbWAV from %s to %08X -> %08X; fingerprint %04.4X,%04.4X\n",
+                    path, this, sampleData,
+                    ((uint32_t) sampleData[0]) & 0xFFFF, 
+                    ((uint32_t) sampleData[1]) & 0xFFFF);
+  }
+  return loaded && nullptr != sampleData;
+}
+/*
+  Reset arbitrary waveform to safe value, and 
+  free the memory it's using.
+*/
+void arbWAVrecord::reset(void)
+{
+  int16_t* oldArbWAV = sampleData;
+
+  if (arbWAV_sax != oldArbWAV)
+  {
+    *this = {(int16_t*) arbWAV_sax,(char*) "/<sax>.",0,true}; // reset to safe default
+    free((void*) oldArbWAV);  // free the memory
+  }
+}
+
+
+/*
+  Prepare memory to store waveform and its source path
+  \return pointer to memory; may be nullptr
+*/
+char* arbWAVrecord::prepare(size_t pathLen)
+{
+  // allocate space to store it
+  char* mem = (char*) sampleData; // assume we can use what we have
+  size_t spaceNeeded = ARB_WAV_SAMPLES*sizeof *sampleData + pathLen + 1;
+  spaceNeeded = (spaceNeeded + 16 ) & ~16;
+Serial.printf("needs %d ... ",spaceNeeded); Serial.flush();
+
+  if (isDefault() || spaceNeeded > recSize)
+  {
+    mem = (char*) malloc(spaceNeeded); // just enough space
+    if (!isDefault())   // old space was allocated...
+      free(sampleData); // ...so free it
+
+    // update to show new allocation size
+    if (nullptr != mem)
+    {
+      sampleData = (int16_t*) mem;
+      path = (char*) (sampleData+ARB_WAV_SAMPLES);
+      *path = 0;
+      recSize = spaceNeeded;
+    }
+    else
+    {
+      sampleData = nullptr;
+      path = nullptr;
+      recSize = 0;      
+    }
+    loaded = false;
+  }
+
+  return mem;
 }
 
 //===========================================================================================
@@ -935,7 +1236,7 @@ void enterEditMode<ContextKarplusStrong>(ContextKarplusStrong* myContext, AudioO
   int iprt = floor(myContext->s.frequency.value.f - LOG_NOTE_A);
   float frac = myContext->s.frequency.value.f - iprt - LOG_NOTE_A;
 
-  Serial.printf("freq is %f -> %f Hz\n",myContext->s.frequency.value.f,pow(2,myContext->s.frequency.value.f));
+  // Serial.printf("freq is %f -> %f Hz\n",myContext->s.frequency.value.f,pow(2,myContext->s.frequency.value.f));
   
   // octave encoder
   enc0.setLimits(-3,12);
@@ -952,7 +1253,7 @@ void enterEditMode<ContextKarplusStrong>(ContextKarplusStrong* myContext, AudioO
   
 
 template <> // template specialization for setting ContextKarplusStrong; needed for frequency setting
-void updateFromControls<ContextKarplusStrong>(ContextKarplusStrong* myContext, AudioObjInstance* aoi)
+bool updateFromControls<ContextKarplusStrong>(ContextKarplusStrong* myContext, AudioObjInstance* aoi)
 {
   for (size_t i=0; i < myContext->paramCount; i++)
   {
@@ -961,7 +1262,7 @@ void updateFromControls<ContextKarplusStrong>(ContextKarplusStrong* myContext, A
       enc0.available();
       if (ScaleFreq(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),enc0.getValue(),0.999f))
       {
-        se->ShowValue(i);
+        settingsEditor->ShowValue(i);
         myContext->setParam(i,aoi);
       }      
     }
@@ -969,11 +1270,12 @@ void updateFromControls<ContextKarplusStrong>(ContextKarplusStrong* myContext, A
     {
       if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
       {
-        se->ShowValue(i);
+        settingsEditor->ShowValue(i);
         myContext->setParam(i,aoi);
       }
     }
   }
+  return false;
 }
 
 
@@ -1067,7 +1369,6 @@ void processMIDIevent<ContextWaveformDc>(AudioObjInstance* aoi, MIDIevent* ev)
       break;
   }
 }
-
 
 //===========================================================================================
 const ParamEntry ContextNoise::_params[] = {
@@ -1314,6 +1615,7 @@ const ParamEntry ContextWaveform::_params[] = {
   {" amplitude", 0.0f, 1.0f},
   {"pulseWidth", 0.0f, 1.0f},
   {"    offset", -1.0f, 1.0f},
+  {"  arb. WAV", 'w'}
 };
 
 
@@ -1326,6 +1628,15 @@ void ContextWaveform::setParam(int i, AudioObjInstance* aoi)
     case 2: aoi->streamP.Waveform->amplitude(s.amplitude.value.f); break;
     case 3: aoi->streamP.Waveform->pulseWidth(s.pulseWidth.value.f); break;
     case 4: aoi->streamP.Waveform->offset(s.offset.value.f); break;
+    case 5:
+    case ARBWAV_PARAM:
+    {
+      arbWAVrecord& arb = *s.arbWAV.value.w;
+
+      if (arb.loadIfNeeded())
+        aoi->streamP.Waveform->arbitraryWaveform(arb.sampleData,10000.0f);
+    }
+      break;
   }
 }
 
@@ -1354,28 +1665,40 @@ void enterEditMode<ContextWaveform>(ContextWaveform* myContext, AudioObjInstance
   
 
 template <> // template specialization for setting Waveform; needed for frequency setting
-void updateFromControls<ContextWaveform>(ContextWaveform* myContext, AudioObjInstance* aoi)
+bool updateFromControls<ContextWaveform>(ContextWaveform* myContext, AudioObjInstance* aoi)
 {
-  for (size_t i=0; i < myContext->paramCount; i++)
+  bool result = false;
+
+  if (selectArbWAVfile(myContext, aoi))
   {
-    if (1 == i) // frequency
+    result = true; // don't exit parent settings page
+  }
+  else
+  {
+    for (size_t i=0; i < myContext->paramCount; i++)
     {
-      enc0.available();
-      if (ScaleFreq(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),enc0.getValue(),0.999f))
+      if (1 == i) // frequency
       {
-        se->ShowValue(i);
-        myContext->setParam(i,aoi);
-      }      
-    }
-    else
-    {
-      if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
+        enc0.available();
+        if (ScaleFreq(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),enc0.getValue(),0.999f))
+        {
+          settingsEditor->ShowValue(i);
+          myContext->setParam(i,aoi);
+        }      
+      }
+      else
       {
-        se->ShowValue(i);
-        myContext->setParam(i,aoi);
+        if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
+        {
+          settingsEditor->ShowValue(i);
+          myContext->setParam(i,aoi);
+        }
       }
     }
+
+    pollFileSelect(myContext, enc0);
   }
+  return result;
 }
 
 template <>
@@ -1387,10 +1710,15 @@ void processMIDIevent<ContextWaveform>(AudioObjInstance* aoi, MIDIevent* ev)
   
 int editWaveform(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
+  // fix up arbitrary waveform if we're about to be destroyed
+  if (nullptr != aoi->context)
+    ((ContextWaveform*) (aoi->context))->fixArbWAV(aoi->streamP.Waveform, mode);
+
   int result = editObjType<AudioSynthWaveform, ContextWaveform>(aoi,mode,params);
   // Only after construction do we have a context with a default arbitrary 
   // waveform. Also, may need to free it on destruction
-  ((ContextWaveform*) (aoi->context))->fixArbWAV(aoi->streamP.Waveform, mode);
+  if (nullptr != aoi->context)
+    ((ContextWaveform*) (aoi->context))->fixArbWAV(aoi->streamP.Waveform, mode);
 
   return result;
 }
@@ -1454,7 +1782,7 @@ void enterEditMode<ContextWavetable>(ContextWavetable* myContext, AudioObjInstan
   
 
 template <> // template specialization for setting Wavetable; needed for frequency setting
-void updateFromControls<ContextWavetable>(ContextWavetable* myContext, AudioObjInstance* aoi)
+bool updateFromControls<ContextWavetable>(ContextWavetable* myContext, AudioObjInstance* aoi)
 {
   for (size_t i=0; i < myContext->paramCount; i++)
   {
@@ -1463,7 +1791,7 @@ void updateFromControls<ContextWavetable>(ContextWavetable* myContext, AudioObjI
       enc0.available();
       if (ScaleFreq(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),enc0.getValue(),0.999f))
       {
-        se->ShowValue(i);
+        settingsEditor->ShowValue(i);
         myContext->setParam(i,aoi);
       }      
     }
@@ -1471,11 +1799,12 @@ void updateFromControls<ContextWavetable>(ContextWavetable* myContext, AudioObjI
     {
       if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
       {
-        se->ShowValue(i);
+        settingsEditor->ShowValue(i);
         myContext->setParam(i,aoi);
       }
     }
   }
+  return false;
 }
 
 template <>
@@ -1539,14 +1868,14 @@ void ContextBiquad::setParam(int i, AudioObjInstance* aoi)
   int stge = s.stage.value.i;
 
   if (prevStage != stge // selected a different filter stage...
-   && nullptr != se)    // ...and we're editing
+   && nullptr != settingsEditor)    // ...and we're editing
   {
     for (size_t i=0; i < paramCount; i++) // display the values
     {
       if (0 != i) // not the stage number!
         stageSettings[prevStage][i] = aray[i].value; // store edited values
       aray[i].value = stageSettings[stge][i];      // copy new values
-      se->ShowValue(i);  // display them
+      settingsEditor->ShowValue(i);  // display them
       if (0 != i)
         HookControl(ctrl,i,params[i],aray[i]);
     }
@@ -1689,7 +2018,7 @@ void processMIDIevent<ContextEnvelope>(AudioObjInstance* aoi, MIDIevent* ev)
     aoi->streamP.Envelope->noteOn();
 }
 
-// \return 0 for idle, 2 for active, 3 for sustain, should never be 3
+// \return 0 for idle, 2 for active, 3 for sustain; should never be 1
 template <>
 int isActive<ContextEnvelope>(AudioObjInstance* aoi)
 {

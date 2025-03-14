@@ -13,19 +13,18 @@
 #include <vector>
 #include <algorithm>
 
-//#include "TeensyDebug.h"
+// #include "TeensyDebug.h"
 
 #if !defined(SAFE_RELEASE_MANY) || !defined(DYNMIXER_H_)
 #error Make sure you have dynamic cores and Audio library!
 #endif // !defined(SAFE_RELEASE_MANY) || !defined(DYNMIXER_H_)
-
-AudioSynthWavetable dummy;
 
 /********************************************************************************************************/
 M5w_8angle    ctrl{0x43, Wire1};
 M5w_8encoder  encr{0x41, Wire1};
 uint32_t next;
 int systemState;
+bool crashed;
 
 extern AudioObjStatic_t objList[];
 extern uint8_t external_psram_size;
@@ -108,8 +107,6 @@ void setup()
   display.Splash();
   display.Clear();   
   systemState = 5;
-
-  dummy.setInstrument(Harp);
 
   printHL();
   printFlashID();
@@ -261,7 +258,7 @@ CordEditor cordEditor(enc0,enc1,enc2,display,objVec,cordVec,objList);
 ParamEditor paramEditor(enc0,enc1,enc2,display,objVec,cordVec);
 MIDIEditor midiEditor(enc0,display,objVec,cordVec);
 DeleteEditor deleteEditor(enc0,enc1,enc2,display,objVec,cordVec);
-FileEditor fileEditor(enc0,enc1,enc2,display,objVec,cordVec,patchBase,FileEditor::mode_e::del);
+FileEditor fileEditor(enc0,enc1,enc2,display,objVec,cordVec,patchBase,".txt",FileBase::mode_e::del);
 
 PatcherMIDI patcherMIDI(objVec, cordVec);
 /********************************************************************************************************/
@@ -335,6 +332,46 @@ void updateStatus(void)
 }
 
 //======================================================================
+// Hacky screen dump code
+  static void screenDump(void)
+{
+  uint16_t* scrbuf;
+  size_t sz = 320*240 * sizeof *scrbuf;
+  scrbuf = (uint16_t*) malloc(sz);
+  if (nullptr != scrbuf)
+  {
+    // find a non-existent file name
+    static int fnum = 0;
+    char buf[50];
+    do
+    {
+      sprintf(buf,"/dumps/%05d.bin",fnum);
+      if (!SD.exists(buf))
+        break;
+      fnum++;
+    } while (1);
+
+    display.SaveAreaToBuffer(0,0,320,240,scrbuf);
+    uint32_t sum = 0;
+    for (size_t i = 0;i<sz/sizeof *scrbuf;i++)
+      sum += scrbuf[i];
+    File dmp = SD.open(buf,FILE_WRITE);
+
+    if (dmp)
+    {
+      dmp.write(scrbuf,sz);
+      dmp.close();
+      Serial.printf("ed to '%s'; sum = %u\n",buf,sum);
+    }
+    else
+      Serial.println(" failed - no file");
+    
+    free(scrbuf);
+  }
+  else
+    Serial.println(" failed - no memory");
+}
+//======================================================================
 //
 //  888                            
 //  888                            
@@ -352,7 +389,6 @@ void updateStatus(void)
 void loop() 
 {
   //-------------------------------------------------
-  // Hacky screen dump code
   static bool b6state = false;
   if (encr.getButton(6))
   {
@@ -364,41 +400,8 @@ void loop()
     {
       Serial.printf("Current screen dump");
       b6state = false;
-      uint16_t* scrbuf;
-      size_t sz = 320*240 * sizeof *scrbuf;
-      scrbuf = (uint16_t*) malloc(sz);
-      if (nullptr != scrbuf)
-      {
-        // find a non-existent file name
-        static int fnum = 0;
-        char buf[50];
-        do
-        {
-          sprintf(buf,"/dumps/%05d.bin",fnum);
-          if (!SD.exists(buf))
-            break;
-          fnum++;
-        } while (1);
-  
-        display.SaveAreaToBuffer(0,0,320,240,scrbuf);
-        uint32_t sum = 0;
-        for (size_t i = 0;i<sz/sizeof *scrbuf;i++)
-          sum += scrbuf[i];
-        File dmp = SD.open(buf,FILE_WRITE);
 
-        if (dmp)
-        {
-          dmp.write(scrbuf,sz);
-          dmp.close();
-          Serial.printf("ed to '%s'; sum = %u\n",buf,sum);
-        }
-        else
-          Serial.println(" failed - no file");
-        
-        free(scrbuf);
-      }
-      else
-        Serial.println(" failed - no memory");
+      screenDump();
     }
   }
 
@@ -415,7 +418,8 @@ void loop()
   if (!initialised)
   {
     enc2.setValue(enc2.getValue()); // ensures it's valid!
-    fileEditor.loadLast();
+    if (!crashed) // crash may be due to last patch - don't re-load!
+      fileEditor.loadLast();
     printHL();
     patcherMIDI.init();
     printHL();
@@ -487,6 +491,7 @@ extern "C" {
       while (!Serial) // crashed - ensure we see the report
         ;
       Serial.print(CrashReport);
+      crashed = true;
     }
     systemState = 3;
   }

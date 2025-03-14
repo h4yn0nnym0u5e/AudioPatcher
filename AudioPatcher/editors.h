@@ -9,6 +9,7 @@
 
 extern void lockModeEncoder(void);
 extern void unlockModeEncoder(void);
+extern void makeFFP(char* buf, const char* base, const char* path, const char* leaf, const char* ext);
 
 #define OBJ_PER_VOICE_CHAR '+'
 #define PATCH_ROOT "/patches"
@@ -192,11 +193,12 @@ class FileListEntry
     }
 };
 
-class FileEditor : public BaseEditor
+class FileBase
 {
   public:
     enum class mode_e {load,save,del};
-  private:    
+  protected:   
+    AudioPatcherDisplay& fileDisplay; 
     // file names
     static const int MAX_FILE_NAME = 15;
     static const int MAX_FILE_PATH = 42;
@@ -213,15 +215,16 @@ class FileEditor : public BaseEditor
     char fileName[MAX_FILE_NAME+1];
     char filePath[MAX_FILE_PATH+1];
     const char* basePath;
+    const char* fileExtn;
     size_t basePathLen;
     bool keyboardVisible, upperCase;
 
     mode_e mode, maxMode;
     void showMode(bool zapCurrent = true);
-    void save(const char* nme);
-    void load(const char* nme);
-    void del(const char* nme);
-    void dump(const char* nme);
+    virtual void save(const char* nme) {};
+    virtual void load(const char* nme) {};
+    virtual void del(const char* nme) {};
+    virtual void dump(const char* nme) {};
     
     int getLast(char* buf, int maxn);
     void setLast(const char* nme);
@@ -230,29 +233,44 @@ class FileEditor : public BaseEditor
     void clearFileList(void);
     void showFileList(const int item, bool showAll = false);
     int fileListTop, fileListCurrent;
-     
   public:    
-    FileEditor(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2, 
+    FileBase(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2, 
             AudioPatcherDisplay& d,
-            std::vector<AudioObjInstancePtr>& o,
-            std::vector<PatchcordInstance_t*>& p,
-            const char* bp,
+            const char* bp, const char* fe,
             mode_e m
             )
-            : BaseEditor(d,o,p),
+            : fileDisplay(d.getInstance()),
             enc0(e0), enc1(e1), enc2(e2),
             state(0), idx(-1), 
-            fileName{0}, basePath{bp},
+            fileName{0}, filePath{0}, basePath{bp}, fileExtn{fe},
             maxMode(m)
             {
               basePathLen = strlen(basePath);
             }
     void edit(void);
-    void enter(void);
+    void enter(bool saveArea = true);
     void exit(void); 
     
     int loadLast(void);
     void newKey(AudioPatcherDisplay::keyInfo key);
+};
+
+class FileEditor : public BaseEditor, public FileBase
+{
+  public:    
+    FileEditor(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2, 
+            AudioPatcherDisplay& d,
+            std::vector<AudioObjInstancePtr>& o,
+            std::vector<PatchcordInstance_t*>& p,
+            const char* bp, const char* fe,
+            mode_e m
+            )
+            : BaseEditor(d,o,p), FileBase(e0,e1,e2,d,bp,fe,m)
+            {}
+    void save(const char* nme);
+    void load(const char* nme);
+    void del(const char* nme);
+    void dump(const char* nme);
 };
 
 #endif // !defined(_EDITORS_H_)
