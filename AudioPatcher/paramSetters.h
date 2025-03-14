@@ -887,9 +887,9 @@ class ContextWaveform : public ContextBase, public ContextWaveformBase<AudioSynt
     {
       display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h);
     }
-    static const ParamEntry _params[5];
-    struct {ParamValue waveform,frequency,amplitude,pulseWidth,offset;} s
-                 {             {0},     {7.0f},   {0.5f},   {0.333f},  {0.0f}    };
+    static const ParamEntry _params[6];
+    struct {ParamValue waveform,frequency,amplitude,pulseWidth,offset,arbWAV;} s
+                 {     {0},     {7.0f},   {0.5f},   {0.333f},  {0.0f},{&arbWAV}};
 
     void setParam(int i, AudioObjInstance* aoi);
     AudioPatcherDisplay::Box box;
@@ -897,6 +897,9 @@ class ContextWaveform : public ContextBase, public ContextWaveformBase<AudioSynt
     //------ MIDI settings ----------
     static const ParamEntry MIDIparams[WAVEFORM_MIDI_COUNT];
     WaveformMIDI m {{4},{0.00f},{0},{0}, {0.0f}};
+
+    // File loader
+    FileLoader<ContextWaveform>* fileSelector;
 };
 
 

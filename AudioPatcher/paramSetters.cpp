@@ -909,21 +909,13 @@ void ContextWaveformModulated::setParam(int i, AudioObjInstance* aoi)
     {
       arbWAVrecord& arb = *s.arbWAV.value.w;
 
-      if (!arb.loaded
-        && arb.path != nullptr) // file hasn't been loaded
-        arb.load(arb.path);
-      if (nullptr != arb.sampleData)
-      {
+      if (arb.loadIfNeeded())
         aoi->streamP.WaveformModulated->arbitraryWaveform(arb.sampleData,10000.0f);
-        Serial.printf("Set arbWAV from %s to %08X -> %08X; fingerprint %04.4X,%04.4X\n",
-                        arb.path, &arb, arb.sampleData,
-                        ((uint32_t) arb.sampleData[0]) & 0xFFFF, 
-                        ((uint32_t) arb.sampleData[1]) & 0xFFFF);
-      }
     }
       break;
   }
 }
+
 
 template <>
 void enterEditMode<ContextWaveformModulated>(ContextWaveformModulated* myContext, AudioObjInstance* aoi)
@@ -1111,6 +1103,23 @@ bool arbWAVrecord::load(const char* base, const char* path, const char* nme, con
   return load(buf);
 }
 
+/*
+ * Load arbitrary waveform if it's not already been done
+ * \returns true if it's available for use
+ */
+bool arbWAVrecord::loadIfNeeded(void)
+{
+  if (!loaded
+    && path != nullptr) // file hasn't been loaded
+  {
+    if (load(path))
+      Serial.printf("Set arbWAV from %s to %08X -> %08X; fingerprint %04.4X,%04.4X\n",
+                    path, this, sampleData,
+                    ((uint32_t) sampleData[0]) & 0xFFFF, 
+                    ((uint32_t) sampleData[1]) & 0xFFFF);
+  }
+  return loaded && nullptr != sampleData;
+}
 /*
   Reset arbitrary waveform to safe value, and 
   free the memory it's using.
@@ -1577,6 +1586,7 @@ const ParamEntry ContextWaveform::_params[] = {
   {" amplitude", 0.0f, 1.0f},
   {"pulseWidth", 0.0f, 1.0f},
   {"    offset", -1.0f, 1.0f},
+  {"  arb. WAV", 'w'}
 };
 
 
@@ -1589,6 +1599,15 @@ void ContextWaveform::setParam(int i, AudioObjInstance* aoi)
     case 2: aoi->streamP.Waveform->amplitude(s.amplitude.value.f); break;
     case 3: aoi->streamP.Waveform->pulseWidth(s.pulseWidth.value.f); break;
     case 4: aoi->streamP.Waveform->offset(s.offset.value.f); break;
+    case 5:
+    case ARBWAV_PARAM:
+    {
+      arbWAVrecord& arb = *s.arbWAV.value.w;
+
+      if (arb.loadIfNeeded())
+        aoi->streamP.Waveform->arbitraryWaveform(arb.sampleData,10000.0f);
+    }
+      break;
   }
 }
 

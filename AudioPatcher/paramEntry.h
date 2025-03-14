@@ -18,6 +18,7 @@ class arbWAVrecord
 
     bool load(const char* base, const char* path, const char* nme, const char* extn);
     bool load(const char* buf);
+    bool loadIfNeeded(void);
     char* prepare(size_t pathLen);
     void reset(void); // reset to default waveform
     void setAll(int16_t* s, char* p, size_t sz, bool l)
