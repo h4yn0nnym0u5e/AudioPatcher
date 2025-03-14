@@ -128,7 +128,6 @@ FLASHMEM int BaseEditor::SelectByTouch(LimitedEncoder& enc0, bool onlySetEncoder
   {
     TS_Point lastPoint = touch.getLastPoint();
     idx = PointToObject(lastPoint.x, lastPoint.y);
-    Serial.printf("Lift at %d, %d; index %d\n", lastPoint.x, lastPoint.y, idx);
     if (idx >= 0)
     {
       if (onlySetEncoder)
@@ -150,7 +149,6 @@ FLASHMEM int BaseEditor::SelectCordByTouch(LimitedEncoder& enc0, bool onlySetEnc
   {
     TS_Point lastPoint = touch.getLastPoint();
     idx = PointToCord(lastPoint.x, lastPoint.y);
-    Serial.printf("Lift at %d, %d; index %d\n", lastPoint.x, lastPoint.y, idx);
     if (idx >= 0)
     {
       if (onlySetEncoder)

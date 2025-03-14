@@ -170,7 +170,6 @@ void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t 
         stringValue = p.ValType == 's'
                         ?v.value.s
                         :v.value.w->path;
-Serial.printf("Display ShowValue: %s",stringValue); Serial.flush();
         if (nullptr != stringValue)
         {
           char* st,*nd;
