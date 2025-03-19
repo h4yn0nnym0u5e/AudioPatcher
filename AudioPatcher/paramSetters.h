@@ -46,10 +46,11 @@ class FileLoader : public FileBase
             context(c)
             {}
     virtual ~FileLoader() {};            
-    Tctxt& context;            
+    Tctxt& context;
     void load(const char* nme) 
     { 
-      context.arbWAVloaded = context.arbWAV.load(basePath,filePath,nme,".snd"); 
+      //context.arbWAVloaded = context.arbWAV.load(basePath,filePath,nme,".snd"); 
+      context.load(basePath,filePath,nme,".snd"); 
     };
 };
 
@@ -318,6 +319,15 @@ void processMIDIforWavetable(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt
     {
       wav->stop();
     }
+      break;
+
+    case midi::PitchBend:
+      if (0 == ctxt->m.tuning.value.i) // magic: equal temperament
+      {
+        float freq = ctxt->noteFreq;
+        freq *= ev->pvb.pm.getPitchBend(ctxt->m.PBamount.value.f);
+        wav->setFrequency(freq);
+      }
       break;
   }
 }
@@ -850,13 +860,15 @@ class ContextWaveformBase
       }
     }
 
-    //bool loadArbWAV(const char* base, const char* path, const char* nme, const char* extn);
-    //bool loadArbWAV(const char* fullPath);
+    // Provide FileSelector with a load() method
+    void load(const char*b, const char*p, const char*l, const char*e)
+    {
+      arbWAVloaded = arbWAV.load(b,p,l,e); 
+    }
 
     //------ Stuff to remember ----------
     float noteFreq; // basic note frequency before modification with pitch bend
-    struct arbWAVrecord arbWAV // record of arbitrary waveform
-        {nullptr,nullptr,0,false}; 
+    arbWAVrecord<int16_t> arbWAV; // record of arbitrary waveform
     bool arbWAVloaded; // temporary flag while user is seeking a waveform to load
 };
 
@@ -960,13 +972,25 @@ class ContextWaveformModulated
 class ContextWavetable : public ContextBase
 { 
   public:
-    ContextWavetable(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.waveform, _params, nullptr, 
-                                     COUNT_OF(MIDIparams), &m.octave, MIDIparams) 
+    ContextWavetable(AudioObjInstance& _aoi) : ContextBase(_aoi, 
+                  COUNT_OF(_params), &s.sf2file, _params, nullptr, 
+                  COUNT_OF(MIDIparams), &m.octave, MIDIparams),
+                instrument{&Harp} 
     {
-      display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h);
+      display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h); // edit box is file selector sized
+      arbWAV.reset();
+      aoi.streamP.Wavetable->setInstrument(*arbWAV.sampleData); // set default instrument
     }
-    static const ParamEntry _params[5];
-    struct {ParamValue waveform,frequency,amplitude,offset,modType;} s {{0},{7.0f},{0.5f},{0.0f},{0}};
+
+    ~ContextWavetable() 
+    {
+      arbWAV.reset();
+      aoi.streamP.Wavetable->setInstrument(*arbWAV.sampleData);
+    }
+
+    static const ParamEntry _params[3];
+    struct {ParamValue sf2file,index,amplitude;} s 
+                      {{0},    {0},  {1.0f} };
     AudioPatcherDisplay::Box box;
           
     void setParam(int i, AudioObjInstance* aoi);
@@ -975,32 +999,23 @@ class ContextWavetable : public ContextBase
     static const ParamEntry MIDIparams[WAVEFORM_MIDI_COUNT];
     WaveformMIDI m {{4},{0.00f},{0},{0},{0.0f}};
 
-    /*
-      Fix up arbitrary waveform pointer at construction and
-      destruction time, so we don't crash or leak memory.
-     */
-    void fixInstrument(AudioSynthWavetable* stream, AudioEditMode mode)
+    //------ Stuff to remember ----------
+    float noteFreq; // basic note frequency before modification with pitch bend
+    char* sf2path, *sf2file;
+    const AudioSynthWavetable::instrument_data* instrument; // record of aritrary waveform
+
+    // File loader
+    FileLoader<ContextWavetable>* fileSelector;
+    // Provide FileSelector with a load() method
+    void load(const char*b, const char*p, const char*l, const char*e)
     {
-      switch (mode)
-      {
-        default: break;
-    
-        case AudioEditMode::constructor:
-          stream->setInstrument(*instrument);
-        break;
-    
-        case AudioEditMode::destructor:
-        {
-          if (&Harp != instrument)
-            free((void*) instrument);
-        }
-        break;
-      }
+      arbWAVloaded = arbWAV.load(b,p,l,e); 
     }
 
     //------ Stuff to remember ----------
-    float noteFreq; // basic note frequency before modification with pitch bend
-    const AudioSynthWavetable::instrument_data* instrument{&Harp}; // record of aritrary waveform
+    arbWAVrecord<AudioSynthWavetable::instrument_data> arbWAV; // record of wavetable
+    bool arbWAVloaded; // temporary flag while user is seeking a waveform to load
+
 };
 
 //-----------------------------------------------------------------------------------------
