@@ -166,6 +166,7 @@ void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t 
       case 'l': tft.printf("%.2f",pow(2.0f,v.value.f)); break;
       case 'r': tft.printf("%.2f",p.min.f / v.value.i); break;
       case 's':
+      case 't':
       case 'w':
         stringValue = p.ValType == 's'
                         ?v.value.s

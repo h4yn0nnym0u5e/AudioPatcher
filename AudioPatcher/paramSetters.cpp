@@ -244,6 +244,7 @@ FLASHMEM int editGetParamsAny(const ParamEntry* params, const ParamValue* aray, 
       case 'r':
       case 'i': off = sprintf(ptr,"%d,",aray[i].value.i); break;
       case 's': off = sprintf(ptr,"%s,",aray[i].value.s); break;
+      case 't':
       case 'w': off = sprintf(ptr,"%s,",aray[i].value.w->path); break;
     }
 
@@ -298,6 +299,7 @@ FLASHMEM int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const 
 
       // string or arbitrary waveform (*arbWAVrecord)
       case 's':
+      case 't':
       case 'w':
         off = 0; // skip parameter if we fail (This Never Happens)
         do 
@@ -311,9 +313,13 @@ Serial.printf("Parsing <%s> ... ",ptr); Serial.flush();
 Serial.printf("comma at %08X vs %08X ... ",comma,ptr); Serial.flush();
           if (nullptr == comma) // oh heck - now what?
             break;
-          
+
+          // remove leading spaces
+          while (' ' == *ptr && ptr != comma)
+            ptr++;
+
           // allocate space to store it
-          if ('w' == params[i].ValType)
+          if ('s' != params[i].ValType)
           {
             mem = aray[i].value.w->prepare(comma - ptr);
 Serial.printf("prepared %d ... ",aray[i].value.w->recSize); Serial.flush();
@@ -337,7 +343,7 @@ Serial.printf("needs %d ... ",spaceNeeded); Serial.flush();
           off = comma-ptr+1;
 Serial.printf("used %d characters ... ",off); Serial.flush();
 
-          if ('w' == params[i].ValType)
+          if ('s' != params[i].ValType)
           {
             // it's a path to an arbitrary waveform, which
             // hasn't yet been loaded in
@@ -978,7 +984,50 @@ template<> bool arbWAVrecord<AudioSynthWavetable::instrument_data>::isDefault(vo
 template<>
 FLASHMEM bool arbWAVrecord<AudioSynthWavetable::instrument_data>::load(const char* buf)
 {
-  return false;
+  bool result = false;
+  size_t spaceNeeded = strlen(buf) + 1;
+  File f;
+
+  Serial.printf("Load %s\n",buf); Serial.flush();
+
+  spaceNeeded = (spaceNeeded + 16) & ~16; // round up a bit
+  do
+  {
+    char* filePath = path;
+
+// Could probably load instrument list here, then
+// if it fails we know to reset to default
+    /*
+    // open the file
+    f = SD.open(buf,FILE_READ);
+    if (!f) break;
+
+    // read the file
+    if (sizeof tmp != f.read(tmp, sizeof tmp)) 
+      break;
+    */
+    // allocate storage if necessary
+    if (recSize < spaceNeeded)  // not enough space
+    {        
+      filePath = (char*) malloc(spaceNeeded);
+      if (nullptr == filePath)
+        break;
+      reset();
+    }
+    path = filePath;
+
+    // copy the data and point to it
+    //memcpy(mem,tmp,sizeof tmp); // get sample data
+    strcpy(path, buf);          // and where it was loaded from
+    setAll(nullptr, path, spaceNeeded, true);
+    result = true;
+    
+  } while (0);
+
+  //if (f)
+  //  f.close();
+  
+  return result;
 }
 
 /*
@@ -992,6 +1041,7 @@ FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::reset(void)
 
   if (&Harp != oldArbWAV)
   {
+    free(path);
     setAll((AudioSynthWavetable::instrument_data*) &Harp, // reset to safe default
             (char*) "/<Harp>.",0,true,-1);
     //free((void*) oldArbWAV);  // free the memory
@@ -1005,7 +1055,36 @@ FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::reset(void)
 template<>
 FLASHMEM char* arbWAVrecord<AudioSynthWavetable::instrument_data>::prepare(size_t pathLen)
 {
-  return nullptr;
+  // allocate space to store it
+  char* mem = (char*) path; // assume we can use what we have
+  size_t spaceNeeded = pathLen + 1;
+  spaceNeeded = (spaceNeeded + 16 ) & ~16;
+Serial.printf("needs %d ... ",spaceNeeded); Serial.flush();
+
+  if (isDefault() || spaceNeeded > recSize)
+  {
+    mem = (char*) malloc(spaceNeeded); // just enough space
+    // if (!isDefault())   // old space was allocated...
+    //  free(sampleData); // ...so free it
+
+    // update to show new allocation size
+    if (nullptr != mem)
+    {
+      sampleData = nullptr;
+      path = mem;
+      *path = 0;
+      recSize = spaceNeeded;
+    }
+    else
+    {
+      sampleData = nullptr;
+      path = nullptr;
+      recSize = 0;      
+    }
+    loaded = false;
+  }
+
+  return mem;
 }
 
 //======================================================================
@@ -1172,7 +1251,7 @@ bool pollFileSelect(Tctxt* myContext, LimitedEncoder& enc)
       myContext->encPressed = -1;
       myContext->fileSelector = new FileLoader(enc0,enc1,enc2,
                                           settingsEditor->display,
-                                          "/arbWavs", ".snd", 
+                                          myContext->root, myContext->extn, 
                                           FileBase::mode_e::load,
                                           *myContext);
       myContext->fileSelector->enter(false); // area is already saved, don't repeat that
@@ -1783,7 +1862,7 @@ PROGMEM constexpr ParamEntry ContextWavetable::MIDIparams[]
 };
 
 PROGMEM constexpr ParamEntry ContextWavetable::_params[3] = {
-  {" file", 0,1},
+  {" file", 't'},
   {"entry", 0, -1},
   {"amplitude", 0.0f, 1.0f}
 };
@@ -1794,10 +1873,10 @@ FLASHMEM void ContextWavetable::setParam(int i, AudioObjInstance* aoi)
   switch (i)
   {
     default: break;
+    case 2: aoi->streamP.Wavetable->amplitude(s.amplitude.value.f); break;
     /*
     case 0: aoi->streamP.Wavetable->begin(waveShapes[s.waveform.value.i].value); break;
     case 1: aoi->streamP.Wavetable->frequency(pow(2,s.frequency.value.f)); break;
-    case 2: aoi->streamP.Wavetable->amplitude(s.amplitude.value.f); break;
     case 3: aoi->streamP.Wavetable->pulseWidth(s.pulseWidth.value.f); break;
     case 4: aoi->streamP.Wavetable->offset(s.offset.value.f); break;
     */
@@ -1833,29 +1912,30 @@ void enterEditMode<ContextWavetable>(ContextWavetable* myContext, AudioObjInstan
 template <> // template specialization for setting Wavetable; needed for frequency setting
 bool updateFromControls<ContextWavetable>(ContextWavetable* myContext, AudioObjInstance* aoi)
 {
-  /*
-  for (size_t i=0; i < myContext->paramCount; i++)
+  bool result = false;
+
+  if (selectArbWAVfile(myContext, aoi))
   {
-    if (1 == i) // frequency
+    result = true; // don't exit parent settings page
+  }
+  else
+  {
+    for (size_t i=0; i < myContext->paramCount; i++)
     {
-      enc0.available();
-      if (ScaleFreq(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),enc0.getValue(),0.999f))
-      {
-        settingsEditor->ShowValue(i);
-        myContext->setParam(i,aoi);
-      }      
-    }
-    else
-    {
-      if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
-      {
-        settingsEditor->ShowValue(i);
-        myContext->setParam(i,aoi);
+
+      { // no special action
+        if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
+        {
+          settingsEditor->ShowValue(i);
+          myContext->setParam(i,aoi);
+        }
       }
     }
+
+    pollFileSelect(myContext, enc0);
   }
-    */
-  return false;
+
+  return result;
 }
 
 template <>

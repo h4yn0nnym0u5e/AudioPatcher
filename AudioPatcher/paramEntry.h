@@ -9,19 +9,28 @@ extern void makeFFP(char* buf, const char* base, const char* path, const char* l
 
 extern const int16_t arbWAV_sax[];
 
+class arbWAVrecordBase
+{
+  public:
+    arbWAVrecordBase() : path{nullptr}, loaded{false} {}
+    char* path;        // where it was loaded from
+    bool loaded;
+    virtual char* prepare(size_t pathLen) = 0;
+};
+
 template<typename Tdata>
-class arbWAVrecord
+class arbWAVrecord : public arbWAVrecordBase
 {
     static const int ARB_WAV_SAMPLES = 256;
   public:
     arbWAVrecord() :
-      sampleData{nullptr}, path{nullptr}, recSize{0}, loaded{false}
+      arbWAVrecordBase(),
+      sampleData{nullptr},  recSize{0}
       {}
     Tdata* sampleData; // actual 256-sample data block or wavetable instrument
-    char* path;        // where it was loaded from
-    int index;         // index in sinstrument file (SF2 only)
+    //char* path;        // where it was loaded from
+    int index;         // index in instrument file (SF2 only)
     size_t recSize;
-    bool loaded;
 
     // Load arbitrary waveform using complete file path
     bool load(const char* buf);
@@ -81,7 +90,10 @@ class ParamChoice
     const int value;
 };
 
-union ValUnion {int i; float f; char* s; arbWAVrecord<int16_t>* w;};
+union ValUnion {int i; float f; char* s; 
+                arbWAVrecord<int16_t>* w;
+                arbWAVrecord<AudioSynthWavetable::instrument_data>* t;
+              };
 
 /*
  * Value types:
@@ -117,6 +129,7 @@ class ParamValue
     ParamValue(float v) : value{.f = v},valueEndX(-1) {}
     ParamValue(char* v) : value{.s = v},valueEndX(-1) {}
     ParamValue(arbWAVrecord<int16_t>* v) : value{.w = v},valueEndX(-1) {}
+    ParamValue(arbWAVrecord<AudioSynthWavetable::instrument_data>* v) : value{.t = v},valueEndX(-1) {}
     ValUnion value{0};
     int16_t labelEndX, labelEndY, valueEndX;
 };

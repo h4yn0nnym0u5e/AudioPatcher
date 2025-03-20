@@ -50,7 +50,7 @@ class FileLoader : public FileBase
     void load(const char* nme) 
     { 
       //context.arbWAVloaded = context.arbWAV.load(basePath,filePath,nme,".snd"); 
-      context.load(basePath,filePath,nme,".snd"); 
+      context.load(basePath,filePath,nme,fileExtn);
     };
 };
 
@@ -866,6 +866,10 @@ class ContextWaveformBase
       arbWAVloaded = arbWAV.load(b,p,l,e); 
     }
 
+    //------ File selection stuff ----------
+    const char* const root = "/arbWavs";
+    const char* const extn = ".snd";
+
     //------ Stuff to remember ----------
     float noteFreq; // basic note frequency before modification with pitch bend
     arbWAVrecord<int16_t> arbWAV; // record of arbitrary waveform
@@ -975,7 +979,8 @@ class ContextWavetable : public ContextBase
     ContextWavetable(AudioObjInstance& _aoi) : ContextBase(_aoi, 
                   COUNT_OF(_params), &s.sf2file, _params, nullptr, 
                   COUNT_OF(MIDIparams), &m.octave, MIDIparams),
-                instrument{&Harp} 
+                sf2path{nullptr}, sf2file{nullptr}, instName{nullptr},
+                instrument{&Harp}, fileSelector{nullptr} 
     {
       display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h); // edit box is file selector sized
       arbWAV.reset();
@@ -990,7 +995,7 @@ class ContextWavetable : public ContextBase
 
     static const ParamEntry _params[3];
     struct {ParamValue sf2file,index,amplitude;} s 
-                      {{0},    {0},  {1.0f} };
+                      {{&arbWAV},    {0},  {1.0f} };
     AudioPatcherDisplay::Box box;
           
     void setParam(int i, AudioObjInstance* aoi);
@@ -1001,10 +1006,12 @@ class ContextWavetable : public ContextBase
 
     //------ Stuff to remember ----------
     float noteFreq; // basic note frequency before modification with pitch bend
-    char* sf2path, *sf2file;
+    char* sf2path, *sf2file, *instName;
     const AudioSynthWavetable::instrument_data* instrument; // record of aritrary waveform
 
     // File loader
+    const char* const root = "/soundfonts";
+    const char* const extn = ".sf2";
     FileLoader<ContextWavetable>* fileSelector;
     // Provide FileSelector with a load() method
     void load(const char*b, const char*p, const char*l, const char*e)
@@ -1015,7 +1022,6 @@ class ContextWavetable : public ContextBase
     //------ Stuff to remember ----------
     arbWAVrecord<AudioSynthWavetable::instrument_data> arbWAV; // record of wavetable
     bool arbWAVloaded; // temporary flag while user is seeking a waveform to load
-
 };
 
 //-----------------------------------------------------------------------------------------
