@@ -1,8 +1,14 @@
 #include "apMIDI.h"
 
+#define COUNT_OF(a) (int)(sizeof a / sizeof a[0])
+
+/*
+ * MIDI host setup.
+ */
 static USBHost myUSB;
-static MIDIDevice midi1(myUSB);
+static USBHub hub1{myUSB}; // allow for one hub...
 static PatcherMIDI* pm;
+static MIDIDevice midiHosts[2] = {{myUSB},{myUSB}}; // ... and two controllers
 
 static std::vector<PatcherVoice*> sounding;
 static std::vector<PatcherVoice*> releasing;
@@ -76,37 +82,39 @@ void PatcherMIDI::init(void)
 {
   pm = this;
   myUSB.begin();
+#if defined(USB_MIDI_SELECTED_IN_TOOLS)
+  Serial.print("USB MIDI and ");
+#endif
+  Serial.println("MIDI host enabled");
 }
 
-void PatcherMIDI::update(void)
+void PatcherMIDI::processEvent(uint8_t cable, uint8_t channel, uint8_t type, 
+                               uint8_t data1, uint8_t data2, uint8_t* sysexArray) 
 {
-  // deal with new MIDI events
-  if (midi1.read())
-  {
-    switch (midi1.getType())
+    switch (type)
     {
-      case midi::NoteOn: 
-        {
+      case midi::NoteOn:       
+        {         
           //uint32_t t = micros();
           PatcherVoice* newVoice = new PatcherVoice{objVec, cordVec, *this, designObjectsFree}; // create the voice
           designObjectsFree &= !newVoice->usesDesignObjects(); // flag whether it used the design objects
           sounding.push_back(newVoice);  // add it to the list
-          newVoice->noteOn(midi1.getChannel(),midi1.getData1(), midi1.getData2()); // start it sounding
+          newVoice->noteOn(channel,data1,data2); // start it sounding
           //Serial.printf("Took %uus to instantiate note\n",micros() - t);
         }
         break;
 
       case midi::NoteOff:
         {
-          byte note = midi1.getData1();          
-        
+          byte note = data1;
+          
           for (size_t i=0; i < sounding.size(); i++)
           {
             PatcherVoice* obj = sounding.at(i);  
           
             if (note == obj->getNote())
             {
-              obj->noteOff(midi1.getChannel(),note, midi1.getData2());
+              obj->noteOff(channel,note,data2);
               releasing.push_back(obj);
               sounding.erase(sounding.begin() + i);
             }
@@ -116,10 +124,10 @@ void PatcherMIDI::update(void)
 
       default:
         {
-          byte ch  = midi1.getChannel(),
-               typ = midi1.getType(),
-               d1  = midi1.getData1(),
-               d2  = midi1.getData2();
+          byte ch  = channel,
+               typ = type,
+               d1  = data1,
+               d2  = data2;
 
           switch (typ)
           {
@@ -152,9 +160,36 @@ void PatcherMIDI::update(void)
           }
         }
         break;
-    }
-  }
+    }  
+}
 
+void PatcherMIDI::update(void)
+{
+  // deal with new MIDI events
+  // usbMIDI is defined by setting USB Type in the Tools menu
+#if defined(USB_MIDI_SELECTED_IN_TOOLS)  
+  if (usbMIDI.read())
+  {
+    byte type = usbMIDI.getType();
+    uint8_t* syxP = type == midi::SystemExclusive?usbMIDI.getSysExArray():nullptr;
+  
+    processEvent(usbMIDI.getCable(), usbMIDI.getChannel(), type, usbMIDI.getData1(), usbMIDI.getData2(), syxP);
+  }
+#endif // defined(USB_MIDI_SELECTED_IN_TOOLS)  
+
+  for (int i=0; i<COUNT_OF(midiHosts); i++)
+  {
+    MIDIDevice& midiHost = midiHosts[i];
+
+    if (midiHost.read())
+    {
+      byte type = midiHost.getType();
+      uint8_t* syxP = type == midi::SystemExclusive?midiHost.getSysExArray():nullptr;
+    
+      processEvent(midiHost.getCable(), midiHost.getChannel(), type, midiHost.getData1(), midiHost.getData2(), syxP);
+    }
+  
+  }
   // now see if any releasing voices have finished
   for (int i = releasing.size() - 1; i >= 0; i--)
   {

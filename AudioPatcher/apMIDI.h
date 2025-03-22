@@ -1,6 +1,10 @@
 #if !defined(_AP_MIDI_H_)
 #define _AP_MIDI_H_
 
+#if defined(USB_MIDI) || defined(USB_MIDI4) || defined(USB_MIDI16) || defined(USB_MIDI_SERIAL) || defined(USB_MIDI4_SERIAL) || defined(USB_MIDI16_SERIAL) || defined(USB_MIDI_AUDIO_SERIAL) || defined(USB_MIDI16_AUDIO_SERIAL)
+#define USB_MIDI_SELECTED_IN_TOOLS
+#endif
+
 #include <USBHost_t36.h>
 #include <MIDI.h>
 
@@ -24,6 +28,12 @@ class PatcherMIDI
     int16_t pitchBend{0}; // 0x2000 is zero: we'll subtract this on reception
     bool designObjectsFree; // true if design objects can be used by PatcherVoice
     PatcherVoiceBase DummyVoice;
+    void processEvent(uint8_t cable, 
+                      uint8_t channel, 
+                      uint8_t type, 
+                      uint8_t data1, 
+                      uint8_t data2, 
+                      uint8_t* sysexArray); 
     
   public:
     PatcherMIDI(std::vector<AudioObjInstancePtr>& o,

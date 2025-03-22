@@ -5,13 +5,57 @@ ILI9341_t3 tft = ILI9341_t3(TFT_CS, TFT_DC);
 AudioPatcherDisplay& display = AudioPatcherDisplay::getInstance();
 uint16_t behindCursor[100];
 
+static XPT2046_Touchscreen ts(TCH_CS);
+AudioPatcherTouch touch{ts, 320, 240};
+
+using namespace AudioPatcherBitDefs;
+
+static void getInputPositions(AudioObjStatic_t& o, int16_t x, int16_t y, 
+  int16_t* ppx, int16_t* ppy, int16_t* pys);
+static void getOutputPositions(AudioObjStatic_t& o, int16_t x, int16_t y, 
+    int16_t* ppx, int16_t* ppy, int16_t* pys);
+  
+
 void AudioPatcherDisplay::Init(void)
 {
+  pinMode(TCH_CS,OUTPUT);
+  digitalWriteFast(TCH_CS,HIGH);
+  touch.begin();
+  
   tft.begin();
   tft.setRotation(TFT_ROTATION);
   tft.setScroll(0);
   Clear();
   screenBuffer = (uint16_t*) extmem_malloc(tft.width() * tft.height() * sizeof *screenBuffer);
+  screenReadOK();
+}
+
+bool AudioPatcherDisplay::screenReadOK(void)
+{
+  bool result = false;
+  uint16_t testValues[] = {0x1234, 0x0811};
+
+  if (nullptr != screenBuffer)
+  {
+    tft.drawPixel(0,0,testValues[0]);
+    tft.drawPixel(0,1,testValues[1]);
+    screenBuffer[0] = 0xDEAD;
+    screenBuffer[1] = 0xBEEF;
+    SaveArea(0,0,1,2);
+    if (testValues[0] != screenBuffer[0] || testValues[1] != screenBuffer[1])
+      Serial.printf("Screen read-back gave: 0x%04X, 0x%04X\n",
+                     screenBuffer[0],
+                     screenBuffer[1]);
+    else 
+    {
+      Serial.println("Screen read-back OK");
+      result = true;
+    }
+  }
+  else
+      Serial.println("No screen save buffer");
+
+  return result;
 }
 
 void AudioPatcherDisplay::Clear(void)
@@ -20,15 +64,33 @@ void AudioPatcherDisplay::Clear(void)
 }
 
 
-void AudioPatcherDisplay::SaveArea(int16_t x, int16_t y, int16_t w, int16_t h)
+bool AudioPatcherDisplay::SaveAreaToBuffer(int16_t x, int16_t y, int16_t w, int16_t h,  uint16_t* buf)
 {
-  if (nullptr != screenBuffer)
+  bool result = false;
+  
+  if (nullptr != buf)
   {
-    savedArea = {x,y,w,h};
-    tft.readRect(x,y,w,h,screenBuffer);
+    tft.readRect(x,y,w,h,buf);
+    result = true;
   }
+
+  return result;
 }
 
+
+void AudioPatcherDisplay::SaveArea(int16_t x, int16_t y, int16_t w, int16_t h)
+{
+  if (SaveAreaToBuffer(x,y,w,h,screenBuffer))
+    savedArea = {x,y,w,h};
+}
+
+void AudioPatcherDisplay::GetArea(int16_t& x, int16_t& y, int16_t& w, int16_t& h)
+{
+  x = savedArea.x;
+  y = savedArea.y;
+  w = savedArea.w;
+  h = savedArea.h;
+}
 
 void AudioPatcherDisplay::RestoreArea(void)
 {
@@ -87,6 +149,8 @@ void AudioPatcherDisplay::FillRect(int16_t x, int16_t y, int16_t w, int16_t h, i
 
 void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t n)
 {
+  char* stringValue;
+
   if (nullptr != p.label)
   {
     tft.setCursor(v.labelEndX,v.labelEndY);
@@ -94,13 +158,37 @@ void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t 
     tft.setTextColor(ILI9341_LIGHTGREY,EDIT_BKGND);
     switch (p.ValType)
     {
-      default: tft.print("???"); break;
+      default: tft.print("bad type"); break;
       case 'i': tft.print(v.value.i); break;
       case 'n':
       case 'f': tft.printf("%.2f",v.value.f); break;
       case 'c': tft.print(p.choices[v.value.i].text); break;
       case 'l': tft.printf("%.2f",pow(2.0f,v.value.f)); break;
       case 'r': tft.printf("%.2f",p.min.f / v.value.i); break;
+      case 's':
+      case 'w':
+        stringValue = p.ValType == 's'
+                        ?v.value.s
+                        :v.value.w->path;
+        if (nullptr != stringValue)
+        {
+          char* st,*nd;
+          // make some assumptions here!
+          // Just print the leaf name of a file, leaving
+          // off the path and extension
+          st = strrchr(stringValue, '/');
+          nd = strrchr(stringValue, '.');
+          if (nullptr != st && nullptr != nd)
+          {
+            int leafLen = nd - st - 1;
+            tft.printf("%*.*s", leafLen, leafLen, st+1); 
+          }
+          else
+            tft.print("no / or . "); 
+        }
+        else
+          tft.print("no path"); 
+        break;
     }
   
     int16_t x,y;
@@ -118,7 +206,7 @@ void AudioPatcherDisplay::Splash(void)
   tft.setTextColor(ILI9341_YELLOW);
   tft.setTextSize(2);
   tft.print("Here we ");
-  delay(500);
+  delay(100);
   tft.println("go!...");
 
 #define TFT_OBJ_SIZE_X 32
@@ -136,8 +224,7 @@ void AudioPatcherDisplay::Splash(void)
   tft.print("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");   
   
   tft.drawLine(0,0,100,100,ILI9341_ORANGE);
-  //tft.setScroll(20); // is horizontal, with setRotation(3)
-  Serial.println(tft.color565(64,0,128),HEX);
+  delay(400);
 }
 
 struct AudioObjectColours_s {uint16_t body,border,text; }
@@ -146,7 +233,7 @@ struct AudioObjectColours_s {uint16_t body,border,text; }
                           {ILI9341_PURPLE, 0xD01C, ILI9341_WHITE},
                           {ILI9341_NAVY, 0x03FF, ILI9341_WHITE},
                           {0x0280, ILI9341_GREEN, ILI9341_WHITE},
-                          {ILI9341_MAROON, ILI9341_RED, ILI9341_WHITE},
+                          {0x3800, ILI9341_RED, ILI9341_WHITE},
                           {0x04200, ILI9341_YELLOW, ILI9341_WHITE}, // synth
                           {ILI9341_BLACK, ILI9341_DARKGREY, ILI9341_WHITE}, // \  ---------------
                           {ILI9341_BLACK, ILI9341_DARKGREY, ILI9341_WHITE}, //  } I/O and control
@@ -167,12 +254,113 @@ bool AudioPatcherDisplay::objIsOnScreen(int16_t x, int16_t y, int16_t w, int16_t
    && 0 < y + h;  
 }
 
+
 //=================================================================================================
-void getInputPositions(AudioObjStatic_t& o, int16_t x, int16_t y, 
-                       int16_t* ppx, int16_t* ppy, int16_t* pys)
+AudioPatcherDisplay::side AudioPatcherDisplay::PointIsInObj(AudioObjInstance& aoi, int16_t x, int16_t y)
 {
-  int16_t cb,cs;
-  cs = (osize.oh - osize.ff) / o.inputs;
+  side result = side::out;
+  // transform screen point to canvas co-ordinates:
+  x += canvas_x;
+  y += canvas_y;
+
+  if (aoi.x <= x && aoi.x+osize.ow >= x
+   && aoi.y <= y && aoi.y+osize.oh >= y)
+  {
+    if (x - aoi.x < osize.ow/2)
+      result = side::left;
+    else
+      result = side::right;
+  }
+
+  return result;
+}
+
+int AudioPatcherDisplay::PointToPort(AudioObjInstance& aoi, int16_t x, int16_t y)
+{
+  int result = -1;
+  side theSide = side::out;
+  int16_t cx,cb,cs;
+  // transform screen point to canvas co-ordinates:
+  x += canvas_x;
+  y += canvas_y;
+
+  if (aoi.x <= x && aoi.x+osize.ow >= x
+   && aoi.y <= y && aoi.y+osize.oh >= y)
+  {
+    if (x - aoi.x < osize.ow/2)
+      theSide = side::left;
+    else
+      theSide = side::right;
+  }
+
+  if (side::out != theSide) // we are in the object
+  {
+    AudioObjStatic_t obj = *aoi.objP;   // what this object looks like
+    int numPorts;
+    int ySteps;
+
+    if (side::left == theSide)
+    {
+      getInputPositions(obj,aoi.x,aoi.y,&cx,&cb,&cs);
+      numPorts = obj.inputs;
+    }
+    else
+    {
+      getOutputPositions(obj,aoi.x,aoi.y,&cx,&cb,&cs);
+      numPorts = obj.outputs;
+    }
+
+    ySteps = (y - cb + cs/2)/cs; // how many port steps down we are
+    if (ySteps >= 0 && ySteps < numPorts)
+      result = ySteps;
+  }
+
+  return result;
+}
+
+
+int16_t AudioPatcherDisplay::PointDistanceToPatchcord(PatchcordInstance_t& cord, int16_t x, int16_t y)
+{
+  
+  int16_t sx, sy, dx, dy, xy;
+  float a,b,c,ab2, result;
+  bool offline = false;
+  
+  getPatchcordEnds(*cord.src, cord.src_port, *cord.dst, cord.dst_port, true,  sx, sy, dx, dy);
+
+  a = (float)(sy-dy)/(float)(sx-dx);
+  b = -1.0f;
+  c = sy - a*sx;
+  ab2 = a*a+b*b;
+  
+  //Serial.printf("Point: %d,%d; cord: %d,%d -> %d,%d; %.3fx + %.3fy + %.3f = 0; ", x,y, sx,sy,dx,dy, a,b,c);
+
+  result = fabs((a*x + b*y + c) / sqrt(ab2));
+
+  // see if we're past ends of cord
+  xy = (b*(b*x-a*y)-a*c)/ab2; // closest X on line
+  if (sx < dx && (xy < sx || xy > dx)) offline = true; 
+  if (sx > dx && (xy > sx || xy < dx)) offline = true; 
+  
+  xy = (a*(-b*x+a*y)-b*c)/ab2; // closest Y
+  if (sy < dy && (xy < sy || xy > dy)) offline = true; 
+  if (sy > dy && (xy > sy || xy < dy)) offline = true; 
+
+  if (offline)
+    result = -result;
+  
+  return (int16_t) result;
+}
+
+//=================================================================================================
+static void getInputPositions(AudioObjStatic_t& o, int16_t x, int16_t y, 
+                              int16_t* ppx, int16_t* ppy, int16_t* pys)
+{
+  int16_t cb,cs,np = o.inputs;
+
+  if (np < 1)
+    np = 1;
+  cs = (osize.oh - osize.ff) / np;
   cb = y + (cs - osize.ch + osize.ff) / 2;
 
   *ppx = x+1;
@@ -181,16 +369,56 @@ void getInputPositions(AudioObjStatic_t& o, int16_t x, int16_t y,
 }
 
 
-void getOutputPositions(AudioObjStatic_t& o, int16_t x, int16_t y, 
-                       int16_t* ppx, int16_t* ppy, int16_t* pys)
+static void getOutputPositions(AudioObjStatic_t& o, int16_t x, int16_t y, 
+                               int16_t* ppx, int16_t* ppy, int16_t* pys)
 {
-  int16_t cb,cs;
-  cs = (osize.oh - osize.ff) / o.outputs;
+  int16_t cb,cs,np = o.outputs;
+
+  if (np < 1)
+    np = 1;
+
+  cs = (osize.oh - osize.ff) / np;
   cb = y + (cs - osize.ch + osize.ff) / 2;
 
   *ppx = x+osize.ow-osize.cw-1;
   *ppy = cb;
   *pys = cs;
+}
+
+
+bool AudioPatcherDisplay::getPatchcordEnds(AudioObjInstance& src, int8_t sp, AudioObjInstance& dst, int8_t dp, 
+                                           bool convertToScreen,
+                                           int16_t& sx, int16_t& sy, int16_t& dx, int16_t& dy)
+{
+  bool result = false;
+  
+  if (sp < src.objP->outputs && dp < dst.objP->inputs) // port numbers are valid
+  {
+    int16_t ss;
+
+    // find positions of input and output connector blobs
+    // these are at the top left
+    getOutputPositions(*src.objP,src.x,src.y,&sx,&sy,&ss);
+    sy += sp*ss;
+    getInputPositions(*dst.objP,dst.x,dst.y,&dx,&dy,&ss);
+    dy += dp*ss;
+
+    // patchcords start outside the box
+    sx += osize.cw + 1;
+    dx -= 1;
+
+    sy += osize.ch / 2;
+    dy += osize.ch / 2;
+
+    if (convertToScreen)
+    {
+      sx -= canvas_x; sy -= canvas_y;
+      dx -= canvas_x; dy -= canvas_y;    
+    }
+    result = true;
+  }
+
+  return result;
 }
 
 
@@ -258,6 +486,8 @@ void AudioPatcherDisplay::DrawPerVoice(AudioObjInstance& aoi, bool greyed)
 
 void AudioPatcherDisplay::DrawAudioObject(AudioObjInstance& aoi, bool greyed)
 { 
+  greyed = greyed || aoi.drawInGrey; // no ||= operator in C :(
+
   if (DrawAudioObject(*aoi.objP,aoi.x,aoi.y,greyed))
     DrawPerVoice(aoi,greyed); 
 }
@@ -293,7 +523,7 @@ void AudioPatcherDisplay::DrawConnection(AudioObjStatic_t& o, int16_t x, int16_t
   x -= canvas_x; y -= canvas_y;
   
 #define BAD -999  
-  if (objIsOnScreen(x,y))
+  if (n >= 0 && objIsOnScreen(x,y))
   {
     int16_t cx = BAD,cb,cs;
     
@@ -365,10 +595,13 @@ void AudioPatcherDisplay::ShowMode(const char* txt)
 
 
 //=================================================================================================
-void AudioPatcherDisplay::ShowBottomText(const char* txt, uint16_t colour)
+void AudioPatcherDisplay::ShowBottomText(const char* txt, int colour /* = modeColour */)
 {
   static int16_t eraseTo = -1;
   bool fixCursor;
+
+  if (NOT_A_COLOUR == colour)
+    colour = modeColour;
   
   tft.setFontAdafruit();
   tft.setTextSize(2);
@@ -385,6 +618,24 @@ void AudioPatcherDisplay::ShowBottomText(const char* txt, uint16_t colour)
   eraseTo = tw;
   if (fixCursor)
     CursorRestore();
+}
+
+void AudioPatcherDisplay::ShowAreaText(const char* txt, int xoff, int yoff, int row, int fg, int bg)
+{
+  int eraseTo = savedArea.w - xoff - 5;
+  xoff += savedArea.x;
+  
+  tft.setFontAdafruit();
+  tft.setTextSize(2);
+  int16_t tw = nullptr == txt ? 0 : tft.measureTextWidth(txt),
+          th = tft.fontLineSpace()+AREA_EXTRA; // assume it's going to fit on one line!
+  yoff += savedArea.y + row*th;
+  tft.setTextColor(fg,bg);
+  tft.setCursor(xoff,yoff);
+  if (nullptr != txt)
+    tft.print(txt);
+  tft.fillRect(xoff,yoff+th-AREA_EXTRA,tw,AREA_EXTRA, bg);
+  tft.fillRect(xoff+tw,yoff,eraseTo - tw,th, bg);
 }
 
 void AudioPatcherDisplay::ShowSelection(const char* txt, AudioCategory_e cat)
@@ -493,26 +744,11 @@ void AudioPatcherDisplay::DrawPatchcord(AudioObjInstance& src, int8_t sp, AudioO
 {
   if (sp < src.objP->outputs && dp < dst.objP->inputs) // port numbers are valid
   {
-    int16_t sx,sy,ss,dx,dy;
+    int16_t sx,sy,dx,dy;
 
     // find positions of input and output connector blobs
-    // these are at the top left
-    getOutputPositions(*src.objP,src.x,src.y,&sx,&sy,&ss);
-    sy += sp*ss;
-    getInputPositions(*dst.objP,dst.x,dst.y,&dx,&dy,&ss);
-    dy += dp*ss;
-
-    // patchcords start outside the box
-    sx += osize.cw + 1;
-    dx -= 1;
-
-    sy += osize.ch / 2;
-    dy += osize.ch / 2;
-
-    sx -= canvas_x; sy -= canvas_y;
-    dx -= canvas_x; dy -= canvas_y;
-    
-    tft.drawLine(sx,sy,dx,dy,colour);
+    if (getPatchcordEnds(src, sp, dst, dp, true, sx, sy, dx, dy))
+      tft.drawLine(sx,sy,dx,dy,colour);
   }
 }
 
@@ -595,27 +831,184 @@ bool AudioPatcherDisplay::canvasMakeVisible(PatchcordInstance_t& cord, int16_t x
 
 //=================================================================================================
 static const char* key_rows[] = {"1234567890", "qwertyuiop", "asdfghjkl", "_zxcvbnm-"};
+using namespace AudioPatcherBitDefs;
+static uint8_t 
+delKey[] =
+{// W   H
+   21, 19,
+  _______XX,_XXXXXXXX,_XXXXX___,
+  ______XXX,_XXXXXXXX,_XXXXX___,
+  _____XX__,_________,____XX___,
+  ____XX___,_________,____XX___,
+  ____XX___,_________,____XX___,
+  ___XX___X,_X______X,_X__XX___,
+  ___XX____,_XX____XX,____XX___,
+  __XX_____,__XX__XX_,____XX___,
+  __XX_____,___XXXX__,____XX___,
+  _XX______,____XX___,____XX___,
+  __XX_____,___XXXX__,____XX___,
+  __XX_____,__XX__XX_,____XX___,
+  ___XX____,_XX____XX,____XX___,
+  ___XX___X,_X______X,_X__XX___,
+  ____XX___,_________,____XX___,
+  ____XX___,_________,____XX___,
+  _____XX__,_________,____XX___,
+  ______XXX,_XXXXXXXX,_XXXXX___,
+  _______XX,_XXXXXXXX,_XXXXX___,
+},
+entKey[] =
+{// W   H
+   21, 19,
+  _________,_________,__XXXX___,
+  _________,_________,__XXXX___,
+  _________,_________,__XXXX___,
+  _________,_________,__XXXX___,
+  _________,_________,__XXXX___,
+  _________,_________,__XXXX___,
+  _________,_________,__XXXX___,
+  _______XX,_________,__XXXX___,
+  ______XX_,_________,__XXXX___,
+  _____XX__,_________,__XXXX___,
+  ____XX___,_________,__XXXX___,
+  ___XXXXXX,_XXXXXXXX,_XXXXX___,
+  __XXXXXXX,_XXXXXXXX,_XXXXX___,
+  ___XXXXXX,_XXXXXXXX,_XXXX____,
+  ____XX___,_________,_________,
+  _____XX__,_________,_________,
+  ______XX_,_________,_________,
+  _______XX,_________,_________,
+  _________,_________,_________,
+},
+shfKey[] =
+{// W   H
+   24, 19,
+  _________,_________,_________,
+  _________,_________,_________,
+  _____XXXX,_XX______,___XX____,
+  ____XXXXX,_XXX_____,___XX____,
+  _________,___XX____,___XX____,
+  _________,___XX____,__XXXX___,
+  ____XXXXX,_XXXX____,__XXXX___,
+  ___XXXXXX,_XXXX____,__XXXX___,
+  ___XX____,___XX____,_XX__XX__,
+  ___XX____,__XXX____,_XX__XX__,
+  ___XXXXXX,_XX_XX___,_XX__XX__,
+  ____XXXXX,_X___XX_X,_X____XX_,
+  _________,________X,_XXXXXXX_,
+  _________,________X,_XXXXXXX_,
+  _________,_______XX,_______XX,
+  _________,_______XX,_______XX,
+  _________,_______XX,_______XX,
+  _________,_________,_________,
+  _________,_________,_________,
+}
+;
+
+#define KEY_SZ 25 
+static std::vector<BitmapKey> keysVec = {
+  {5*KEY_SZ, 4*KEY_SZ+6, -10, shfKey},
+  {7*KEY_SZ, 4*KEY_SZ+6, -11, delKey},
+  {8*KEY_SZ, 4*KEY_SZ+6, -12, entKey},
+};
+
+void AudioPatcherDisplay::keypos(int16_t x, int16_t y, size_t r, size_t c,
+                                 int16_t& xoff, int16_t& yoff)
+{
+  xoff = x + c*KEY_SIZE + r*KEY_STAGGER + 6;
+  yoff = y+r*KEY_SIZE+2;  
+}
 
 char AudioPatcherDisplay::ShowKey(int16_t x, int16_t y, size_t r, size_t c, int16_t fg, int16_t bg, bool upr /* = false */)
 {
   char result = key_rows[r][c];
+  int16_t xoff, yoff;
 
+  keypos(x,y,r,c,xoff,yoff);
+  
   if (r > 0 && upr)
     result = result & ~0x20;
 
-  int16_t xoff = x + c*KEY_SIZE + r*KEY_SIZE / 3 + 6;
-  tft.drawRoundRect(xoff,y+r*KEY_SIZE+2,KEY_SIZE-2,KEY_SIZE-2,4,fg);
-  tft.drawChar(xoff+4,y+r*KEY_SIZE+5,result,fg,bg,2);
+  tft.fillRoundRect(xoff,yoff,KEY_SIZE-2,KEY_SIZE-2,4,bg);
+  tft.drawRoundRect(xoff,yoff,KEY_SIZE-2,KEY_SIZE-2,4,fg);
+  tft.drawChar(xoff+6,y+r*KEY_SIZE+6,result,fg,bg,2);
+
+  // store keyboard position ready for readback
+  if (0 == r && 0 == c)
+  {
+    int16_t xoff2, yoff2;
+  
+    keypos(0,0,0,0,xoff2,yoff2);
+    keyboard_x = xoff - xoff2;
+    keyboard_y = yoff- yoff2;
+  }
 
   return result;
 }
 
 
-void AudioPatcherDisplay::ShowKeyboard(int16_t x, int16_t y, const char* title /* = nullptr */)
+char AudioPatcherDisplay::ShowKey(size_t r, size_t c, int16_t fg, int16_t bg, bool upr /* = false */)
+{
+  return ShowKey(keyboard_x,keyboard_y,r,c,fg,bg,upr);  
+}
+
+
+char AudioPatcherDisplay::ShowKey(keyInfo key, int16_t fg, int16_t bg, bool upr /* = false */)
+{
+  char result = 0;
+
+  if (key.ch > 0)
+    result = ShowKey(keyboard_x,keyboard_y,key.row,key.col,fg,bg,upr);
+  else
+  {
+    for (auto bk : keysVec)
+      if (bk.hitVal == key.ch)
+      {
+        result = ShowBitmapKey(bk.xpos, bk.ypos, fg, bg, bk.bitmap);      
+        break;
+      }
+  }
+
+  return result;
+}
+
+
+char AudioPatcherDisplay::ShowBitmapKey(int16_t x, int16_t y, int16_t fg, int16_t bg, const uint8_t* bitmap)
+{
+  int16_t xoff = x + keyboard_x;
+  int16_t yoff = y + keyboard_y;
+
+  tft.fillRoundRect(xoff-1,yoff-1,bitmap[0]+2,bitmap[1]+2,4,bg);
+  tft.drawBitmap(xoff,yoff,
+                bitmap+2,bitmap[0],bitmap[1],
+                fg);
+  return 0;                
+}
+
+
+void AudioPatcherDisplay::RedrawKeyboard(int16_t x, int16_t y, bool upperCase)
+{
+  keyboard_uppercase = upperCase;
+  
+  for (size_t r = 0; r < COUNT_OF(key_rows); r++)
+  {
+    size_t cols = strlen(key_rows[r]);
+    for (size_t c = 0; c < cols;c++)
+      ShowKey(x,y,r,c,KEY_CAP_COLOUR,EDIT_BKGND,upperCase);
+  }
+
+  for (auto key : keysVec)
+    ShowBitmapKey(key.xpos,key.ypos,KEY_CAP_COLOUR,EDIT_BKGND,key.bitmap);  
+}
+
+
+void AudioPatcherDisplay::ShowKeyboard(int16_t x, int16_t y, 
+                                       const char* title, /* = nullptr */
+                                       bool saveArea /* = true */)
 {
   bool hasTitle = nullptr != title;
-  
-  SaveArea(x,y,KEY_SIZE*11 + 4,KEY_SIZE*4 + 4 + 30 + (hasTitle?25:0));
+
+  if (saveArea)
+    SaveArea(x,y,KEY_SIZE*11 + 4,KEY_SIZE*4 + 4 + 30 + (hasTitle?25:0));
   InitArea(savedArea.x,savedArea.y,savedArea.w,savedArea.h,hasTitle);
 
   if (hasTitle)
@@ -623,11 +1016,90 @@ void AudioPatcherDisplay::ShowKeyboard(int16_t x, int16_t y, const char* title /
     ShowTitle(title,5,5);
     y += 27;  
   }
-  
-  for (size_t r = 0; r < COUNT_OF(key_rows); r++)
+
+  RedrawKeyboard(x,y,false);
+}
+
+
+AudioPatcherDisplay::keyInfo AudioPatcherDisplay::KeyAt(int16_t x, int16_t y)
+{
+  keyInfo result = {0}; // assume a miss
+
+  x -= keyboard_x; // make y keyboard-relative
+  y -= keyboard_y; 
+
+  for (auto key : keysVec)
   {
-    size_t cols = strlen(key_rows[r]);
-    for (size_t c = 0; c < cols;c++)
-      ShowKey(x,y,r,c,KEY_CAP_COLOUR,EDIT_BKGND);
-  } 
+    if (x >= key.xpos 
+     && x <= key.xpos + key.bitmap[0]
+     && y >= key.ypos 
+     && y <= key.ypos + key.bitmap[1]
+     )
+    {
+      result = {key.hitVal,y,x};
+      break;
+    }
+  }
+
+  if (0 == result.ch)
+  {
+    y /= KEY_SIZE;   // and into row number
+    if (y >= 0 && y < (int16_t) COUNT_OF(key_rows)) // in a row, at least!
+    {
+      x -= y*KEY_STAGGER; // x becomes row-relative
+      x /= KEY_SIZE;      // ...and column number
+      if (x >=0 && x < (int16_t) strlen(key_rows[y]))
+        result = {key_rows[y][x], y, x};
+    }
+  }
+
+  if (keyboard_uppercase 
+   && result.ch >= 'a' && result.ch <= 'z') // don't uppercase numbers!
+    result.ch &= ~0x20;
+    
+  return result;
+}
+
+AudioPatcherDisplay::keyInfo AudioPatcherDisplay::LineAt(int16_t x, int16_t y, int16_t xoff, int16_t yoff)
+{
+  keyInfo result = {-99}; // assume a miss
+
+  int16_t xr = x - savedArea.x - xoff;
+  
+  if (xr >= 0 && xr <= savedArea.w)
+  {
+    // need to set font to get correct sizes
+    tft.setFontAdafruit();
+    tft.setTextSize(2);
+    int16_t th = tft.fontLineSpace()+AREA_EXTRA; // assume it's going to fit on one line!  
+    int16_t yr = y - savedArea.y - yoff;
+    if (yr < 0)
+      yr -= th;
+    yr /= th;
+
+    result = {yr,x,y};
+  }
+
+  return result;
+}
+//=================================================================================================
+bool AudioPatcherTouch::isTouched(void)
+{ 
+  bool result;
+  
+  touch_shift = (touch_shift<<1) | ts.touched();
+  result = (touch_shift & 7) == 7;
+  if (result)
+  {
+    lastPoint = getPoint();
+    penState = down;
+  }
+  else
+  {
+    smoothedPointValid = false;
+    if (down == penState)
+      penState = lifted;
+  }
+   
+  return result;
 }
