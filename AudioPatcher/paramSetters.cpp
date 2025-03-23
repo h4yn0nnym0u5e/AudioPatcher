@@ -977,11 +977,15 @@ Serial.printf("needs %d ... ",spaceNeeded); Serial.flush();
 }
 
 //======================================================================
-template<> bool arbWAVrecord<AudioSynthWavetable::instrument_data>::isDefault(void) {return sampleData == &Harp; }
+/*
+ * Note the following are NOT template specializations:
+ * the class has already been specialized, so these are
+ * straight class methods.
+ */
+bool arbWAVrecord<AudioSynthWavetable::instrument_data>::isDefault(void) {return sampleData == &Harp; }
 /*
  * Load wavetable instrument using given complete path
  */
-template<>
 FLASHMEM bool arbWAVrecord<AudioSynthWavetable::instrument_data>::load(const char* buf)
 {
   bool result = false;
@@ -995,17 +999,6 @@ FLASHMEM bool arbWAVrecord<AudioSynthWavetable::instrument_data>::load(const cha
   {
     char* filePath = path;
 
-// Could probably load instrument list here, then
-// if it fails we know to reset to default
-    /*
-    // open the file
-    f = SD.open(buf,FILE_READ);
-    if (!f) break;
-
-    // read the file
-    if (sizeof tmp != f.read(tmp, sizeof tmp)) 
-      break;
-    */
     // allocate storage if necessary
     if (recSize < spaceNeeded)  // not enough space
     {        
@@ -1020,21 +1013,69 @@ FLASHMEM bool arbWAVrecord<AudioSynthWavetable::instrument_data>::load(const cha
     //memcpy(mem,tmp,sizeof tmp); // get sample data
     strcpy(path, buf);          // and where it was loaded from
     setAll(nullptr, path, spaceNeeded, true);
+
+    // read the instrument list
+    emptyInstrumentList();
+    getInstrumentList();
+
     result = true;
     
   } while (0);
-
-  //if (f)
-  //  f.close();
   
   return result;
+}
+
+FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::instListAddEntry(SF22ASWT::inst_rec& inst)
+{
+  instEntryPtr item{new instEntry(idx++,String(inst.achInstName))};
+  //item->index = idx++;
+  //item->name = new String(inst.achInstName);
+  instList.push_back(item);
+  Serial.printf("At %08X: #%d: %s\n", (uint32_t) item.p, item.p->index, item.p->name.c_str()); Serial.flush();
+}
+
+
+FLASHMEM static void instListAddEntry(SF22ASWT::inst_rec& inst, void* params)
+{
+  arbWAVrecord<AudioSynthWavetable::instrument_data>* id = (arbWAVrecord<AudioSynthWavetable::instrument_data>*) params;
+  id->instListAddEntry(inst);
+}
+
+
+FLASHMEM bool operator<(const instEntryPtr& lhs, const instEntryPtr& rhs )
+{ 
+  return lhs.p->name < rhs.p->name; 
+}
+
+
+FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::getInstrumentList(void)
+{
+  sf22aswt.ReadFile(path);
+  idx = 0;
+  sf22aswt.ProcessInstrumentList(::instListAddEntry,this);
+  Serial.println();
+  std::stable_sort(instList.begin(),instList.end());
+  for (auto e : instList)
+  {
+    Serial.printf("#%d: %s\n", e.p->index, e.p->name.c_str());
+  }
+}
+
+FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::emptyInstrumentList(void)
+{
+  while (instList.size() > 0)
+  {
+    instEntryPtr entry = instList.back();
+    Serial.printf("Delete %08X\n", (uint32_t) entry.p); Serial.flush();
+    delete entry.p;
+    instList.pop_back();
+  }
 }
 
 /*
   Reset wavetable instrument to safe value, and 
   free the memory it's using.
 */
-template<>
 FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::reset(void)
 {
   AudioSynthWavetable::instrument_data* oldArbWAV = sampleData;
@@ -1052,7 +1093,6 @@ FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::reset(void)
   Prepare memory to store wavetable instrument and its source path
   \return pointer to memory; may be nullptr
 */
-template<>
 FLASHMEM char* arbWAVrecord<AudioSynthWavetable::instrument_data>::prepare(size_t pathLen)
 {
   // allocate space to store it

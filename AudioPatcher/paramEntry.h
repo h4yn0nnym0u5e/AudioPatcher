@@ -1,6 +1,10 @@
 #if !defined(_PARAMENTRY_H_)
 #define _PARAMENTRY_H_
 
+#include <sf22aswt.h>
+#include <vector>
+#include <algorithm>
+
 #if !defined(COUNT_OF)
 #define COUNT_OF(a) (sizeof a / sizeof a[0])
 #endif // !defined(COUNT_OF)
@@ -12,28 +16,13 @@ extern const int16_t arbWAV_sax[];
 class arbWAVrecordBase
 {
   public:
-    arbWAVrecordBase() : path{nullptr}, loaded{false} {}
-    char* path;        // where it was loaded from
-    bool loaded;
-    virtual char* prepare(size_t pathLen) = 0;
-};
-
-template<typename Tdata>
-class arbWAVrecord : public arbWAVrecordBase
-{
-    static const int ARB_WAV_SAMPLES = 256;
-  public:
-    arbWAVrecord() :
-      arbWAVrecordBase(),
-      sampleData{nullptr},  recSize{0}
+    arbWAVrecordBase() 
+      : path{nullptr}, index{-1}, recSize{0}, loaded{false} 
       {}
-    Tdata* sampleData; // actual 256-sample data block or wavetable instrument
-    //char* path;        // where it was loaded from
+    char* path;        // where it was loaded from
     int index;         // index in instrument file (SF2 only)
     size_t recSize;
-
-    // Load arbitrary waveform using complete file path
-    bool load(const char* buf);
+    bool loaded;
 
     // Load arbitrary waveform using separate path elements
     bool load(const char* base, const char* path, const char* nme, const char* extn)
@@ -44,6 +33,109 @@ class arbWAVrecord : public arbWAVrecordBase
       return load(buf);
     }
 
+    // Load arbitrary waveform using complete file path
+    virtual bool load(const char* buf) = 0;
+    virtual char* prepare(size_t pathLen) = 0;
+    virtual void reset(void) = 0; // reset to default waveform
+    virtual bool isDefault(void) = 0;
+};
+
+template<typename Tdata>
+class arbWAVrecord : public arbWAVrecordBase
+{
+    static const int ARB_WAV_SAMPLES = 256;
+  public:
+    arbWAVrecord() 
+      : sampleData{nullptr}
+      {}
+
+    Tdata* sampleData; // actual 256-sample data block or wavetable instrument
+
+    using arbWAVrecordBase::load;
+    bool load(const char* buf) override;
+    char* prepare(size_t pathLen) override;
+    void reset(void) override; // reset to default waveform
+    bool isDefault(void) override;
+    void setAll(Tdata* s, char* p, size_t sz, bool l, int i = -1)
+    {
+      sampleData = s; 
+      path = p;
+      index = i;
+      recSize = sz;
+      loaded = l;
+    }
+
+    /*
+    * Load arbitrary waveform if it's not already been done
+    * \returns true if it's available for use
+    */
+   bool loadIfNeeded(void)
+   {
+     if (!loaded
+       && path != nullptr) // file hasn't been loaded
+     {
+       if (load(path))
+         Serial.printf("Set arbWAV from %s to %08X -> %08X; fingerprint %04.4X,%04.4X\n",
+                       path, this, sampleData,
+                       ((uint32_t) sampleData[0]) & 0xFFFF, 
+                       ((uint32_t) sampleData[1]) & 0xFFFF);
+     }
+     return loaded && nullptr != sampleData;
+   }
+};
+
+
+class instEntry
+{
+  public:
+    instEntry(int idx, String nm) 
+      : index(idx), name(nm), loaded(false)
+      {}
+
+    int index;
+    String name;
+    bool loaded;
+};
+
+class instEntryPtr
+{
+  public:
+    instEntry* p;
+};
+bool operator<(const instEntryPtr& lhs, const instEntryPtr& rhs );
+
+
+/*
+ * Specialize arbWAVrecord for SF2 wavetables
+ */
+template<>
+class arbWAVrecord<AudioSynthWavetable::instrument_data> 
+  : public arbWAVrecordBase
+{
+  public:
+    arbWAVrecord() 
+      : sampleData{nullptr}
+      {}
+
+    SF22ASWTreader sf22aswt;
+    AudioSynthWavetable::instrument_data* sampleData; // actual wavetable instrument
+    std::vector<instEntryPtr> instList;
+
+
+    using arbWAVrecordBase::load;
+    bool load(const char* buf) override;
+    char* prepare(size_t pathLen) override;
+    void reset(void) override; // reset to default waveform
+    bool isDefault(void) override;
+    void setAll(AudioSynthWavetable::instrument_data* s, 
+                char* p, size_t sz, bool l, int i = -1)
+    {
+      sampleData = s; 
+      path = p;
+      index = i;
+      recSize = sz;
+      loaded = l;
+    }
 
     /*
     * Load arbitrary waveform if it's not already been done
@@ -54,33 +146,25 @@ class arbWAVrecord : public arbWAVrecordBase
       if (!loaded
         && path != nullptr) // file hasn't been loaded
       {
+        uint16_t* ptr = (uint16_t*) sampleData;
         if (load(path))
-          Serial.printf("Set arbWAV from %s to %08X -> %08X; fingerprint %04.4X,%04.4X\n",
-                        path, this, sampleData,
-                        ((uint32_t) sampleData[0]) & 0xFFFF, 
-                        ((uint32_t) sampleData[1]) & 0xFFFF);
+          Serial.printf("Set wavetable from %s to %08X -> %08X; fingerprint %04.4X,%04.4X\n",
+                        path, this, (uint32_t) ptr,
+                        ((uint32_t) ptr[0]) & 0xFFFF, 
+                        ((uint32_t) ptr[1]) & 0xFFFF);
       }
       return loaded && nullptr != sampleData;
     }
 
-
-    char* prepare(size_t pathLen);
-    void reset(void); // reset to default waveform
-    void setAll(Tdata* s, char* p, size_t sz, bool l, int i = -1)
-    {
-      sampleData = s; 
-      path = p;
-      index = i;
-      recSize = sz;
-      loaded = l;
-    }
-    bool isDefault(void);
+    int idx;
+    void instListAddEntry(SF22ASWT::inst_rec& inst); // add entry to list
+    void getInstrumentList(void); // populate the instrument list
+    void emptyInstrumentList(void); // remove instrument list from emeory
 };
+
 
 template<> void arbWAVrecord<int16_t>::reset(void);
 template<> char* arbWAVrecord<int16_t>::prepare(size_t);
-template<> void arbWAVrecord<AudioSynthWavetable::instrument_data>::reset(void);
-template<> char* arbWAVrecord<AudioSynthWavetable::instrument_data>::prepare(size_t);
 
 
 class ParamChoice
