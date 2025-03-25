@@ -161,12 +161,13 @@ class arbWAVrecord<AudioSynthWavetable::instrument_data>
         {
             uint16_t* ptr = (uint16_t*) sampleData;
             if (nullptr != sampleData)
-              Serial.printf("Set wavetable from %s to %08X -> %08X; fingerprint %04.4X,%04.4X\n",
-                          path, this, (uint32_t) ptr,
+              Serial.printf("Set wavetable from %s:%d to %08X -> %08X; fingerprint %04.4X,%04.4X\n",
+                          path, getIndex(),
+                          this, (uint32_t) ptr,
                           ((uint32_t) ptr[0]) & 0xFFFF, 
                           ((uint32_t) ptr[1]) & 0xFFFF);
             else
-              Serial.printf("Load from %s index %d failed\n", path, index);
+              Serial.printf("Load from %s index %d failed\n", path, getIndex());
         }
       }
       return loaded && nullptr != sampleData;

@@ -1009,8 +1009,8 @@ class ContextWavetable : public ContextBase
     }
 
     static const ParamEntry _params[3];
-    struct {ParamValue sf2file,index,amplitude;} s 
-                      {{&arbWAV},    {0},  {1.0f} };
+    struct {ParamValue sf2file,  index,amplitude;} s 
+                     {{&arbWAV},  {0},   {1.0f} };
     AudioPatcherDisplay::Box box;
           
     void setParam(int i, AudioObjInstance* aoi);

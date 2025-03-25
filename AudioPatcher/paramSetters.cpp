@@ -307,10 +307,8 @@ FLASHMEM int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const 
           char* mem, *path;
           size_t spaceNeeded;
 
-Serial.printf("Parsing <%s> ... ",ptr); Serial.flush();
           // find comma that terminates the string
           char* comma = strchr(ptr,',');
-Serial.printf("comma at %08X vs %08X ... ",comma,ptr); Serial.flush();
           if (nullptr == comma) // oh heck - now what?
             break;
 
@@ -322,14 +320,12 @@ Serial.printf("comma at %08X vs %08X ... ",comma,ptr); Serial.flush();
           if ('s' != params[i].ValType)
           {
             mem = aray[i].value.w->prepare(comma - ptr);
-Serial.printf("prepared %d ... ",aray[i].value.w->recSize); Serial.flush();
             path = aray[i].value.w->path;
           }
           else
           {            
             spaceNeeded = comma - ptr + 1;
             spaceNeeded = (spaceNeeded + 16 ) & ~16;
-Serial.printf("needs %d ... ",spaceNeeded); Serial.flush();
             mem = (char*) malloc(spaceNeeded); // just enough space
             path = mem;
           }
@@ -341,13 +337,11 @@ Serial.printf("needs %d ... ",spaceNeeded); Serial.flush();
           memcpy(path,ptr,comma-ptr); // sscanf can't do this job ...
           path[comma-ptr] = 0; // .. do it ourselves, with terminator...
           off = comma-ptr+1;
-Serial.printf("used %d characters ... ",off); Serial.flush();
 
           if ('s' != params[i].ValType)
           {
             // it's a path to an arbitrary waveform, which
             // hasn't yet been loaded in
-Serial.printf("load to %08X ... ",aray[i].value.w); Serial.flush();
             aray[i].value.w->loaded = false;
             Serial.printf("%s = <%s> ... ",params[i].label,aray[i].value.w->path);
           }
@@ -878,7 +872,7 @@ FLASHMEM bool arbWAVrecord<int16_t>::load(const char* buf)
   size_t spaceNeeded = sizeof tmp + strlen(buf) + 1;
   File f;
 
-  Serial.printf("Load %s\n",buf); Serial.flush();
+  //Serial.printf("Load %s\n",buf); Serial.flush();
 
   spaceNeeded = (spaceNeeded + 16) & ~16; // round up a bit
   do
@@ -948,7 +942,6 @@ FLASHMEM char* arbWAVrecord<int16_t>::prepare(size_t pathLen)
   char* mem = (char*) sampleData; // assume we can use what we have
   size_t spaceNeeded = ARB_WAV_SAMPLES*sizeof *sampleData + pathLen + 1;
   spaceNeeded = (spaceNeeded + 16 ) & ~16;
-Serial.printf("needs %d ... ",spaceNeeded); Serial.flush();
 
   if (isDefault() || spaceNeeded > recSize)
   {
@@ -992,7 +985,7 @@ FLASHMEM bool arbWAVrecord<AudioSynthWavetable::instrument_data>::load(const cha
   size_t spaceNeeded = strlen(buf) + 1;
   File f;
 
-  Serial.printf("Load %s\n",buf); Serial.flush();
+  //Serial.printf("Load %s\n",buf); Serial.flush();
 
   spaceNeeded = (spaceNeeded + 16) & ~16; // round up a bit
   do
@@ -1027,7 +1020,7 @@ FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::instListAddEnt
   //item->index = idx++;
   //item->name = new String(inst.achInstName);
   instList.push_back(item);
-  Serial.printf("At %08X: #%d: %s\n", (uint32_t) item.p, item.p->index, item.p->name.c_str()); Serial.flush();
+  //Serial.printf("At %08X: #%d: %s\n", (uint32_t) item.p, item.p->index, item.p->name.c_str()); Serial.flush();
 }
 
 
@@ -1049,12 +1042,14 @@ FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::getInstrumentL
   sf22aswt.ReadFile(path);
   idx = 0;
   sf22aswt.ProcessInstrumentList(::instListAddEntry,this);
-  Serial.println();
+  //Serial.println();
   std::stable_sort(instList.begin(),instList.end());
+  /*
   for (auto e : instList)
   {
     Serial.printf("#%d: %s\n", e.p->index, e.p->name.c_str());
   }
+    */
 }
 
 FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::emptyInstrumentList(void)
@@ -1062,7 +1057,7 @@ FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::emptyInstrumen
   while (instList.size() > 0)
   {
     instEntryPtr entry = instList.back();
-    Serial.printf("Delete %08X\n", (uint32_t) entry.p); Serial.flush();
+    //Serial.printf("Delete %08X\n", (uint32_t) entry.p); Serial.flush();
     delete entry.p;
     instList.pop_back();
   }
@@ -1097,7 +1092,6 @@ FLASHMEM char* arbWAVrecord<AudioSynthWavetable::instrument_data>::prepare(size_
   char* mem = (char*) path; // assume we can use what we have
   size_t spaceNeeded = pathLen + 1;
   spaceNeeded = (spaceNeeded + 16 ) & ~16;
-Serial.printf("needs %d ... ",spaceNeeded); Serial.flush();
 
   if (isDefault() || spaceNeeded > recSize)
   {
@@ -1143,14 +1137,16 @@ void InstrumentPicker::loadInstrument(const char* nme)
   arbWAVrecord<AudioSynthWavetable::instrument_data>& arb = context.arbWAV;
   arb.setIndex(fileList.at(enc1.getValue()).index); // cheat a bit here...
 
-  Serial.printf("InstrumentPicker::load(%s) - index %d\n", nme, arb.getIndex());
+  // Serial.printf("InstrumentPicker::load(%s) - index %d\n", nme, arb.getIndex());
   context.arbWAVloaded = arb.loadInstrument();
 
+  /*
   if (context.arbWAVloaded)
     Serial.printf("Loaded to %08X\n", (uint32_t) arb.sampleData);
   else
     Serial.println("Failed");
   Serial.flush();    
+  */
 }
 
 
