@@ -183,8 +183,11 @@ class MIDIEditor : public BaseEditor
 class FileListEntry
 {
   public:
-    FileListEntry(String nm, bool dr) : name{nm}, isDir{dr} {}
+    FileListEntry(String nm, bool dr, int idx = -1) 
+      : name{nm}, index{idx}, isDir{dr} 
+      {}
     String name;
+    int index; // for Wavetable instrument chooser
     bool isDir;
     friend bool operator<(const FileListEntry& lhs, const FileListEntry& rhs)
     {
@@ -229,8 +232,8 @@ class FileBase
     int getLast(char* buf, int maxn);
     void setLast(const char* nme);
 
-    void createFileList(const char* path, mode_e mode);
-    void clearFileList(void);
+    virtual void createFileList(const char* path, mode_e mode);
+    virtual void clearFileList(void);
     void showFileList(const int item, bool showAll = false);
     int fileListTop, fileListCurrent;
   public:    
@@ -247,7 +250,7 @@ class FileBase
             {
               basePathLen = strlen(basePath);
             }
-    void edit(void);
+    virtual void edit(void);
     void enter(bool saveArea = true);
     void exit(void); 
     

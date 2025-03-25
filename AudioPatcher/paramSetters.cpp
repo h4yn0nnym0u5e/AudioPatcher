@@ -1012,11 +1012,7 @@ FLASHMEM bool arbWAVrecord<AudioSynthWavetable::instrument_data>::load(const cha
     // copy the data and point to it
     //memcpy(mem,tmp,sizeof tmp); // get sample data
     strcpy(path, buf);          // and where it was loaded from
-    setAll(nullptr, path, spaceNeeded, true);
-
-    // read the instrument list
-    emptyInstrumentList();
-    getInstrumentList();
+    setAll(nullptr, path, spaceNeeded, false, getIndex());
 
     result = true;
     
@@ -1076,7 +1072,7 @@ FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::emptyInstrumen
   Reset wavetable instrument to safe value, and 
   free the memory it's using.
 */
-FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::reset(void)
+FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::reset(int* pIdx)
 {
   AudioSynthWavetable::instrument_data* oldArbWAV = sampleData;
 
@@ -1087,6 +1083,8 @@ FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::reset(void)
             (char*) "/<Harp>.",0,true,-1);
     //free((void*) oldArbWAV);  // free the memory
   }
+  if (nullptr != pIdx)
+    pIndex = pIdx;
 }
 
 /*
@@ -1126,6 +1124,35 @@ Serial.printf("needs %d ... ",spaceNeeded); Serial.flush();
 
   return mem;
 }
+
+void InstrumentPicker::createFileList(const char* path, mode_e mode)
+{
+  context.arbWAV.getInstrumentList();
+  for (auto e : context.arbWAV.instList)
+    fileList.push_back({e.p->name,false,e.p->index});
+}
+
+void InstrumentPicker::clearFileList(void)
+{
+  context.arbWAV.emptyInstrumentList();
+  fileList.clear();
+}
+
+void InstrumentPicker::loadInstrument(const char* nme)
+{
+  arbWAVrecord<AudioSynthWavetable::instrument_data>& arb = context.arbWAV;
+  arb.setIndex(fileList.at(enc1.getValue()).index); // cheat a bit here...
+
+  Serial.printf("InstrumentPicker::load(%s) - index %d\n", nme, arb.getIndex());
+  context.arbWAVloaded = arb.loadInstrument();
+
+  if (context.arbWAVloaded)
+    Serial.printf("Loaded to %08X\n", (uint32_t) arb.sampleData);
+  else
+    Serial.println("Failed");
+  Serial.flush();    
+}
+
 
 //======================================================================
 //======================================================================
@@ -1273,6 +1300,41 @@ bool selectArbWAVfile(Tctxt* myContext, AudioObjInstance* aoi)
   return result;
 }
 
+
+template<class Tctxt>
+bool selectInstrument(Tctxt* myContext, AudioObjInstance* aoi)
+{
+  bool result = false;
+
+  if (nullptr != myContext->instSelector)
+  {
+    static uint32_t exitAt = 0; // flag to track "exit" encoder button state
+    int keepChoosing = testExit(exitAt);
+
+    myContext->instSelector->edit();
+
+    if (myContext->arbWAVloaded || !keepChoosing) // user selected a different wave, or quit...
+    {
+      if (myContext->arbWAVloaded)
+        myContext->setParam(ContextWaveformModulated::WTINST_PARAM,aoi);  // ...tell the object about it
+      myContext->instSelector->exit();
+      delete myContext->instSelector;
+      myContext->instSelector = nullptr;
+
+      //myContext->s.index.value.i = myContext->arbWAV.index;
+
+      // fix up the display
+      settingsEditor->InitArea();
+      settingsEditor->Init(aoi->objP->name);
+      // restore settings and encoder limits
+      enterEditMode(myContext,aoi);
+    }
+    result = true; // file selector is or was active
+  }
+
+  return result;
+}
+
 /*
  * Poll encoder button used to enter arbitrary waveform file
  * selection dialogue
@@ -1282,24 +1344,39 @@ bool pollFileSelect(Tctxt* myContext, LimitedEncoder& enc)
 {
   bool result = false;
 
-  if (enc.getButton())
-    myContext->encPressed = 0;
-  else
+  if (enc.wasClicked())
   {
-    if (0 == myContext->encPressed)
-    {
-      myContext->encPressed = -1;
-      myContext->fileSelector = new FileLoader(enc0,enc1,enc2,
-                                          settingsEditor->display,
-                                          myContext->root, myContext->extn, 
-                                          FileBase::mode_e::load,
-                                          *myContext);
-      myContext->fileSelector->enter(false); // area is already saved, don't repeat that
-      myContext->arbWAVloaded = false;
-      result = true;
-    }
+    myContext->fileSelector = new FileLoader(enc0,enc1,enc2,
+                                        settingsEditor->display,
+                                        myContext->root, myContext->extn, 
+                                        FileBase::mode_e::load,
+                                        *myContext);
+    myContext->fileSelector->enter(false); // area is already saved, don't repeat that
+    myContext->arbWAVloaded = false;
+    result = true;
   }
+  
+  return result;
+}
 
+/*
+ * Poll encoder button used to enter arbitrary waveform file
+ * selection dialogue
+ */
+bool pollInstSelect(ContextWavetable* myContext, LimitedEncoder& enc)
+{
+  bool result = false;
+
+  if (enc.wasClicked())
+  {
+    myContext->instSelector = new InstrumentPicker(enc0,enc1,enc2,
+                                        settingsEditor->display,
+                                        *myContext);
+    myContext->instSelector->enter(false); // area is already saved, don't repeat that
+    myContext->arbWAVloaded = false;
+    result = true;
+  }
+  
   return result;
 }
 
@@ -1903,7 +1980,7 @@ PROGMEM constexpr ParamEntry ContextWavetable::MIDIparams[]
 
 PROGMEM constexpr ParamEntry ContextWavetable::_params[3] = {
   {" file", 't'},
-  {"entry", 0, -1},
+  {"entry", 0, 10000},
   {"amplitude", 0.0f, 1.0f}
 };
 
@@ -1913,68 +1990,67 @@ FLASHMEM void ContextWavetable::setParam(int i, AudioObjInstance* aoi)
   switch (i)
   {
     default: break;
+
+    case 0:
+    case WTINST_PARAM:
+    {
+      arbWAVrecord<AudioSynthWavetable::instrument_data>& arb = *s.sf2file.value.t;
+      //arbWAV.index = s.index.value.i;
+
+      if (arb.loadIfNeeded())
+        aoi->streamP.Wavetable->setInstrument(*arb.sampleData);
+    }
+      break;
+
+    case 1: // index
+      //arbWAV.index = s.index.value.i;
+      break;
+
     case 2: aoi->streamP.Wavetable->amplitude(s.amplitude.value.f); break;
-    /*
-    case 0: aoi->streamP.Wavetable->begin(waveShapes[s.waveform.value.i].value); break;
-    case 1: aoi->streamP.Wavetable->frequency(pow(2,s.frequency.value.f)); break;
-    case 3: aoi->streamP.Wavetable->pulseWidth(s.pulseWidth.value.f); break;
-    case 4: aoi->streamP.Wavetable->offset(s.offset.value.f); break;
-    */
   }
 }
 
-template <>
-void enterEditMode<ContextWavetable>(ContextWavetable* myContext, AudioObjInstance* aoi)
-{
-  /*
-  // fix up the pot and encoder values
-  int iprt = floor(myContext->s.frequency.value.f - LOG_NOTE_A);
-  float frac = myContext->s.frequency.value.f - iprt - LOG_NOTE_A;
-
-  // Serial.printf("freq is %f -> %f Hz\n",myContext->s.frequency.value.f,pow(2,myContext->s.frequency.value.f));
-  
-  enc0.setLimits(-3,12);
-  if (frac > 0.5f)
-  {
-    frac -= 1.0f;
-    iprt++;
-  }
-  enc0.setValue(iprt);
-
-  ParamValue pv{frac};    
-  HookControl(ctrl,1,freqLimits,pv); // frequency pot is #1: set hook
-
-  Serial.printf("Hook set to %f; encoder to %d\n",pv.value.f,iprt);
-  */
-}
-  
 
 template <> // template specialization for setting Wavetable; needed for frequency setting
 bool updateFromControls<ContextWavetable>(ContextWavetable* myContext, AudioObjInstance* aoi)
 {
   bool result = false;
 
-  if (selectArbWAVfile(myContext, aoi))
+  do
   {
-    result = true; // don't exit parent settings page
-  }
-  else
-  {
+    if (selectArbWAVfile(myContext, aoi))
+    {
+      result = true; // don't exit parent settings page
+      break;
+    }
+
+    if (selectInstrument(myContext, aoi))
+    {
+      result = true; // don't exit parent settings page
+      break;
+    }
+
     for (size_t i=0; i < myContext->paramCount; i++)
     {
-
+      switch (i)
       { // no special action
-        if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
-        {
-          settingsEditor->ShowValue(i);
-          myContext->setParam(i,aoi);
-        }
+        default:
+          if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
+          {
+            settingsEditor->ShowValue(i);
+            myContext->setParam(i,aoi);
+          }
+          break;
+
+         case 1: // instrument index - disable pot
+          break;          
       }
     }
 
     pollFileSelect(myContext, enc0);
-  }
-
+    pollInstSelect(myContext, enc1);
+  } while (0);
+  
   return result;
 }
 

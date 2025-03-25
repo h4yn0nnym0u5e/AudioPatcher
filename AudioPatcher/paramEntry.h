@@ -17,12 +17,15 @@ class arbWAVrecordBase
 {
   public:
     arbWAVrecordBase() 
-      : path{nullptr}, index{-1}, recSize{0}, loaded{false} 
+      : path{nullptr}, pIndex{nullptr}, recSize{0}, loaded{false} 
       {}
     char* path;        // where it was loaded from
-    int index;         // index in instrument file (SF2 only)
+    int* pIndex;       // index in instrument file (SF2 only)
     size_t recSize;
     bool loaded;
+
+    int  getIndex(void)  { return nullptr==pIndex?-1:*pIndex; }
+    void setIndex(int n) { if (nullptr!=pIndex) *pIndex = n; }
 
     // Load arbitrary waveform using separate path elements
     bool load(const char* base, const char* path, const char* nme, const char* extn)
@@ -60,7 +63,7 @@ class arbWAVrecord : public arbWAVrecordBase
     {
       sampleData = s; 
       path = p;
-      index = i;
+      setIndex(i);
       recSize = sz;
       loaded = l;
     }
@@ -123,19 +126,26 @@ class arbWAVrecord<AudioSynthWavetable::instrument_data>
 
 
     using arbWAVrecordBase::load;
-    bool load(const char* buf) override;
+    bool load(const char* buf) override; // set the SF2 file path
+    bool loadInstrument(void)
+    {
+      loaded = sf22aswt.Load_instrument(getIndex(), sampleData);
+      return loaded;
+    }
     char* prepare(size_t pathLen) override;
-    void reset(void) override; // reset to default waveform
+    void reset(void) override { reset(nullptr); } // reset to default waveform
+    void reset(int* pIdx);
     bool isDefault(void) override;
     void setAll(AudioSynthWavetable::instrument_data* s, 
                 char* p, size_t sz, bool l, int i = -1)
     {
       sampleData = s; 
       path = p;
-      index = i;
+      setIndex(i);
       recSize = sz;
       loaded = l;
     }
+    bool isValid(void) { return sf22aswt.getLastReadWasOK(); }
 
     /*
     * Load arbitrary waveform if it's not already been done
@@ -146,17 +156,23 @@ class arbWAVrecord<AudioSynthWavetable::instrument_data>
       if (!loaded
         && path != nullptr) // file hasn't been loaded
       {
-        uint16_t* ptr = (uint16_t*) sampleData;
-        if (load(path))
-          Serial.printf("Set wavetable from %s to %08X -> %08X; fingerprint %04.4X,%04.4X\n",
-                        path, this, (uint32_t) ptr,
-                        ((uint32_t) ptr[0]) & 0xFFFF, 
-                        ((uint32_t) ptr[1]) & 0xFFFF);
+        if ((isValid() || sf22aswt.ReadFile(path)) &&
+            load(path) && loadInstrument())
+        {
+            uint16_t* ptr = (uint16_t*) sampleData;
+            if (nullptr != sampleData)
+              Serial.printf("Set wavetable from %s to %08X -> %08X; fingerprint %04.4X,%04.4X\n",
+                          path, this, (uint32_t) ptr,
+                          ((uint32_t) ptr[0]) & 0xFFFF, 
+                          ((uint32_t) ptr[1]) & 0xFFFF);
+            else
+              Serial.printf("Load from %s index %d failed\n", path, index);
+        }
       }
       return loaded && nullptr != sampleData;
     }
 
-    int idx;
+    int idx; // used ONLY when scanning instrument list
     void instListAddEntry(SF22ASWT::inst_rec& inst); // add entry to list
     void getInstrumentList(void); // populate the instrument list
     void emptyInstrumentList(void); // remove instrument list from emeory
@@ -187,6 +203,8 @@ union ValUnion {int i; float f; char* s;
  * c : choice
  * r : reciprocal = min / n, n=1..max
  * s : string (e.g. path to waveform or wavetable)
+ * w : arbitrary waveform
+ * t : wavetable instrument
  */
 class ParamEntry 
 {

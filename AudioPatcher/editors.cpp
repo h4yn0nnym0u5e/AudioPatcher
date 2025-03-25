@@ -201,25 +201,19 @@ FLASHMEM void ObjEditor::edit(void)
   }
 
   // Place an instance of the currently-selected object type
-  if (enc2.getButton())
-    state = 1;
-  else
+  if (enc2.wasClicked())
   {
-    if (1 == state) // enc2 released
-    {
-      int16_t x, y, cx, cy;
+    int16_t x, y, cx, cy;
 
-      state = 0;
-      display.GetCursor(x, y);
-      display.canvasGetCurrent(cx, cy);
-      create(enc2.getValue(), cx + x - 24, cy + y - 24);
+    display.GetCursor(x, y);
+    display.canvasGetCurrent(cx, cy);
+    create(enc2.getValue(), cx + x - 24, cy + y - 24);
 
-      AudioObjInstance* ao = objVec.back().p;
-      display.CursorClear();
-      display.DrawAudioObject(*ao);
-      display.CursorRestore();
-      std::stable_sort(objVec.begin(), objVec.end());
-    }
+    AudioObjInstance* ao = objVec.back().p;
+    display.CursorClear();
+    display.DrawAudioObject(*ao);
+    display.CursorRestore();
+    std::stable_sort(objVec.begin(), objVec.end());
   }
 
   // Move the cross-hair cursor
@@ -609,17 +603,6 @@ FLASHMEM void CordEditor::edit(void)
       touchedObj.objNum = -1; // remains until another touch
     }
   }
-  /*
-  if (SelectByTouch(enc0) >= 0)
-  {
-    int side = getSide();
-    greyOut(nothing);
-    if (side < 0)
-      enc2.setValue(0, true);
-    if (side > 0)
-      enc2.setValue(1, true);
-  }
-      */
 
   //-----------------------------------------------
   // select an audio object
@@ -699,115 +682,110 @@ FLASHMEM void CordEditor::edit(void)
 
   //-----------------------------------------------
   // select a source or destination
-  if (enc1.getButton())
-    state = 1;
-  else
+  if (enc1.wasClicked())
   {
-    if (1 == state)
-    {
-      AudioObjInstance* aoi = objVec.at(epIdx).p;
+    AudioObjInstance* aoi = objVec.at(epIdx).p;
 
-      state = 0;
-      if (!setByTouch)
+    if (!setByTouch)
+    {
+      if (1 == io) // set dst / input
       {
-        if (1 == io) // set dst / input
+        highlightPort(editCord.dst, 1, editCord.dst_port, false);
+        if (editCord.dst == aoi)
         {
-          highlightPort(editCord.dst, 1, editCord.dst_port, false);
-          if (editCord.dst == aoi)
-          {
-            //Serial.println("dst cleared");
-            editCord.dst = nullptr;
-          }
-          else
-          {
-            //Serial.println("dst set");
-            highlightObj(editCord.dst, ILI9341_BLACK);
-            editCord.dst = aoi;
-            editCord.dst_port = portNum;
-            highlightPort(editCord.dst, 1, editCord.dst_port, true);
-          }
+          //Serial.println("dst cleared");
+          editCord.dst = nullptr;
         }
-        else // set src / output
+        else
         {
-          highlightPort(editCord.src, 0, editCord.src_port, false);
-          if (editCord.src == aoi)
-          {
-            //Serial.println("src cleared");
-            editCord.src = nullptr;
-          }
-          else
-          {
-            //Serial.println("src set");
-            highlightObj(editCord.src, ILI9341_BLACK);
-            editCord.src = aoi;
-            editCord.src_port = portNum;
-            highlightPort(editCord.src, 0, editCord.src_port, true);
-          }
+          //Serial.println("dst set");
+          highlightObj(editCord.dst, ILI9341_BLACK);
+          editCord.dst = aoi;
+          editCord.dst_port = portNum;
+          highlightPort(editCord.dst, 1, editCord.dst_port, true);
         }
       }
-
-      // both set - create a new patchcord
-      if (nullptr != editCord.src && nullptr != editCord.dst) 
+      else // set src / output
       {
-        cordVec.push_back(new PatchcordInstance_t{editCord.src, editCord.src_port, editCord.dst, editCord.dst_port}); // create
-        display.DrawPatchcord(cordVec.back()); // draw
-        highlightPort(editCord.src, 0, editCord.src_port, false); // un-highlight...
-        highlightPort(editCord.dst, 1, editCord.dst_port, false); // ...the ports...
-        if (aoi == editCord.src)
-          highlightObj(editCord.dst, ILI9341_BLACK); // ...and the other...
-        if (aoi == editCord.dst)
-          highlightObj(editCord.src, ILI9341_BLACK); // ...audio object!
-
-        editCord = blankPatch;
-        setByTouch = false;
-        enc1.setLED(0x2F00'0000);
-
-        int ec1;
-        do
+        highlightPort(editCord.src, 0, editCord.src_port, false);
+        if (editCord.src == aoi)
         {
-          ec1 = findGoodObj(epIdx, epIdx, io); // can we stay on this object?
-          if (ec1 >= 0) // yes
-            break;
-
-          ec1 = findGoodObj(epIdx, epIdx + 1, io); // can we find a later one?
-          if (ec1 >= 0) // yes
-            break;
-
-          ec1 = findGoodObj(epIdx, epIdx - 1, io); // can we find an earlier one?
-          if (ec1 >= 0) // yes
-            break;
-
-          io = 1 - io; // try swapping src <-> dst
-
-          ec1 = findGoodObj(epIdx, epIdx, io); // can we stay on this object?
-          if (ec1 >= 0) // yes
-            break;
-
-          ec1 = findGoodObj(epIdx, epIdx + 1, io); // can we find a later one?
-          if (ec1 >= 0) // yes
-            break;
-
-          ec1 = findGoodObj(epIdx, epIdx - 1, io); // can we find an earlier one?
-          if (ec1 >= 0) // yes
-            break;
-
-        } while (0);
-
-        if (ec1 >= 0 && (ec1 != epIdx || io != enc2.getValue()))
-        {
-          if (io != enc2.getValue()) // had to swap src <-> dst
-          {
-            ShowSelection(io);
-            enc2.setValue(1 - io);
-          }
-
-          if (ec1 != epIdx)
-            SelectByEncoder(enc0, ec1);
+          //Serial.println("src cleared");
+          editCord.src = nullptr;
         }
+        else
+        {
+          //Serial.println("src set");
+          highlightObj(editCord.src, ILI9341_BLACK);
+          editCord.src = aoi;
+          editCord.src_port = portNum;
+          highlightPort(editCord.src, 0, editCord.src_port, true);
+        }
+      }
+    }
+
+    // both set - create a new patchcord
+    if (nullptr != editCord.src && nullptr != editCord.dst) 
+    {
+      cordVec.push_back(new PatchcordInstance_t{editCord.src, editCord.src_port, editCord.dst, editCord.dst_port}); // create
+      display.DrawPatchcord(cordVec.back()); // draw
+      highlightPort(editCord.src, 0, editCord.src_port, false); // un-highlight...
+      highlightPort(editCord.dst, 1, editCord.dst_port, false); // ...the ports...
+      if (aoi == editCord.src)
+        highlightObj(editCord.dst, ILI9341_BLACK); // ...and the other...
+      if (aoi == editCord.dst)
+        highlightObj(editCord.src, ILI9341_BLACK); // ...audio object!
+
+      editCord = blankPatch;
+      setByTouch = false;
+      enc1.setLED(0x2F00'0000);
+
+      int ec1;
+      do
+      {
+        ec1 = findGoodObj(epIdx, epIdx, io); // can we stay on this object?
+        if (ec1 >= 0) // yes
+          break;
+
+        ec1 = findGoodObj(epIdx, epIdx + 1, io); // can we find a later one?
+        if (ec1 >= 0) // yes
+          break;
+
+        ec1 = findGoodObj(epIdx, epIdx - 1, io); // can we find an earlier one?
+        if (ec1 >= 0) // yes
+          break;
+
+        io = 1 - io; // try swapping src <-> dst
+
+        ec1 = findGoodObj(epIdx, epIdx, io); // can we stay on this object?
+        if (ec1 >= 0) // yes
+          break;
+
+        ec1 = findGoodObj(epIdx, epIdx + 1, io); // can we find a later one?
+        if (ec1 >= 0) // yes
+          break;
+
+        ec1 = findGoodObj(epIdx, epIdx - 1, io); // can we find an earlier one?
+        if (ec1 >= 0) // yes
+          break;
+
+      } while (0);
+
+      if (ec1 >= 0 && (ec1 != epIdx || io != enc2.getValue()))
+      {
+        if (io != enc2.getValue()) // had to swap src <-> dst
+        {
+          ShowSelection(io);
+          enc2.setValue(1 - io);
+        }
+
+        if (ec1 != epIdx)
+          SelectByEncoder(enc0, ec1);
       }
     }
   }
 }
+
 
 FLASHMEM void CordEditor::enter(void)
 {
@@ -921,19 +899,14 @@ FLASHMEM void ParamEditor::edit(void)
       highlightObjnum(epIdx, ILI9341_WHITE);
     }
 
-    if (enc0.getButton())
-      state = 1;
-    else
+    if (enc0.wasClicked())
     {
-      if (1 == state)
-      {
-        state = 0;
-        inTarget = true;
-        enc0Stash2 = new LimitedEncoderStash(enc0);
-        aoi->objP->editFn(aoi, AudioEditMode::enter, nullptr);
-        lockModeEncoder();
-      }
+      inTarget = true;
+      enc0Stash2 = new LimitedEncoderStash(enc0);
+      aoi->objP->editFn(aoi, AudioEditMode::enter, nullptr);
+      lockModeEncoder();
     }
+    
   }
   else // target object has claimed the UI
   {
@@ -990,20 +963,14 @@ FLASHMEM void MIDIEditor::edit(void)
     SelectByEncoder(enc0);
     SelectByTouch(enc0);
 
-    if (enc0.getButton())
-      state = 1;
-    else
+    if (enc0.wasClicked())
     {
-      if (1 == state)
+      // see if object provides any MIDI parameters
+      if (aoi->objP->editFn(aoi, AudioEditMode::MIDIenter, nullptr))
       {
-        state = 0;
-        // see if object provides any MIDI parameters
-        if (aoi->objP->editFn(aoi, AudioEditMode::MIDIenter, nullptr))
-        {
-          inTarget = true;
-          enc0Stash = new LimitedEncoderStash(enc0);
-          lockModeEncoder();
-        }
+        inTarget = true;
+        enc0Stash = new LimitedEncoderStash(enc0);
+        lockModeEncoder();
       }
     }
   }
@@ -1109,38 +1076,33 @@ FLASHMEM void DeleteEditor::edit(void)
     highlight(-1, epIdx);
   }
 
-  if (enc0.getButton())
-    state = 1;
-  else
+  if (enc0.wasClicked())
   {
-    if (1 == state)
+    switch (delType) // time to delete a thing!
     {
-      state = 0;
-      switch (delType) // time to delete a thing!
-      {
-        case delObj:
-          {
-            kill(epIdx);
-          }
-          break;
+      case delObj:
+        {
+          kill(epIdx);
+        }
+        break;
 
-        case delCord:
-          {
-            PatchcordInstance_t* ppc = cordVec.at(epIdx);
-            display.DrawPatchcord(ppc, ILI9341_BLACK);
-            delete ppc;
-            cordVec.erase(std::next(cordVec.begin(), epIdx));
-            enc0.setLimits(0, cordVec.size() - 1);
-          }
-          break;
-      }
-      Serial.printf("We have %d objects and %d patchcords\n", objVec.size(), cordVec.size());
-
-      // selection has changed, update display
-      epIdx = enc0.getValue();
-      highlight(-1, epIdx);
+      case delCord:
+        {
+          PatchcordInstance_t* ppc = cordVec.at(epIdx);
+          display.DrawPatchcord(ppc, ILI9341_BLACK);
+          delete ppc;
+          cordVec.erase(std::next(cordVec.begin(), epIdx));
+          enc0.setLimits(0, cordVec.size() - 1);
+        }
+        break;
     }
+    Serial.printf("We have %d objects and %d patchcords\n", objVec.size(), cordVec.size());
+
+    // selection has changed, update display
+    epIdx = enc0.getValue();
+    highlight(-1, epIdx);
   }
+  
 }
 
 
@@ -1849,84 +1811,79 @@ FLASHMEM void FileBase::edit(void)
   if (enc0.available())
     showMode();
 
-  if (enc0.getButton())
-    state = 1;
-  else
+  if (enc0.wasClicked())
   {
-    if (1 == state)
+    switch (mode)
     {
-      switch (mode)
-      {
-        case mode_e::save:
-          save(fileName);
-          Serial.printf("\nCheck load of patch %s:\n", fileName);
-          dump(fileName);
-          Serial.println("---------------\n");
-          break;
+      case mode_e::save:
+        save(fileName);
+        Serial.printf("\nCheck load of patch %s:\n", fileName);
+        dump(fileName);
+        Serial.println("---------------\n");
+        break;
 
-        case mode_e::load:
+      case mode_e::load:
+        {
+          FileListEntry& entry = fileList.at(enc1.getValue());
+
+          if (entry.isDir)
           {
-            FileListEntry& entry = fileList.at(enc1.getValue());
-
-            if (entry.isDir)
+            bool reRead = false;
+            if (entry.name == "..") // go up one level, if possible
             {
-              bool reRead = false;
-              if (entry.name == "..") // go up one level, if possible
-              {
-                char* lastSlash = strrchr(filePath, '/');
+              char* lastSlash = strrchr(filePath, '/');
 
-                if (lastSlash != filePath)
-                {
-                  if (nullptr == lastSlash) // no path separator...
-                    lastSlash = filePath;   // ... path has become empty
-                  *lastSlash = 0;
-                  reRead = true;
-                }
-              }
-              else // entry is sub-directory
+              if (lastSlash != filePath)
               {
-                const size_t BUF_LEN = basePathLen + 1 + MAX_FILE_PATH + 1 + MAX_FILE_NAME + 1;
-                char buf[BUF_LEN];
-
-                sprintf(buf, "%s/%s", filePath, entry.name.c_str()); // append path element
-                if (buf[0] == '/') // old path was empty
-                  strcpy(filePath, buf + 1); // don't prepend /
-                else
-                  strcpy(filePath, buf);
+                if (nullptr == lastSlash) // no path separator...
+                  lastSlash = filePath;   // ... path has become empty
+                *lastSlash = 0;
                 reRead = true;
               }
-
-              if (reRead) // changed directory
-                showMode(true);
             }
-            else
+            else // entry is sub-directory
             {
-              strcpy(fileName, entry.name.c_str());
-              idx = strlen(fileName);
-              fileDisplay.RestoreArea();
-              keyboardVisible = false;
-              load(fileName);
-              setLast(fileName);
-              Serial.println("---------------\n");
-              delay(250);
-              showMode(false);
-            }
-          }
-          break;
+              const size_t BUF_LEN = basePathLen + 1 + MAX_FILE_PATH + 1 + MAX_FILE_NAME + 1;
+              char buf[BUF_LEN];
 
-        case mode_e::del:
-          if (!fileList.at(enc1.getValue()).isDir)
+              sprintf(buf, "%s/%s", filePath, entry.name.c_str()); // append path element
+              if (buf[0] == '/') // old path was empty
+                strcpy(filePath, buf + 1); // don't prepend /
+              else
+                strcpy(filePath, buf);
+              reRead = true;
+            }
+
+            if (reRead) // changed directory
+              showMode(true);
+          }
+          else
           {
-            Serial.printf("Delete %s/%s\n", filePath, fileList.at(enc1.getValue()).name.c_str());
-            del(fileList.at(enc1.getValue()).name.c_str());
-            fileList.erase(fileList.begin() + enc1.getValue());
-            enc1.setLimits(0, fileList.size()-1);
+            strcpy(fileName, entry.name.c_str());
+            idx = strlen(fileName);
+            fileDisplay.RestoreArea();
+            keyboardVisible = false;
+            load(fileName);
+            setLast(fileName);
+            Serial.println("---------------\n");
+            delay(250);
             showMode(false);
           }
-          break;
-      }
-      state = 0;
+        }
+        break;
+
+      case mode_e::del:
+        if (!fileList.at(enc1.getValue()).isDir)
+        {
+          Serial.printf("Delete %s/%s\n", filePath, fileList.at(enc1.getValue()).name.c_str());
+          del(fileList.at(enc1.getValue()).name.c_str());
+          fileList.erase(fileList.begin() + enc1.getValue());
+          enc1.setLimits(0, fileList.size()-1);
+          showMode(false);
+        }
+        break;
     }
+    state = 0;
   }
 
   // scroll through file list, if we're not on the "save" screen

@@ -19,15 +19,7 @@ extern AudioObjStatic_t objList[];
 #define COUNT_OF(a) (sizeof a / sizeof a[0])
 #endif // !defined(COUNT_OF)
 
-/*
-extern bool ScaleF(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filter);
-extern bool ScaleFreq(const ParamEntry& pe, ParamValue& pv, int16_t raw, int16_t pow2, float filter);
-extern ;
-extern ;
-extern ;
-extern ;
-extern ;
-*/
+
 extern void HookControl(M5w_8angle& ctrl, int ch, const ParamEntry& pe, ParamValue& pv);
 extern bool Scale(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filter);
 
@@ -35,22 +27,45 @@ extern bool Scale(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filte
 template<class Tctxt>
 class FileLoader : public FileBase
 {
-  public:    
-    FileLoader(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2, 
+  public:
+    FileLoader(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2,
             AudioPatcherDisplay& d,
-            const char* bp, const char* fe, 
+            const char* bp, const char* fe,
             mode_e m,
             Tctxt& c
             )
             : FileBase(e0,e1,e2,d,bp,fe,m),
             context(c)
             {}
-    virtual ~FileLoader() {};            
+    virtual ~FileLoader() {};
     Tctxt& context;
-    void load(const char* nme) 
+    void load(const char* nme)
     { 
       //context.arbWAVloaded = context.arbWAV.load(basePath,filePath,nme,".snd"); 
       context.load(basePath,filePath,nme,fileExtn);
+    };
+};
+
+class ContextWavetable;
+class InstrumentPicker : public FileBase
+{
+  public:
+    InstrumentPicker(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2,
+            AudioPatcherDisplay& d,
+            ContextWavetable& c
+            )
+            : FileBase(e0,e1,e2,d,"","",FileBase::mode_e::load),
+            context(c)
+            {}
+    virtual ~InstrumentPicker() {};
+    void createFileList(const char* path, mode_e mode);
+    void clearFileList(void);
+    void loadInstrument(const char* nme);
+    
+    ContextWavetable& context;
+    void load(const char* nme)
+    { 
+      loadInstrument(nme);
     };
 };
 
@@ -517,7 +532,6 @@ class ContextBase
                 int nParam, ParamValue* ppv, const ParamEntry* ppe, const ParamPage* ppg = nullptr,
                 int nMIDI = 0, ParamValue* pmv = nullptr, const ParamEntry* pme = nullptr) 
       : aoi(_aoi),
-        encPressed{-1},
         paramCount(nParam),    params(ppe),     aray(ppv),      pages(ppg),
         MIDIparamCount(nMIDI), MIDIparams(pme), MIDIvalues(pmv)
       {}
@@ -526,8 +540,8 @@ class ContextBase
     virtual void copyParamsTo(ContextBase& dst);
 
     AudioObjInstance& aoi;
-    int encPressed;
     static constexpr int ARBWAV_PARAM = 0xCAFED00D;
+    static constexpr int WTINST_PARAM = ARBWAV_PARAM+1;
     // ------ stream object settings ----------
     const size_t paramCount;
     const ParamEntry* params;
@@ -901,7 +915,7 @@ class ContextWaveform : public ContextBase, public ContextWaveformBase<AudioSynt
     ContextWaveform(AudioObjInstance& _aoi) : ContextBase(
               _aoi, COUNT_OF(_params), &s.waveform, _params, nullptr,
               COUNT_OF(MIDIparams), &m.octave, MIDIparams),
-            fileSelector{nullptr} 
+            fileSelector{nullptr}
     {
       display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h);
     }
@@ -948,7 +962,7 @@ class ContextWaveformModulated
   public:
     ContextWaveformModulated(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.waveform, _params, nullptr, 
                                             COUNT_OF(MIDIparams), &m.octave, MIDIparams),
-                                 fileSelector{nullptr} 
+                                 fileSelector{nullptr}
     {
       display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h);
     }
@@ -980,16 +994,17 @@ class ContextWavetable : public ContextBase
                   COUNT_OF(_params), &s.sf2file, _params, nullptr, 
                   COUNT_OF(MIDIparams), &m.octave, MIDIparams),
                 sf2path{nullptr}, sf2file{nullptr}, instName{nullptr},
-                instrument{&Harp}, fileSelector{nullptr} 
+                instrument{&Harp}, 
+                fileSelector{nullptr}, instSelector{nullptr}
     {
       display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h); // edit box is file selector sized
-      arbWAV.reset();
+      arbWAV.reset(&s.index.value.i);
       aoi.streamP.Wavetable->setInstrument(*arbWAV.sampleData); // set default instrument
     }
 
     ~ContextWavetable() 
     {
-      arbWAV.reset();
+      arbWAV.reset(nullptr);
       aoi.streamP.Wavetable->setInstrument(*arbWAV.sampleData);
     }
 
@@ -1013,6 +1028,7 @@ class ContextWavetable : public ContextBase
     const char* const root = "/soundfonts";
     const char* const extn = ".sf2";
     FileLoader<ContextWavetable>* fileSelector;
+    InstrumentPicker* instSelector;
     // Provide FileSelector with a load() method
     void load(const char*b, const char*p, const char*l, const char*e)
     {
