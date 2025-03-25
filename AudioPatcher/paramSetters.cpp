@@ -1067,7 +1067,7 @@ FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::emptyInstrumen
   Reset wavetable instrument to safe value, and 
   free the memory it's using.
 */
-FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::reset(int* pIdx)
+FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::reset(void)
 {
   AudioSynthWavetable::instrument_data* oldArbWAV = sampleData;
 
@@ -1078,8 +1078,6 @@ FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::reset(int* pId
             (char*) "/<Harp>.",0,true,-1);
     //free((void*) oldArbWAV);  // free the memory
   }
-  if (nullptr != pIdx)
-    pIndex = pIdx;
 }
 
 /*

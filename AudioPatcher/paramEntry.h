@@ -17,15 +17,11 @@ class arbWAVrecordBase
 {
   public:
     arbWAVrecordBase() 
-      : path{nullptr}, pIndex{nullptr}, recSize{0}, loaded{false} 
+      : path{nullptr}, recSize{0}, loaded{false} 
       {}
     char* path;        // where it was loaded from
-    int* pIndex;       // index in instrument file (SF2 only)
     size_t recSize;
     bool loaded;
-
-    int  getIndex(void)  { return nullptr==pIndex?-1:*pIndex; }
-    void setIndex(int n) { if (nullptr!=pIndex) *pIndex = n; }
 
     // Load arbitrary waveform using separate path elements
     bool load(const char* base, const char* path, const char* nme, const char* extn)
@@ -59,11 +55,10 @@ class arbWAVrecord : public arbWAVrecordBase
     char* prepare(size_t pathLen) override;
     void reset(void) override; // reset to default waveform
     bool isDefault(void) override;
-    void setAll(Tdata* s, char* p, size_t sz, bool l, int i = -1)
+    void setAll(Tdata* s, char* p, size_t sz, bool l)
     {
       sampleData = s; 
       path = p;
-      setIndex(i);
       recSize = sz;
       loaded = l;
     }
@@ -116,10 +111,14 @@ class arbWAVrecord<AudioSynthWavetable::instrument_data>
   : public arbWAVrecordBase
 {
   public:
-    arbWAVrecord() 
-      : sampleData{nullptr}
+    arbWAVrecord(int& ri) 
+      : rIndex{ri}, sampleData{nullptr}
       {}
 
+      int& rIndex;       // index in instrument file (SF2 only)
+      int  getIndex(void)  { return rIndex; }
+      void setIndex(int n) { rIndex = n; }
+  
     SF22ASWTreader sf22aswt;
     AudioSynthWavetable::instrument_data* sampleData; // actual wavetable instrument
     std::vector<instEntryPtr> instList;
@@ -133,8 +132,7 @@ class arbWAVrecord<AudioSynthWavetable::instrument_data>
       return loaded;
     }
     char* prepare(size_t pathLen) override;
-    void reset(void) override { reset(nullptr); } // reset to default waveform
-    void reset(int* pIdx);
+    void reset(void) override; // reset to default waveform
     bool isDefault(void) override;
     void setAll(AudioSynthWavetable::instrument_data* s, 
                 char* p, size_t sz, bool l, int i = -1)

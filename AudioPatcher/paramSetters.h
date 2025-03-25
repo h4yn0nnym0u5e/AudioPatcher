@@ -995,16 +995,17 @@ class ContextWavetable : public ContextBase
                   COUNT_OF(MIDIparams), &m.octave, MIDIparams),
                 sf2path{nullptr}, sf2file{nullptr}, instName{nullptr},
                 instrument{&Harp}, 
-                fileSelector{nullptr}, instSelector{nullptr}
+                fileSelector{nullptr}, instSelector{nullptr},
+                arbWAV{s.index.value.i}
     {
       display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h); // edit box is file selector sized
-      arbWAV.reset(&s.index.value.i);
+      arbWAV.reset();
       aoi.streamP.Wavetable->setInstrument(*arbWAV.sampleData); // set default instrument
     }
 
     ~ContextWavetable() 
     {
-      arbWAV.reset(nullptr);
+      arbWAV.reset();
       aoi.streamP.Wavetable->setInstrument(*arbWAV.sampleData);
     }
 
