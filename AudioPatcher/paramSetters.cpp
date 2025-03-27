@@ -3,17 +3,31 @@
 #include "paramSetters.h"
 #include "limitedEncoder.h"
 
+#include <sf22aswt.h>
+AudioSynthWavetable::instrument_data *wt_inst;
+SF22ASWTreader sf22aswt;
+
 extern M5w_8angle ctrl;
 #define M5ANGLE_MIN   20
 #define M5ANGLE_MAX 4080
 
-// #define BOX_DEF(width,lines) (320/2 - (width)/2),(240/2 - (27+(lines)*16+16)/2),(width),(27+(lines)*16+16)
+
+/*
+ * For some reason putting ParamEntry values in PROGMEM
+ * worked briefly, then started giving Data Access violations
+ * at boot. Startup trying to "initialise" when that's not
+ * needed? Dunno.
+ * 
+ * TODO: figure out a way around this, if possible
+ */
+#undef PROGMEM
+#define PROGMEM
 
 //===========================================================================================
 SettingsEditor* settingsEditor;
 const float LOG_NOTE_A = 0.781359714f;           // frac(log2(440.0)) - 
 const float MIDDLE_C = 16.3515978312875f*16.0f;  // middle C in Hz
-PROGMEM const ParamEntry freqLimits{nullptr,-1.0f,1.0f}; // special, for setting hook control
+/* PROGMEM constexpr */ ParamEntry freqLimits{nullptr,-1.0f,1.0f}; // special, for setting hook control
 
 //===========================================================================================
 size_t milliseconds2bytes(float ms) { return 2*AUDIO_SAMPLE_RATE_EXACT*ms/1000.0f; }
@@ -230,6 +244,7 @@ FLASHMEM int editGetParamsAny(const ParamEntry* params, const ParamValue* aray, 
       case 'r':
       case 'i': off = sprintf(ptr,"%d,",aray[i].value.i); break;
       case 's': off = sprintf(ptr,"%s,",aray[i].value.s); break;
+      case 't':
       case 'w': off = sprintf(ptr,"%s,",aray[i].value.w->path); break;
     }
 
@@ -284,6 +299,7 @@ FLASHMEM int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const 
 
       // string or arbitrary waveform (*arbWAVrecord)
       case 's':
+      case 't':
       case 'w':
         off = 0; // skip parameter if we fail (This Never Happens)
         do 
@@ -291,25 +307,25 @@ FLASHMEM int editSetParamsAny(const ParamEntry* params, ParamValue* aray, const 
           char* mem, *path;
           size_t spaceNeeded;
 
-Serial.printf("Parsing <%s> ... ",ptr); Serial.flush();
           // find comma that terminates the string
           char* comma = strchr(ptr,',');
-Serial.printf("comma at %08X vs %08X ... ",comma,ptr); Serial.flush();
           if (nullptr == comma) // oh heck - now what?
             break;
-          
+
+          // remove leading spaces
+          while (' ' == *ptr && ptr != comma)
+            ptr++;
+
           // allocate space to store it
-          if ('w' == params[i].ValType)
+          if ('s' != params[i].ValType)
           {
             mem = aray[i].value.w->prepare(comma - ptr);
-Serial.printf("prepared %d ... ",aray[i].value.w->recSize); Serial.flush();
             path = aray[i].value.w->path;
           }
           else
           {            
             spaceNeeded = comma - ptr + 1;
             spaceNeeded = (spaceNeeded + 16 ) & ~16;
-Serial.printf("needs %d ... ",spaceNeeded); Serial.flush();
             mem = (char*) malloc(spaceNeeded); // just enough space
             path = mem;
           }
@@ -321,13 +337,11 @@ Serial.printf("needs %d ... ",spaceNeeded); Serial.flush();
           memcpy(path,ptr,comma-ptr); // sscanf can't do this job ...
           path[comma-ptr] = 0; // .. do it ourselves, with terminator...
           off = comma-ptr+1;
-Serial.printf("used %d characters ... ",off); Serial.flush();
 
-          if ('w' == params[i].ValType)
+          if ('s' != params[i].ValType)
           {
             // it's a path to an arbitrary waveform, which
             // hasn't yet been loaded in
-Serial.printf("load to %08X ... ",aray[i].value.w); Serial.flush();
             aray[i].value.w->loaded = false;
             Serial.printf("%s = <%s> ... ",params[i].label,aray[i].value.w->path);
           }
@@ -396,7 +410,7 @@ FLASHMEM void ContextBitcrusher::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-PROGMEM const ParamEntry ContextBitcrusher::_params[2] = 
+PROGMEM constexpr ParamEntry ContextBitcrusher::_params[2] = 
 {
   {"       bits", 1, 16},
   {"sample rate", AUDIO_SAMPLE_RATE, 50},
@@ -440,7 +454,7 @@ FLASHMEM void ContextChorus::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-PROGMEM const ParamEntry ContextChorus::_params[2] = 
+PROGMEM constexpr ParamEntry ContextChorus::_params[2] = 
 {
   {"length [ms]", 10.0f, 200.0f},
   {"     voices", 1, 20},
@@ -537,7 +551,7 @@ FLASHMEM void ContextFlange::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-PROGMEM const ParamEntry ContextFlange::_params[4] = 
+PROGMEM constexpr ParamEntry ContextFlange::_params[4] = 
 {
   {"length [ms]", 10.0f, 200.0f},
   {"     offset", 0.0f,  1.0f},
@@ -601,7 +615,7 @@ FLASHMEM void ContextFreeverb::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-PROGMEM const ParamEntry ContextFreeverb::_params[2] = 
+PROGMEM constexpr ParamEntry ContextFreeverb::_params[2] = 
 {
   {"room size", 0.0f, 1.0f},
   {"  damping", 0.0f, 1.0f},
@@ -623,7 +637,7 @@ FLASHMEM void ContextFreeverbStereo::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-PROGMEM const ParamEntry ContextFreeverbStereo::_params[2] = 
+PROGMEM constexpr ParamEntry ContextFreeverbStereo::_params[2] = 
 {
   {"room size", 0.0f, 1.0f},
   {"  damping", 0.0f, 1.0f},
@@ -644,7 +658,7 @@ FLASHMEM void ContextReverb::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-PROGMEM const ParamEntry ContextReverb::_params[1] = 
+PROGMEM constexpr ParamEntry ContextReverb::_params[1] = 
 {
   {"reverb time", 0.0f, 10.0f},
 };
@@ -661,7 +675,7 @@ FLASHMEM void ContextMixer4::setParam(int i, AudioObjInstance* aoi)
   aoi->streamP.Mixer4->gain(i,gains[i].value.f); 
 }
 
-PROGMEM const ParamEntry ContextMixer4::_params[4] = 
+PROGMEM constexpr ParamEntry ContextMixer4::_params[4] = 
 {
   {"ch1", 0.0f, 1.0f},
   {"ch2", 0.0f, 1.0f},
@@ -669,7 +683,7 @@ PROGMEM const ParamEntry ContextMixer4::_params[4] =
   {"ch4", 0.0f, 1.0f},
 };
 
-PROGMEM const ParamEntry ContextMixer4::MIDIparams[4] = 
+PROGMEM constexpr ParamEntry ContextMixer4::MIDIparams[4] = 
 {
   {"CC1", -1, 119}, 
   {"CC2", -1, 119}, 
@@ -759,7 +773,7 @@ FLASHMEM void ContextMixerStereo::setParam(int i, AudioObjInstance* aoi)
 
 const ParamPage ContextMixerStereo::_pages[3] {{0,8},{8,8},{16,4}};
 
-PROGMEM const ParamEntry ContextMixerStereo::_params[20] = 
+PROGMEM constexpr ParamEntry ContextMixerStereo::_params[20] = 
 {
   {"ch1", 0.0f, 1.0f}, {"pan1", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
   {"ch2", 0.0f, 1.0f}, {"pan2", -1.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
@@ -809,7 +823,7 @@ FLASHMEM void ContextMixer::setParam(int i, AudioObjInstance* aoi)
 
 const ParamPage ContextMixer::_pages[2] {{0,8},{8,2}};
 
-PROGMEM const ParamEntry ContextMixer::_params[10] = 
+PROGMEM constexpr ParamEntry ContextMixer::_params[10] = 
 {
   {"ch1", 0.0f, 1.0f}, 
   {"ch2", 0.0f, 1.0f, EDIT_MIXER_STEREO_PAN_OFF},
@@ -830,6 +844,314 @@ FLASHMEM int editMixer(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 
+
+
+//======================================================================
+//======================================================================
+//
+//                   888      888       888        d8888 888     888 
+//                   888      888   o   888       d88888 888     888 
+//                   888      888  d8b  888      d88P888 888     888 
+//   8888b.  888d888 88888b.  888 d888b 888     d88P 888 Y88b   d88P 
+//      "88b 888P"   888 "88b 888d88888b888    d88P  888  Y88b d88P  
+//  .d888888 888     888  888 88888P Y88888   d88P   888   Y88o88P   
+//  888  888 888     888 d88P 8888P   Y8888  d8888888888    Y888P    
+//  "Y888888 888     88888P"  888P     Y888 d88P     888     Y8P     
+//  
+//======================================================================
+template<> bool arbWAVrecord<int16_t>::isDefault(void) {return sampleData == arbWAV_sax; }
+
+/*
+ * Load arbitrary waveform using given complete path
+ */
+template<>
+FLASHMEM bool arbWAVrecord<int16_t>::load(const char* buf)
+{
+  bool result = false;
+  int16_t tmp[256]; // temporary space for the waveform
+  size_t spaceNeeded = sizeof tmp + strlen(buf) + 1;
+  File f;
+
+  //Serial.printf("Load %s\n",buf); Serial.flush();
+
+  spaceNeeded = (spaceNeeded + 16) & ~16; // round up a bit
+  do
+  {
+    int16_t* mem = sampleData;
+    char* path;
+
+    // open the file
+    f = SD.open(buf,FILE_READ);
+    if (!f) break;
+
+    // read the file
+    if (sizeof tmp != f.read(tmp, sizeof tmp)) 
+      break;
+
+    // allocate storage if necessary
+    if (arbWAV_sax == sampleData // using default...
+      || recSize < spaceNeeded)  // ...or not enough space
+    {        
+      mem = (int16_t*) malloc(spaceNeeded);
+      if (nullptr == mem)
+        break;
+      reset();
+    }
+    path = (char*) mem + sizeof tmp;
+
+    // copy the data and point to it
+    memcpy(mem,tmp,sizeof tmp); // get sample data
+    strcpy(path, buf);          // and where it was loaded from
+    setAll(mem, path, spaceNeeded, true);
+    result = true;
+    
+  } while (0);
+
+  if (f)
+    f.close();
+  
+  return result;
+}
+
+
+/*
+  Reset arbitrary waveform to safe value, and 
+  free the memory it's using.
+*/
+template<>
+FLASHMEM void arbWAVrecord<int16_t>::reset(void)
+{
+  int16_t* oldArbWAV = sampleData;
+
+  if (arbWAV_sax != oldArbWAV)
+  {
+    setAll((int16_t*) arbWAV_sax,(char*) "/<sax>.",0,true); // reset to safe default
+    free((void*) oldArbWAV);  // free the memory
+  }
+}
+
+
+/*
+  Prepare memory to store waveform and its source path
+  \return pointer to memory; may be nullptr
+*/
+template<>
+FLASHMEM char* arbWAVrecord<int16_t>::prepare(size_t pathLen)
+{
+  // allocate space to store it
+  char* mem = (char*) sampleData; // assume we can use what we have
+  size_t spaceNeeded = ARB_WAV_SAMPLES*sizeof *sampleData + pathLen + 1;
+  spaceNeeded = (spaceNeeded + 16 ) & ~16;
+
+  if (isDefault() || spaceNeeded > recSize)
+  {
+    mem = (char*) malloc(spaceNeeded); // just enough space
+    if (!isDefault())   // old space was allocated...
+      free(sampleData); // ...so free it
+
+    // update to show new allocation size
+    if (nullptr != mem)
+    {
+      sampleData = (int16_t*) mem;
+      path = (char*) (sampleData+ARB_WAV_SAMPLES);
+      *path = 0;
+      recSize = spaceNeeded;
+    }
+    else
+    {
+      sampleData = nullptr;
+      path = nullptr;
+      recSize = 0;      
+    }
+    loaded = false;
+  }
+
+  return mem;
+}
+
+//======================================================================
+/*
+ * Note the following are NOT template specializations:
+ * the class has already been specialized, so these are
+ * straight class methods.
+ */
+bool arbWAVrecord<AudioSynthWavetable::instrument_data>::isDefault(void) {return sampleData == &Harp; }
+/*
+ * Load wavetable instrument using given complete path
+ */
+FLASHMEM bool arbWAVrecord<AudioSynthWavetable::instrument_data>::load(const char* buf)
+{
+  bool result = false;
+  size_t spaceNeeded = strlen(buf) + 1;
+  File f;
+
+  //Serial.printf("Load %s\n",buf); Serial.flush();
+
+  spaceNeeded = (spaceNeeded + 16) & ~16; // round up a bit
+  do
+  {
+    char* filePath = path;
+
+    // allocate storage if necessary
+    if (recSize < spaceNeeded)  // not enough space
+    {        
+      filePath = (char*) malloc(spaceNeeded);
+      if (nullptr == filePath)
+        break;
+      reset();
+    }
+    path = filePath;
+
+    // copy the data and point to it
+    //memcpy(mem,tmp,sizeof tmp); // get sample data
+    strcpy(path, buf);          // and where it was loaded from
+    setAll(nullptr, path, spaceNeeded, false, getIndex());
+
+    result = true;
+    
+  } while (0);
+  
+  return result;
+}
+
+FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::instListAddEntry(SF22ASWT::inst_rec& inst)
+{
+  instEntryPtr item{new instEntry(idx++,String(inst.achInstName))};
+  //item->index = idx++;
+  //item->name = new String(inst.achInstName);
+  instList.push_back(item);
+  //Serial.printf("At %08X: #%d: %s\n", (uint32_t) item.p, item.p->index, item.p->name.c_str()); Serial.flush();
+}
+
+
+FLASHMEM static void instListAddEntry(SF22ASWT::inst_rec& inst, void* params)
+{
+  arbWAVrecord<AudioSynthWavetable::instrument_data>* id = (arbWAVrecord<AudioSynthWavetable::instrument_data>*) params;
+  id->instListAddEntry(inst);
+}
+
+
+FLASHMEM bool operator<(const instEntryPtr& lhs, const instEntryPtr& rhs )
+{ 
+  return lhs.p->name < rhs.p->name; 
+}
+
+
+FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::getInstrumentList(void)
+{
+  sf22aswt.ReadFile(path);
+  idx = 0;
+  sf22aswt.ProcessInstrumentList(::instListAddEntry,this);
+  //Serial.println();
+  std::stable_sort(instList.begin(),instList.end());
+  /*
+  for (auto e : instList)
+  {
+    Serial.printf("#%d: %s\n", e.p->index, e.p->name.c_str());
+  }
+    */
+}
+
+FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::emptyInstrumentList(void)
+{
+  while (instList.size() > 0)
+  {
+    instEntryPtr entry = instList.back();
+    //Serial.printf("Delete %08X\n", (uint32_t) entry.p); Serial.flush();
+    delete entry.p;
+    instList.pop_back();
+  }
+}
+
+/*
+  Reset wavetable instrument to safe value, and 
+  free the memory it's using.
+*/
+FLASHMEM void arbWAVrecord<AudioSynthWavetable::instrument_data>::reset(void)
+{
+  AudioSynthWavetable::instrument_data* oldArbWAV = sampleData;
+
+  if (&Harp != oldArbWAV)
+  {
+    free(path);
+    setAll((AudioSynthWavetable::instrument_data*) &Harp, // reset to safe default
+            (char*) "/<Harp>.",0,true,-1);
+    //free((void*) oldArbWAV);  // free the memory
+  }
+}
+
+/*
+  Prepare memory to store wavetable instrument and its source path
+  \return pointer to memory; may be nullptr
+*/
+FLASHMEM char* arbWAVrecord<AudioSynthWavetable::instrument_data>::prepare(size_t pathLen)
+{
+  // allocate space to store it
+  char* mem = (char*) path; // assume we can use what we have
+  size_t spaceNeeded = pathLen + 1;
+  spaceNeeded = (spaceNeeded + 16 ) & ~16;
+
+  if (isDefault() || spaceNeeded > recSize)
+  {
+    mem = (char*) malloc(spaceNeeded); // just enough space
+    // if (!isDefault())   // old space was allocated...
+    //  free(sampleData); // ...so free it
+
+    // update to show new allocation size
+    if (nullptr != mem)
+    {
+      sampleData = nullptr;
+      path = mem;
+      *path = 0;
+      recSize = spaceNeeded;
+    }
+    else
+    {
+      sampleData = nullptr;
+      path = nullptr;
+      recSize = 0;      
+    }
+    loaded = false;
+  }
+
+  return mem;
+}
+
+void InstrumentPicker::createFileList(const char* path, mode_e mode)
+{
+  context.arbWAV.getInstrumentList();
+  for (auto e : context.arbWAV.instList)
+    fileList.push_back({e.p->name,false,e.p->index});
+}
+
+void InstrumentPicker::clearFileList(void)
+{
+  context.arbWAV.emptyInstrumentList();
+  fileList.clear();
+}
+
+void InstrumentPicker::loadInstrument(const char* nme)
+{
+  arbWAVrecord<AudioSynthWavetable::instrument_data>& arb = context.arbWAV;
+  arb.setIndex(fileList.at(enc1.getValue()).index); // cheat a bit here...
+
+  // Serial.printf("InstrumentPicker::load(%s) - index %d\n", nme, arb.getIndex());
+  context.arbWAVloaded = arb.loadInstrument();
+
+  /*
+  if (context.arbWAVloaded)
+    Serial.printf("Loaded to %08X\n", (uint32_t) arb.sampleData);
+  else
+    Serial.println("Failed");
+  Serial.flush();    
+  */
+}
+
+
+//======================================================================
+//======================================================================
+
+
 //===========================================================================================
 const ParamChoice velocityShapes[] 
   {{"linear", 0},
@@ -843,7 +1165,7 @@ const ParamChoice tuningTypes[]
    {"Hammond", 1},
   };
 
-PROGMEM const ParamEntry ContextWaveformModulated::MIDIparams[] 
+PROGMEM constexpr ParamEntry ContextWaveformModulated::MIDIparams[] 
 {
   {"   octave", 0, 9}, // middle C = 261.63Hz = note#60 = octave 4
   {"   detune", -6.00f, +6.00f}, // semitones / cents
@@ -871,7 +1193,7 @@ const ParamChoice waveShapes[13] =
 ParamChoice modTypes[] = {{"frequency",0},{"phase",1}};
 
 
-PROGMEM const ParamEntry ContextWaveformModulated::_params[7] = 
+PROGMEM constexpr ParamEntry ContextWaveformModulated::_params[7] = 
 {
   {" waveform", PARAM_ENTRY_CHOICES(waveShapes)},
   {"frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
@@ -907,7 +1229,7 @@ FLASHMEM void ContextWaveformModulated::setParam(int i, AudioObjInstance* aoi)
     case 7:
     case ARBWAV_PARAM:
     {
-      arbWAVrecord& arb = *s.arbWAV.value.w;
+      arbWAVrecord<int16_t>& arb = *s.arbWAV.value.w;
 
       if (arb.loadIfNeeded())
         aoi->streamP.WaveformModulated->arbitraryWaveform(arb.sampleData,10000.0f);
@@ -972,6 +1294,41 @@ bool selectArbWAVfile(Tctxt* myContext, AudioObjInstance* aoi)
   return result;
 }
 
+
+template<class Tctxt>
+bool selectInstrument(Tctxt* myContext, AudioObjInstance* aoi)
+{
+  bool result = false;
+
+  if (nullptr != myContext->instSelector)
+  {
+    static uint32_t exitAt = 0; // flag to track "exit" encoder button state
+    int keepChoosing = testExit(exitAt);
+
+    myContext->instSelector->edit();
+
+    if (myContext->arbWAVloaded || !keepChoosing) // user selected a different wave, or quit...
+    {
+      if (myContext->arbWAVloaded)
+        myContext->setParam(ContextWaveformModulated::WTINST_PARAM,aoi);  // ...tell the object about it
+      myContext->instSelector->exit();
+      delete myContext->instSelector;
+      myContext->instSelector = nullptr;
+
+      //myContext->s.index.value.i = myContext->arbWAV.index;
+
+      // fix up the display
+      settingsEditor->InitArea();
+      settingsEditor->Init(aoi->objP->name);
+      // restore settings and encoder limits
+      enterEditMode(myContext,aoi);
+    }
+    result = true; // file selector is or was active
+  }
+
+  return result;
+}
+
 /*
  * Poll encoder button used to enter arbitrary waveform file
  * selection dialogue
@@ -981,24 +1338,39 @@ bool pollFileSelect(Tctxt* myContext, LimitedEncoder& enc)
 {
   bool result = false;
 
-  if (enc.getButton())
-    myContext->encPressed = 0;
-  else
+  if (enc.wasClicked())
   {
-    if (0 == myContext->encPressed)
-    {
-      myContext->encPressed = -1;
-      myContext->fileSelector = new FileLoader(enc0,enc1,enc2,
-                                          settingsEditor->display,
-                                          "/arbWavs", ".snd", 
-                                          FileBase::mode_e::load,
-                                          *myContext);
-      myContext->fileSelector->enter(false); // area is already saved, don't repeat that
-      myContext->arbWAVloaded = false;
-      result = true;
-    }
+    myContext->fileSelector = new FileLoader(enc0,enc1,enc2,
+                                        settingsEditor->display,
+                                        myContext->root, myContext->extn, 
+                                        FileBase::mode_e::load,
+                                        *myContext);
+    myContext->fileSelector->enter(false); // area is already saved, don't repeat that
+    myContext->arbWAVloaded = false;
+    result = true;
   }
+  
+  return result;
+}
 
+/*
+ * Poll encoder button used to enter arbitrary waveform file
+ * selection dialogue
+ */
+bool pollInstSelect(ContextWavetable* myContext, LimitedEncoder& enc)
+{
+  bool result = false;
+
+  if (enc.wasClicked())
+  {
+    myContext->instSelector = new InstrumentPicker(enc0,enc1,enc2,
+                                        settingsEditor->display,
+                                        *myContext);
+    myContext->instSelector->enter(false); // area is already saved, don't repeat that
+    myContext->arbWAVloaded = false;
+    result = true;
+  }
+  
   return result;
 }
 
@@ -1069,142 +1441,8 @@ FLASHMEM int editWaveformModulated(AudioObjInstance* aoi, AudioEditMode mode, vo
 }
 
 
-/*
- * Load arbitrary waveform using given complete path
- */
-FLASHMEM bool arbWAVrecord::load(const char* buf)
-{
-  bool result = false;
-  int16_t tmp[256]; // temporary space for the waveform
-  size_t spaceNeeded = sizeof tmp + strlen(buf) + 1;
-  File f;
-
-  Serial.printf("Load %s\n",buf); Serial.flush();
-
-  spaceNeeded = (spaceNeeded + 16) & ~16; // round up a bit
-  do
-  {
-    int16_t* mem = sampleData;
-    char* path;
-
-    // open the file
-    f = SD.open(buf,FILE_READ);
-    if (!f) break;
-
-    // read the file
-    if (sizeof tmp != f.read(tmp, sizeof tmp)) 
-      break;
-
-    // allocate storage if necessary
-    if (arbWAV_sax == sampleData // using default...
-      || recSize < spaceNeeded)  // ...or not enough space
-    {        
-      mem = (int16_t*) malloc(spaceNeeded);
-      if (nullptr == mem)
-        break;
-      reset();
-    }
-    path = (char*) mem + sizeof tmp;
-
-    // copy the data and point to it
-    memcpy(mem,tmp,sizeof tmp); // get sample data
-    strcpy(path, buf);          // and where it was loaded from
-    *this = {mem, path, spaceNeeded, true};
-    result = true;
-    
-  } while (0);
-
-  if (f)
-    f.close();
-  
-  return result;
-}
-
-
-/*
- * Load arbitrary waveform using separate path elements
- */
-FLASHMEM bool arbWAVrecord::load(const char* base, const char* path, const char* nme, const char* extn)
-{
-  char buf[100];
-
-  makeFFP(buf,base,path,nme,extn);
-  return load(buf);
-}
-
-/*
- * Load arbitrary waveform if it's not already been done
- * \returns true if it's available for use
- */
-FLASHMEM bool arbWAVrecord::loadIfNeeded(void)
-{
-  if (!loaded
-    && path != nullptr) // file hasn't been loaded
-  {
-    if (load(path))
-      Serial.printf("Set arbWAV from %s to %08X -> %08X; fingerprint %04.4X,%04.4X\n",
-                    path, this, sampleData,
-                    ((uint32_t) sampleData[0]) & 0xFFFF, 
-                    ((uint32_t) sampleData[1]) & 0xFFFF);
-  }
-  return loaded && nullptr != sampleData;
-}
-/*
-  Reset arbitrary waveform to safe value, and 
-  free the memory it's using.
-*/
-FLASHMEM void arbWAVrecord::reset(void)
-{
-  int16_t* oldArbWAV = sampleData;
-
-  if (arbWAV_sax != oldArbWAV)
-  {
-    *this = {(int16_t*) arbWAV_sax,(char*) "/<sax>.",0,true}; // reset to safe default
-    free((void*) oldArbWAV);  // free the memory
-  }
-}
-
-
-/*
-  Prepare memory to store waveform and its source path
-  \return pointer to memory; may be nullptr
-*/
-FLASHMEM char* arbWAVrecord::prepare(size_t pathLen)
-{
-  // allocate space to store it
-  char* mem = (char*) sampleData; // assume we can use what we have
-  size_t spaceNeeded = ARB_WAV_SAMPLES*sizeof *sampleData + pathLen + 1;
-  spaceNeeded = (spaceNeeded + 16 ) & ~16;
-Serial.printf("needs %d ... ",spaceNeeded); Serial.flush();
-
-  if (isDefault() || spaceNeeded > recSize)
-  {
-    mem = (char*) malloc(spaceNeeded); // just enough space
-    if (!isDefault())   // old space was allocated...
-      free(sampleData); // ...so free it
-
-    // update to show new allocation size
-    if (nullptr != mem)
-    {
-      sampleData = (int16_t*) mem;
-      path = (char*) (sampleData+ARB_WAV_SAMPLES);
-      *path = 0;
-      recSize = spaceNeeded;
-    }
-    else
-    {
-      sampleData = nullptr;
-      path = nullptr;
-      recSize = 0;      
-    }
-    loaded = false;
-  }
-
-  return mem;
-}
-
 //===========================================================================================
-PROGMEM const ParamEntry ContextKarplusStrong::MIDIparams[] 
+PROGMEM constexpr ParamEntry ContextKarplusStrong::MIDIparams[] 
 {
   {"   octave", 0, 9}, // middle C = 261.63Hz = note#60 = octave 4
   {"   detune", -6.00f, +6.00f}, // semitones / cents
@@ -1214,7 +1452,7 @@ PROGMEM const ParamEntry ContextKarplusStrong::MIDIparams[]
 };
 
 
-PROGMEM const ParamEntry ContextKarplusStrong::_params[2] = 
+PROGMEM constexpr ParamEntry ContextKarplusStrong::_params[2] = 
 {
   {"frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
   {"amplitude", 0.0f, 1.0f},
@@ -1293,12 +1531,12 @@ FLASHMEM int editKarplusStrong(AudioObjInstance* aoi, AudioEditMode mode, void* 
 //===========================================================================================
 
 //===========================================================================================
-PROGMEM const ParamEntry ContextWaveformDc::_params[] = {
+PROGMEM constexpr ParamEntry ContextWaveformDc::_params[] = {
   {"value", -1.0f, 1.0f},
 };
 
 
-PROGMEM const ParamEntry ContextWaveformDc::MIDIparams[]
+PROGMEM constexpr ParamEntry ContextWaveformDc::MIDIparams[]
 {                         // -3    -2     -1        0           1           2    ...
   {"CC number", -3, 119}, // off, note, velocity, bank select, modulation, breath...
   {"min", -1.00f, +1.00f},
@@ -1371,7 +1609,7 @@ void processMIDIevent<ContextWaveformDc>(AudioObjInstance* aoi, MIDIevent* ev)
 }
 
 //===========================================================================================
-PROGMEM const ParamEntry ContextNoise::_params[] = {
+PROGMEM constexpr ParamEntry ContextNoise::_params[] = {
   {"amplitude", 0.0f, 1.0f}
 };
 
@@ -1516,13 +1754,14 @@ FLASHMEM void ContextLadder::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-PROGMEM const ParamEntry ContextLadder::_params[6]  {
+PROGMEM constexpr ParamEntry ContextLadder::_params[6]  {
         {"    frequency", 3.0f, 13.2877123795495f, 'l'}, // 8.0 .. 10,000.0 Hz
         {"    resonance", 0.0f, 1.8f},
         {"      octaves", 0.0f, 7.0f},
         {"        drive", 0.0f, 4.0f},
         {"passband gain", 0.0f, 0.5f},
         {"interpolation", PARAM_ENTRY_CHOICES(ladderInterpolation)}
+        //{"interpolation", ladderInterpolation, 2}
     };
 
 FLASHMEM int editLadder(AudioObjInstance* aoi, AudioEditMode mode, void* params)
@@ -1543,7 +1782,7 @@ FLASHMEM void ContextStateVariable::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-PROGMEM const ParamEntry ContextStateVariable::_params[4] = {
+PROGMEM constexpr ParamEntry ContextStateVariable::_params[4] = {
         {"frequency", 3.0f, 13.2877123795495f, 'l'}, // 8.0 .. 10,000.0 Hz
         {"resonance", 0.7f, 5.0f},
         {"  octaves", 0.0f, 7.0f},
@@ -1555,7 +1794,7 @@ FLASHMEM int editStateVariable(AudioObjInstance* aoi, AudioEditMode mode, void* 
   return editObjType<AudioFilterStateVariable, ContextStateVariable>(aoi,mode,params);
 }
 
-PROGMEM const ParamEntry ContextStateVariable::MIDIparams[]
+PROGMEM constexpr ParamEntry ContextStateVariable::MIDIparams[]
 {
   {"Resonance CC", -1, 119}, // off, bank select, modulation, breath...
   {"min", 0.7f, +5.00f},
@@ -1600,7 +1839,7 @@ void processMIDIevent<ContextStateVariable>(AudioObjInstance* aoi, MIDIevent* ev
 }
 
 //===========================================================================================
-PROGMEM const ParamEntry ContextWaveform::MIDIparams[] 
+PROGMEM constexpr ParamEntry ContextWaveform::MIDIparams[] 
 {
   {"   octave", 0, 9}, // middle C = 261.63Hz = note#60 = octave 4
   {"   detune", -6.00f, +6.00f}, // semitones / cents
@@ -1609,7 +1848,7 @@ PROGMEM const ParamEntry ContextWaveform::MIDIparams[]
   {"PB amount",0.0f, 12.0f},
 };
 
-PROGMEM const ParamEntry ContextWaveform::_params[] = {
+PROGMEM constexpr ParamEntry ContextWaveform::_params[] = {
   {"  waveform", PARAM_ENTRY_CHOICES(waveShapes)},
   {" frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
   {" amplitude", 0.0f, 1.0f},
@@ -1631,7 +1870,7 @@ FLASHMEM void ContextWaveform::setParam(int i, AudioObjInstance* aoi)
     case 5:
     case ARBWAV_PARAM:
     {
-      arbWAVrecord& arb = *s.arbWAV.value.w;
+      arbWAVrecord<int16_t>& arb = *s.arbWAV.value.w;
 
       if (arb.loadIfNeeded())
         aoi->streamP.Waveform->arbitraryWaveform(arb.sampleData,10000.0f);
@@ -1724,7 +1963,7 @@ FLASHMEM int editWaveform(AudioObjInstance* aoi, AudioEditMode mode, void* param
 }
 
 //===========================================================================================
-PROGMEM const ParamEntry ContextWavetable::MIDIparams[] 
+PROGMEM constexpr ParamEntry ContextWavetable::MIDIparams[] 
 {
   {"   octave", 0, 9}, // middle C = 261.63Hz = note#60 = octave 4
   {"   detune", -6.00f, +6.00f}, // semitones / cents
@@ -1733,12 +1972,10 @@ PROGMEM const ParamEntry ContextWavetable::MIDIparams[]
   {"PB amount",0.0f, 12.0f}
 };
 
-PROGMEM const ParamEntry ContextWavetable::_params[5] = {
-  {"  waveform", PARAM_ENTRY_CHOICES(waveShapes)},
-  {" frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
-  {" amplitude", 0.0f, 1.0f},
-  {"pulseWidth", 0.0f, 1.0f},
-  {"    offset", -1.0f, 1.0f}
+PROGMEM constexpr ParamEntry ContextWavetable::_params[3] = {
+  {" file", 't'},
+  {"entry", 0, 10000},
+  {"amplitude", 0.0f, 1.0f}
 };
 
 
@@ -1747,64 +1984,68 @@ FLASHMEM void ContextWavetable::setParam(int i, AudioObjInstance* aoi)
   switch (i)
   {
     default: break;
-    /*
-    case 0: aoi->streamP.Wavetable->begin(waveShapes[s.waveform.value.i].value); break;
-    case 1: aoi->streamP.Wavetable->frequency(pow(2,s.frequency.value.f)); break;
+
+    case 0:
+    case WTINST_PARAM:
+    {
+      arbWAVrecord<AudioSynthWavetable::instrument_data>& arb = *s.sf2file.value.t;
+      //arbWAV.index = s.index.value.i;
+
+      if (arb.loadIfNeeded())
+        aoi->streamP.Wavetable->setInstrument(*arb.sampleData);
+    }
+      break;
+
+    case 1: // index
+      //arbWAV.index = s.index.value.i;
+      break;
+
     case 2: aoi->streamP.Wavetable->amplitude(s.amplitude.value.f); break;
-    case 3: aoi->streamP.Wavetable->pulseWidth(s.pulseWidth.value.f); break;
-    case 4: aoi->streamP.Wavetable->offset(s.offset.value.f); break;
-    */
   }
 }
 
-template <>
-void enterEditMode<ContextWavetable>(ContextWavetable* myContext, AudioObjInstance* aoi)
-{
-  // fix up the pot and encoder values
-  int iprt = floor(myContext->s.frequency.value.f - LOG_NOTE_A);
-  float frac = myContext->s.frequency.value.f - iprt - LOG_NOTE_A;
-
-  // Serial.printf("freq is %f -> %f Hz\n",myContext->s.frequency.value.f,pow(2,myContext->s.frequency.value.f));
-  
-  enc0.setLimits(-3,12);
-  if (frac > 0.5f)
-  {
-    frac -= 1.0f;
-    iprt++;
-  }
-  enc0.setValue(iprt);
-
-  ParamValue pv{frac};    
-  HookControl(ctrl,1,freqLimits,pv); // frequency pot is #1: set hook
-
-  Serial.printf("Hook set to %f; encoder to %d\n",pv.value.f,iprt);
-}
-  
 
 template <> // template specialization for setting Wavetable; needed for frequency setting
 bool updateFromControls<ContextWavetable>(ContextWavetable* myContext, AudioObjInstance* aoi)
 {
-  for (size_t i=0; i < myContext->paramCount; i++)
+  bool result = false;
+
+  do
   {
-    if (1 == i) // frequency
+    if (selectArbWAVfile(myContext, aoi))
     {
-      enc0.available();
-      if (ScaleFreq(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),enc0.getValue(),0.999f))
-      {
-        settingsEditor->ShowValue(i);
-        myContext->setParam(i,aoi);
-      }      
+      result = true; // don't exit parent settings page
+      break;
     }
-    else
+
+    if (selectInstrument(myContext, aoi))
     {
-      if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
-      {
-        settingsEditor->ShowValue(i);
-        myContext->setParam(i,aoi);
+      result = true; // don't exit parent settings page
+      break;
+    }
+
+    for (size_t i=0; i < myContext->paramCount; i++)
+    {
+      switch (i)
+      { // no special action
+        default:
+          if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
+          {
+            settingsEditor->ShowValue(i);
+            myContext->setParam(i,aoi);
+          }
+          break;
+
+         case 1: // instrument index - disable pot
+          break;          
       }
     }
-  }
-  return false;
+
+    pollFileSelect(myContext, enc0);
+    pollInstSelect(myContext, enc1);
+  } while (0);
+  
+  return result;
 }
 
 template <>
@@ -1813,13 +2054,16 @@ void processMIDIevent<ContextWavetable>(AudioObjInstance* aoi, MIDIevent* ev)
   processMIDIforWavetable(aoi,ev,(ContextWavetable*) aoi->context,aoi->streamP.Wavetable);
 }
 
+// \return 0 for idle, 1 for active
+template <>
+int isActive<ContextWavetable>(AudioObjInstance* aoi)
+{
+  return aoi->streamP.Wavetable->isPlaying()?1:0;
+}
   
 FLASHMEM int editWavetable(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   int result = editObjType<AudioSynthWavetable, ContextWavetable>(aoi,mode,params);
-  // Only after construction do we have a context with a default arbitrary 
-  // waveform. Also, may need to free it on destruction
-  ((ContextWavetable*) (aoi->context))->fixInstrument(aoi->streamP.Wavetable, mode);
 
   return result;
 }
@@ -1841,7 +2085,7 @@ FLASHMEM int editWavetable(AudioObjInstance* aoi, AudioEditMode mode, void* para
 #endif // defined(AUDIO_BIQUAD_HAS_PASSTHRU)      
   };
   
-PROGMEM const ParamEntry ContextBiquad::_params[] = {
+PROGMEM constexpr ParamEntry ContextBiquad::_params[] = {
   {"    stage", 0,3},
   {" response", PARAM_ENTRY_CHOICES(responsesBiquad)},
   {"frequency", 8.0f, 13.2877123795495f, 'l'},
@@ -1994,7 +2238,7 @@ FLASHMEM void ContextEnvelope::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-PROGMEM const ParamEntry ContextEnvelope::_params[7] = {
+PROGMEM constexpr ParamEntry ContextEnvelope::_params[7] = {
         {"    delay", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
         {"   attack", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
         {"     hold", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
@@ -2045,7 +2289,7 @@ FLASHMEM void ContextExpEnvelope::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-PROGMEM const ParamEntry ContextExpEnvelope::_params[7] = {
+PROGMEM constexpr ParamEntry ContextExpEnvelope::_params[7] = {
         {"  delay", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
         {" attack", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
         {"   hold", 0.0f, 13.2877123795495f, 'l'}, // 1.0 .. 10,000.0ms
@@ -2114,7 +2358,7 @@ FLASHMEM void ContextHammondVibrato::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-PROGMEM const ParamEntry ContextHammondVibrato::_params[2] = {
+PROGMEM constexpr ParamEntry ContextHammondVibrato::_params[2] = {
         {" mode", PARAM_ENTRY_CHOICES(modesHammondVibrato)},
         {"depth", 1, 3 }, 
     };

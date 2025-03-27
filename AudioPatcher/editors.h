@@ -183,8 +183,11 @@ class MIDIEditor : public BaseEditor
 class FileListEntry
 {
   public:
-    FileListEntry(String nm, bool dr) : name{nm}, isDir{dr} {}
+    FileListEntry(String nm, bool dr, int idx = -1) 
+      : name{nm}, index{idx}, isDir{dr} 
+      {}
     String name;
+    int index; // for Wavetable instrument chooser
     bool isDir;
     friend bool operator<(const FileListEntry& lhs, const FileListEntry& rhs)
     {
@@ -209,6 +212,7 @@ class FileBase
     static const int FILE_X_OFF =  5;
     static const int FILE_Y_OFF = 27;
     
+    LimitedEncoderStash stash0, stash1, stash2;
     LimitedEncoder& enc0, &enc1, &enc2;
     int state, idx;
     std::vector<FileListEntry> fileList;
@@ -229,8 +233,8 @@ class FileBase
     int getLast(char* buf, int maxn);
     void setLast(const char* nme);
 
-    void createFileList(const char* path, mode_e mode);
-    void clearFileList(void);
+    virtual void createFileList(const char* path, mode_e mode);
+    virtual void clearFileList(void);
     void showFileList(const int item, bool showAll = false);
     int fileListTop, fileListCurrent;
   public:    
@@ -240,6 +244,7 @@ class FileBase
             mode_e m
             )
             : fileDisplay(d.getInstance()),
+            stash0(e0), stash1(e1), stash2(e2), // automagically save and retore encoders
             enc0(e0), enc1(e1), enc2(e2),
             state(0), idx(-1), 
             fileName{0}, filePath{0}, basePath{bp}, fileExtn{fe},
@@ -247,7 +252,7 @@ class FileBase
             {
               basePathLen = strlen(basePath);
             }
-    void edit(void);
+    virtual void edit(void);
     void enter(bool saveArea = true);
     void exit(void); 
     
