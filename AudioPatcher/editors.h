@@ -212,6 +212,7 @@ class FileBase
     static const int FILE_X_OFF =  5;
     static const int FILE_Y_OFF = 27;
     
+    LimitedEncoderStash stash0, stash1, stash2;
     LimitedEncoder& enc0, &enc1, &enc2;
     int state, idx;
     std::vector<FileListEntry> fileList;
@@ -243,6 +244,7 @@ class FileBase
             mode_e m
             )
             : fileDisplay(d.getInstance()),
+            stash0(e0), stash1(e1), stash2(e2), // automagically save and retore encoders
             enc0(e0), enc1(e1), enc2(e2),
             state(0), idx(-1), 
             fileName{0}, filePath{0}, basePath{bp}, fileExtn{fe},
