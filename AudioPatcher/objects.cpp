@@ -62,7 +62,7 @@ AudioObjInstance::AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, 
     streamP.shrt = new typ(__VA_ARGS__); edit##shrt(this,AudioEditMode::constructor, nullptr); break;
 #define xxAUDIO_ENTRY(typ,shrt,id,x,y,cls,label,...) case id##_ID: \
             streamP.shrt = new typ(__VA_ARGS__); edit##shrt(this,AudioEditMode::constructor, nullptr); break;
-#define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,cons) xxAUDIO_ENTRY(typ,shrt,id,x,y,cls,label,cons) 
+#define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,...) xxAUDIO_ENTRY(typ,shrt,id,x,y,cls,label,__VA_ARGS__) 
 
     AUDIO_ENTRIES
     MY_AUDIO_IO
@@ -86,7 +86,7 @@ AudioObjInstance::~AudioObjInstance()
   {
     switch (objP->id)
     {
-#define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,cons) case id##_ID: delete streamP.shrt; edit##shrt(this,AudioEditMode::destructor, nullptr); break;
+#define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,...) case id##_ID: delete streamP.shrt; edit##shrt(this,AudioEditMode::destructor, nullptr); break;
       AUDIO_ENTRIES
       MY_AUDIO_IO
 #undef AUDIO_ENTRY 

@@ -1073,4 +1073,18 @@ class ContextControlSGTL5000 : public ContextBase
 };
      
 
+//-----------------------------------------------------------------------------------------
+class ContextDexed : public ContextBase
+{
+  public:
+  ContextDexed(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.reverbTime, _params) {}
+    static const ParamEntry _params[1];
+    struct {ParamValue reverbTime;} s
+                {      {1.0f},       };
+
+    void setParam(int i, AudioObjInstance* aoi);
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(220,COUNT_OF(_params))};
+};
+
+
 #endif // !defined(_PARAMSETTERS_H_)

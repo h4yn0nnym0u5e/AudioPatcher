@@ -2367,3 +2367,45 @@ FLASHMEM int editHammondVibrato(AudioObjInstance* aoi, AudioEditMode mode, void*
 {
   return editObjType<ContextHammondVibrato, ContextHammondVibrato>(aoi,mode,params);
 }
+
+
+//===========================================================================================
+FLASHMEM void ContextDexed::setParam(int i, AudioObjInstance* aoi)
+{
+  switch (i)
+  {
+    default: break;
+    // case 0: aoi->streamP.Dexed->reverbTime(s.reverbTime.value.f); break;
+  }
+}
+
+PROGMEM constexpr ParamEntry ContextDexed::_params[1] = 
+{
+  {"reverb time", 0.0f, 10.0f},
+};
+
+
+FLASHMEM int editDexed(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  return editObjType<AudioSynthDexed, ContextDexed>(aoi,mode,params);    
+}
+
+
+template <>
+void processMIDIevent<ContextDexed>(AudioObjInstance* aoi, MIDIevent* ev)
+{
+  if (midi::NoteOff == ev->type) // note off
+  {
+    aoi->streamP.Dexed->keydown(ev->note, ev->velocity);
+  }
+  if (midi::NoteOn  == ev->type) // note on
+    aoi->streamP.Dexed->keyup(ev->note);
+}
+
+// \return 0 for idle, 2 for active, 3 for sustain, should never be 3
+template <>
+int isActive<ContextDexed>(AudioObjInstance* aoi)
+{
+  return (aoi->streamP.ExpEnvelope->isSustain()?1:0)
+       + (aoi->streamP.ExpEnvelope->isActive() ?2:0);
+}

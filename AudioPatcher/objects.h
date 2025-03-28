@@ -3,6 +3,7 @@
 
 #include <Audio.h>
 #include <effect_hammond_vibrato.h>
+#include <synth_dexed.h>
 extern int systemState;
 
 /*
@@ -54,7 +55,7 @@ extern int systemState;
   AUDIO_ENTRY(AudioSynthWaveformDc,WaveformDc,AUDIO_SYNTH_WAVEFORM_DC,0,1,synth,dc,) \
   AUDIO_ENTRY(AudioSynthWaveformModulated,WaveformModulated,AUDIO_SYNTH_WAVEFORM_MODULATED,2,1,synth,wvmd,) \
   AUDIO_ENTRY(AudioSynthWaveformPWM,WaveformPWM,AUDIO_SYNTH_WAVEFORM_PWM,1,1,synth,wpwm,) \
-  AUDIO_ENTRY(AudioSynthWaveformSine,WaveformSine,AUDIO_SYNTH_WAVEFORM_SINE,0,1,synth,wsin,) \
+  AUDIO_ENTRY(AudioSynthDexed,Dexed,AUDIO_SYNTH_DEXED,0,2,synth,dexd,8,AUDIO_SAMPLE_RATE) \
   AUDIO_ENTRY(AudioSynthWaveformSineHires,WaveformSineHires,AUDIO_SYNTH_WAVEFORM_SINE_HIRES,0,2,synth,wshr,) \
   AUDIO_ENTRY(AudioSynthWaveformSineModulated,WaveformSineModulated,AUDIO_SYNTH_WAVEFORM_SINE_MODULATED,1,1,synth,wsmd,) \
   AUDIO_ENTRY(AudioSynthWavetable,Wavetable,AUDIO_SYNTH_WAVETABLE,0,1,synth,wtab,) \
