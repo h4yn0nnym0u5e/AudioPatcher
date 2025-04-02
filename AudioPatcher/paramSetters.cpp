@@ -2427,6 +2427,7 @@ template <>
 //                                   VVVV
 void editCreateStream<AudioSynthDexed>(AudioObjInstance* aoi, AudioObjInstance* original)
 { 
+  Serial.printf("Created Dexed; is%s a copy; original at %08X\n",aoi->isAcopy?"":" not",(uint32_t) original); Serial.flush();
   if (!aoi->isAcopy)
     aoi->streamP.Dexed = new AudioSynthDexed{AudioSynthDexed_CONSTRUCTOR_1};
   else
@@ -2436,6 +2437,8 @@ void editCreateStream<AudioSynthDexed>(AudioObjInstance* aoi, AudioObjInstance* 
 
 FLASHMEM int editDexed(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
+  if (AudioEditMode::destructor == mode)
+    Serial.println("Destroying Dexed");
   return editObjType<AudioSynthDexed, ContextDexed>(aoi,mode,params);    
 }
 
@@ -2443,11 +2446,11 @@ FLASHMEM int editDexed(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 template <>
 void processMIDIevent<ContextDexed>(AudioObjInstance* aoi, MIDIevent* ev)
 {
-  if (midi::NoteOff == ev->type) // note off
+  if (midi::NoteOn == ev->type) // note off
   {
     aoi->streamP.Dexed->keydown(ev->note, ev->velocity);
   }
-  if (midi::NoteOn  == ev->type) // note on
+  if (midi::NoteOff  == ev->type) // note on
     aoi->streamP.Dexed->keyup(ev->note);
 }
 

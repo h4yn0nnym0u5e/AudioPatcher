@@ -48,7 +48,7 @@ AudioObjInstance::AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y,
   AudioObjInstance* original)
   : objP(&o), streamP{nullptr}, context(nullptr), x(_x),y(_y), inputAvailFlags(0), 
   noDelete(_noD), perVoice(false), 
-  isAcopy(nullptr == original), 
+  isAcopy(nullptr != original), 
   drawInGrey(false) 
 {
   // set all inputs (0..N-1) as available

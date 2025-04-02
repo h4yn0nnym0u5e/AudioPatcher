@@ -523,7 +523,7 @@ void AudioPatcherDisplay::DrawConnection(AudioObjStatic_t& o, int16_t x, int16_t
 {
   x -= canvas_x; y -= canvas_y;
   
-#define BAD -999  
+#define BAD -32100  
   if (n >= 0 && objIsOnScreen(x,y))
   {
     int16_t cx = BAD,cb,cs;
