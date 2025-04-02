@@ -809,7 +809,7 @@ PROGMEM constexpr ParamEntry ContextMixerStereo::_params[20] =
 
 template <>
 // Template specialization for creating a new 
-//                                        VVVV
+//                             VVVV
 void editCreateStream<AudioMixerStereo>(AudioObjInstance* aoi, AudioObjInstance* original){ aoi->streamP.MixerStereo = new AudioMixerStereo{AudioMixerStereo_CONSTRUCTOR}; }
 
 FLASHMEM int editMixerStereo(AudioObjInstance* aoi, AudioEditMode mode, void* params)
@@ -2421,15 +2421,18 @@ PROGMEM constexpr ParamEntry ContextDexed::_params[1] =
   {"reverb time", 0.0f, 10.0f},
 };
 
-
+extern uint8_t fmpiano_sysex[];
 template <>
 // Template specialization for creating a new 
-//                                   VVVV
+//                              VVVV
 void editCreateStream<AudioSynthDexed>(AudioObjInstance* aoi, AudioObjInstance* original)
 { 
   Serial.printf("Created Dexed; is%s a copy; original at %08X\n",aoi->isAcopy?"":" not",(uint32_t) original); Serial.flush();
   if (!aoi->isAcopy)
+  {
     aoi->streamP.Dexed = new AudioSynthDexed{AudioSynthDexed_CONSTRUCTOR_1};
+    aoi->streamP.Dexed->loadVoiceParameters(&fmpiano_sysex[0]);
+  }
   else
     aoi->streamP.Dexed = new AudioSynthDexed{AudioSynthDexed_CONSTRUCTOR_2};
 
@@ -2446,11 +2449,11 @@ FLASHMEM int editDexed(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 template <>
 void processMIDIevent<ContextDexed>(AudioObjInstance* aoi, MIDIevent* ev)
 {
-  if (midi::NoteOn == ev->type) // note off
+  if (midi::NoteOn == ev->type) // note on
   {
     aoi->streamP.Dexed->keydown(ev->note, ev->velocity);
   }
-  if (midi::NoteOff  == ev->type) // note on
+  if (midi::NoteOff  == ev->type) // note off
     aoi->streamP.Dexed->keyup(ev->note);
 }
 
@@ -2458,6 +2461,5 @@ void processMIDIevent<ContextDexed>(AudioObjInstance* aoi, MIDIevent* ev)
 template <>
 int isActive<ContextDexed>(AudioObjInstance* aoi)
 {
-  return (aoi->streamP.ExpEnvelope->isSustain()?1:0)
-       + (aoi->streamP.ExpEnvelope->isActive() ?2:0);
+  return (aoi->streamP.Dexed->getNumNotesPlaying() > 0);
 }

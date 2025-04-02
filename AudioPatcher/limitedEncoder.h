@@ -43,10 +43,10 @@ class LimitedEncoderStash
     LimitedEncoderStash(LimitedEncoder& _e) 
       : e(_e)
       { e.available(); v = e.getValue(); e.getLimits(l,u); 
-      //Serial.printf("Stashed %08X: %d / %d / %d\n",(uint32_t) &e,l,v,u);
+      Serial.printf("Stashed %08X: %d / %d / %d\n",(uint32_t) &e,l,v,u);
       }
-    ~LimitedEncoderStash() {e.setLimits(l,u); e.setValue(v); 
-    //Serial.printf("Un-stashed %08X: %d / %d / %d\n",(uint32_t) &e,l,v,u);
+    ~LimitedEncoderStash() {e.available(); e.setLimits(l,u); e.setValue(v); 
+    Serial.printf("Un-stashed %08X: %d / %d / %d\n",(uint32_t) &e,l,v,u);
     }
 };
 #endif // !defined(_LIMITEDENCODER_H_)
