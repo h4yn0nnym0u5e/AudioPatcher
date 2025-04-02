@@ -356,6 +356,14 @@ void enterEditMode(Tctxt* myContext, AudioObjInstance* aoi){} // no special acti
 template <class Tctxt>
 void exitEditMode(Tctxt* myContext, AudioObjInstance* aoi){} // no special action for most AudioStream classes
 //=====================================================================================
+template <class Tstream> // no special action for most AudioStream classes
+void editCreateStream(AudioObjInstance* aoi, AudioObjInstance* original = nullptr)
+{ 
+  Tstream* o = new Tstream; 
+  aoi->streamP.streamObj = o;
+  //Serial.printf("Constructed new %s for %08X at %08X\n", aoi->objP->name, (uint32_t) aoi, (uint32_t) aoi->streamP.streamObj);
+} 
+//=====================================================================================
 template <class Tstream, class Tctxt>
 int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
@@ -369,6 +377,12 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
   {
     case AudioEditMode::constructor: // construction
       { 
+        AudioObjInstance* original = (AudioObjInstance*) params;
+        // if instance hasn't yet been constructed, do so
+        if (nullptr == aoi->streamP.streamObj)
+          editCreateStream<Tstream>(aoi, original);
+
+        // construct the context
         myContext = new Tctxt(*aoi);
         aoi->context = myContext;
         if (!aoi->isAcopy) // making a real object
@@ -895,7 +909,7 @@ class ContextWaveformBase
 // Waveform-like context for use by filter keyboard tracking etc.
 class ContextMIDInote : public ContextBase 
 {
-    AudioObjInstance dummyAOI{objList[0]}; // dummy object: do not use!
+    AudioObjInstance dummyAOI{objList[0],0xB16,0xA55}; // dummy object: do not use!
   public:
     struct {ParamValue amplitude;} s
                  {       {1.0f}    };

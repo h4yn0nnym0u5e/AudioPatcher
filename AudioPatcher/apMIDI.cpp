@@ -88,6 +88,15 @@ void PatcherMIDI::init(void)
   Serial.println("MIDI host enabled");
 }
 
+/*
+ * Process a MIDI event received on any of the configured ports,
+ * be they USB Sevice, USB Host or Serial.
+ * 
+ * For note on or off we may create a new instance of all the per-voice
+ * objects, and send those the "note on/off" event. Everything else
+ * just gets passed to every instantiated object, which may or may
+ * not make use of it.
+ */
 void PatcherMIDI::processEvent(uint8_t cable, uint8_t channel, uint8_t type, 
                                uint8_t data1, uint8_t data2, uint8_t* sysexArray) 
 {
@@ -231,7 +240,7 @@ PatcherVoice::PatcherVoice(std::vector<AudioObjInstancePtr>& objVec,
         aoi = obj.p;
       else
       {
-        aoi = new AudioObjInstance(*obj.p->objP); 
+        aoi = new AudioObjInstance(*obj.p); 
         obj.p->copySettingsTo(*aoi);
       }
       voiceVec.push_back({aoi});

@@ -20,6 +20,15 @@
 #endif // !defined(SAFE_RELEASE_MANY) || !defined(DYNMIXER_H_)
 
 /********************************************************************************************************/
+//           888             888    d8b          
+//           888             888    Y8P          
+//           888             888                 
+//  .d8888b  888888  8888b.  888888 888  .d8888b 
+//  88K      888        "88b 888    888 d88P"    
+//  "Y8888b. 888    .d888888 888    888 888      
+//       X88 Y88b.  888  888 Y88b.  888 Y88b.    
+//   88888P'  "Y888 "Y888888  "Y888 888  "Y8888P 
+//  
 M5w_8angle    ctrl{0x43, Wire1};
 M5w_8encoder  encr{0x41, Wire1};
 uint32_t next;
@@ -43,10 +52,26 @@ std::vector<AudioObjInstancePtr> objVec = {
 std::vector<PatchcordInstance_t*> cordVec; 
 
 /********************************************************************************************************/
+//       888          888                        
+//       888          888                        
+//       888          888                        
+//   .d88888  .d88b.  88888b.  888  888  .d88b.  
+//  d88" 888 d8P  Y8b 888 "88b 888  888 d88P"88b 
+//  888  888 88888888 888  888 888  888 888  888 
+//  Y88b 888 Y8b.     888 d88P Y88b 888 Y88b 888 
+//   "Y88888  "Y8888  88888P"   "Y88888  "Y88888 
+//                                           888 
+//                                      Y8b d88P 
+//                                       "Y88P"  
+//                                               
 void dumpObjVec(void)
 {
   for (size_t i=0;i<objVec.size();i++)
-    Serial.printf("%d: %s @ %08X\n",i,objVec.at(i).p->objP->name,(uint32_t) objVec.at(i).p);
+  {
+    AudioObjInstance* p = objVec.at(i).p;
+    Serial.printf("%d: %s @ %08X -> %08X\n",
+        i,p->objP->name,(uint32_t) p, (uint32_t) p->streamP.streamObj);
+  }
 }
 /********************************************************************************************************/
 void printFlashID(void)
@@ -143,7 +168,7 @@ void setup()
   
   printHL();
   Serial.printf("%d audio object types available\n",AUDIO_MAX_ID - 2);
-  for (int i=1;i<COUNT_OF_objList;i++)
+  for (int i=1;i<=COUNT_OF_objTypes;i++)
   {
     Serial.printf("%22.22s: ID=%d, %d inputs, %d outputs\n",
                   objList[i].name, i, objList[i].inputs, objList[i].outputs);

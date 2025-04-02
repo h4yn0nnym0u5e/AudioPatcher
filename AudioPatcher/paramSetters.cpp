@@ -401,6 +401,23 @@ FLASHMEM void CopyContext(void* src, void* dst)
 //===========================================================================================
 // Strong definitions of setup controls
 //===========================================================================================
+// Some object types should only ever be constructed:
+FLASHMEM int editInputI2S(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  if (AudioEditMode::constructor == mode)
+    editCreateStream<AudioInputI2S>(aoi,nullptr); 
+  return 0;
+}
+
+FLASHMEM int editOutputI2S(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  if (AudioEditMode::constructor == mode)
+    editCreateStream<AudioOutputI2S>(aoi,nullptr); 
+  return 0;    
+}
+
+
+//===========================================================================================
 FLASHMEM void ContextBitcrusher::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
@@ -790,6 +807,11 @@ PROGMEM constexpr ParamEntry ContextMixerStereo::_params[20] =
   
 };
 
+template <>
+// Template specialization for creating a new 
+//                                        VVVV
+void editCreateStream<AudioMixerStereo>(AudioObjInstance* aoi, AudioObjInstance* original){ aoi->streamP.MixerStereo = new AudioMixerStereo{AudioMixerStereo_CONSTRUCTOR}; }
+
 FLASHMEM int editMixerStereo(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioMixerStereo, ContextMixerStereo>(aoi,mode,params);    
@@ -837,6 +859,12 @@ PROGMEM constexpr ParamEntry ContextMixer::_params[10] =
   {"     gain", 0.0f, 1.0f, 'n'}, // 
   {"soft knee", 0.0f, 1.0f}
 };
+
+
+template <>
+// Template specialization for creating a new 
+//                                 VVVV
+void editCreateStream<AudioMixer>(AudioObjInstance* aoi, AudioObjInstance* original){ aoi->streamP.Mixer = new AudioMixer{AudioMixer_CONSTRUCTOR}; }
 
 FLASHMEM int editMixer(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
@@ -1729,6 +1757,15 @@ FLASHMEM void ContextControlSGTL5000::setParam(int i, AudioObjInstance* aoi)
   }  
 }
 
+template <>
+// Template specialization for creating a new 
+//                                   VVVV
+void editCreateStream<AudioControlSGTL5000>(AudioObjInstance* aoi, AudioObjInstance* original)
+{ 
+  aoi->streamP.ControlSGTL5000 = new AudioControlSGTL5000; 
+  //Serial.printf("Constructed new %s for %08X at %08X\n", aoi->objP->name, (uint32_t) aoi, (uint32_t) aoi->streamP.streamObj);
+}
+
 FLASHMEM int editControlSGTL5000(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   return editObjType<AudioControlSGTL5000, ContextControlSGTL5000>(aoi,mode,params);
@@ -2365,7 +2402,7 @@ PROGMEM constexpr ParamEntry ContextHammondVibrato::_params[2] = {
 
 FLASHMEM int editHammondVibrato(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
-  return editObjType<ContextHammondVibrato, ContextHammondVibrato>(aoi,mode,params);
+  return editObjType<AudioEffectHammondVibrato, ContextHammondVibrato>(aoi,mode,params);
 }
 
 
@@ -2384,6 +2421,18 @@ PROGMEM constexpr ParamEntry ContextDexed::_params[1] =
   {"reverb time", 0.0f, 10.0f},
 };
 
+
+template <>
+// Template specialization for creating a new 
+//                                   VVVV
+void editCreateStream<AudioSynthDexed>(AudioObjInstance* aoi, AudioObjInstance* original)
+{ 
+  if (!aoi->isAcopy)
+    aoi->streamP.Dexed = new AudioSynthDexed{AudioSynthDexed_CONSTRUCTOR_1};
+  else
+    aoi->streamP.Dexed = new AudioSynthDexed{AudioSynthDexed_CONSTRUCTOR_2};
+
+}
 
 FLASHMEM int editDexed(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {

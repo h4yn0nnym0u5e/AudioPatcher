@@ -55,11 +55,25 @@ extern int systemState;
   AUDIO_ENTRY(AudioSynthWaveformDc,WaveformDc,AUDIO_SYNTH_WAVEFORM_DC,0,1,synth,dc,) \
   AUDIO_ENTRY(AudioSynthWaveformModulated,WaveformModulated,AUDIO_SYNTH_WAVEFORM_MODULATED,2,1,synth,wvmd,) \
   AUDIO_ENTRY(AudioSynthWaveformPWM,WaveformPWM,AUDIO_SYNTH_WAVEFORM_PWM,1,1,synth,wpwm,) \
-  AUDIO_ENTRY(AudioSynthDexed,Dexed,AUDIO_SYNTH_DEXED,0,2,synth,dexd,8,AUDIO_SAMPLE_RATE) \
+  AUDIO_ENTRY(AudioSynthDexed,Dexed,AUDIO_SYNTH_DEXED,0,1,synth,dexd,8,AUDIO_SAMPLE_RATE) \
   AUDIO_ENTRY(AudioSynthWaveformSineHires,WaveformSineHires,AUDIO_SYNTH_WAVEFORM_SINE_HIRES,0,2,synth,wshr,) \
   AUDIO_ENTRY(AudioSynthWaveformSineModulated,WaveformSineModulated,AUDIO_SYNTH_WAVEFORM_SINE_MODULATED,1,1,synth,wsmd,) \
   AUDIO_ENTRY(AudioSynthWavetable,Wavetable,AUDIO_SYNTH_WAVETABLE,0,1,synth,wtab,) \
 
+
+  // Special cases of constructors with parameters
+  #define AudioMixer_CONSTRUCTOR 8  
+  #define AudioMixerStereo_CONSTRUCTOR 8
+  #define AudioSynthDexed_CONSTRUCTOR_1 1,(uint32_t) AUDIO_SAMPLE_RATE
+  #define AudioSynthDexed_CONSTRUCTOR_2 original->streamP.Dexed->common
+  /*
+  #define Audio_CONSTRUCTOR 
+  #define Audio_CONSTRUCTOR 
+  #define Audio_CONSTRUCTOR 
+  #define Audio_CONSTRUCTOR 
+  #define Audio_CONSTRUCTOR 
+  #define Audio_CONSTRUCTOR 
+  */
 
 /*
   AUDIO_ENTRY(AudioControlAK4558,ControlAK4558,AUDIO_CONTROL_AK4558,0,0,control,ctrl,) \
@@ -168,9 +182,9 @@ struct AudioObjStatic_t
 class AudioObjInstance
 {
   public:
-    AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, bool _noD, bool _isAcopy = false);
-    AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y) : AudioObjInstance(o,_x,_y,false,false) {}
-    AudioObjInstance(AudioObjStatic_t& o) : AudioObjInstance(o,-9999,-9999,false,true) {}
+    AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, bool _noD, AudioObjInstance* original = nullptr);
+    AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y) : AudioObjInstance(o,_x,_y,false) {}
+    AudioObjInstance(AudioObjInstance& aoi) : AudioObjInstance(*aoi.objP,-9999,-9999,false,&aoi) {}
     ~AudioObjInstance();
     AudioObjStatic_t* objP;
     AudioObjPtr_u streamP;

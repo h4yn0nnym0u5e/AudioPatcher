@@ -43,9 +43,13 @@ AudioObjStatic_t objList[] =
 #undef AUDIO_ENTRY
 
 //===========================================================================================
-AudioObjInstance::AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, bool _noD, bool _isAcopy) 
-  : objP(&o), context(nullptr), x(_x),y(_y), inputAvailFlags(0), 
-  noDelete(_noD), perVoice(false), isAcopy(_isAcopy), drawInGrey(false) 
+AudioObjInstance::AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, 
+  bool _noD, 
+  AudioObjInstance* original)
+  : objP(&o), streamP{nullptr}, context(nullptr), x(_x),y(_y), inputAvailFlags(0), 
+  noDelete(_noD), perVoice(false), 
+  isAcopy(nullptr == original), 
+  drawInGrey(false) 
 {
   // set all inputs (0..N-1) as available
   if (0 != objP->inputs)
@@ -58,10 +62,10 @@ AudioObjInstance::AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, 
   {
 
 #define xpAUDIO_ENTRY(typ,shrt,id,x,y,cls,label,...) case id##_ID: \
-    Serial.printf("New %s; constructor (%s)\n", #shrt, #__VA_ARGS__); Serial.flush(); \
-    streamP.shrt = new typ(__VA_ARGS__); edit##shrt(this,AudioEditMode::constructor, nullptr); break;
+    Serial.printf("new %s; constructor (%s)", #shrt, #__VA_ARGS__); Serial.flush(); \
+    /* streamP.shrt = new typ(__VA_ARGS__); */ edit##shrt(this,AudioEditMode::constructor, original); break;
 #define xxAUDIO_ENTRY(typ,shrt,id,x,y,cls,label,...) case id##_ID: \
-            streamP.shrt = new typ(__VA_ARGS__); edit##shrt(this,AudioEditMode::constructor, nullptr); break;
+    /* streamP.shrt = new typ(__VA_ARGS__); */ edit##shrt(this,AudioEditMode::constructor, original); break;
 #define AUDIO_ENTRY(typ,shrt,id,x,y,cls,label,...) xxAUDIO_ENTRY(typ,shrt,id,x,y,cls,label,__VA_ARGS__) 
 
     AUDIO_ENTRIES
