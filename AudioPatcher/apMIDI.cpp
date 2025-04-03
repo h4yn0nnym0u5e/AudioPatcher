@@ -1,5 +1,7 @@
 #include "apMIDI.h"
 
+extern void checkCords(void);
+
 #define COUNT_OF(a) (int)(sizeof a / sizeof a[0])
 
 /*
@@ -105,7 +107,9 @@ void PatcherMIDI::processEvent(uint8_t cable, uint8_t channel, uint8_t type,
       case midi::NoteOn:       
         {         
           //uint32_t t = micros();
+checkCords();
           PatcherVoice* newVoice = new PatcherVoice{objVec, cordVec, *this, designObjectsFree}; // create the voice
+checkCords();
           designObjectsFree &= !newVoice->usesDesignObjects(); // flag whether it used the design objects
           sounding.push_back(newVoice);  // add it to the list
           newVoice->noteOn(channel,data1,data2); // start it sounding
@@ -124,8 +128,11 @@ void PatcherMIDI::processEvent(uint8_t cable, uint8_t channel, uint8_t type,
             if (note == obj->getNote())
             {
               obj->noteOff(channel,note,data2);
+checkCords();
               releasing.push_back(obj);
+checkCords();
               sounding.erase(sounding.begin() + i);
+checkCords();
             }
           }
         }
@@ -211,8 +218,11 @@ void PatcherMIDI::update(void)
       // it won't be from now on: mark them as free
       if (obj->usesDesignObjects())
         designObjectsFree = true;
+checkCords();
       delete obj;
+checkCords();
       releasing.erase(releasing.begin() + i);
+checkCords();
       //Serial.printf("Took %uus to de-instantiate note\n",micros() - t);
     }
   }
