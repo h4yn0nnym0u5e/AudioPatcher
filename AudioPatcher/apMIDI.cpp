@@ -262,6 +262,9 @@ PatcherVoice::PatcherVoice(std::vector<AudioObjInstancePtr>& objVec,
       // look for internal connections
       for (auto obj : voiceVec)
       {
+Serial.printf("obj.p: %08X; obj.p.stream: %08X; cord: %08X; src: %08X; dst: %08X\n",
+  (uint32_t) obj.p, (uint32_t) obj.p->streamP.streamObj, (uint32_t) cord, (uint32_t) cord->src, (uint32_t) cord->dst);
+  Serial.flush();
         if (obj.p->isCopyOf(*cord->src))
           src = obj.p;
         if (obj.p->isCopyOf(*cord->dst))

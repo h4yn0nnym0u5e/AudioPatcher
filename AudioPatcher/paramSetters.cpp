@@ -395,7 +395,10 @@ FLASHMEM void CopyContext(void* src, void* dst)
 {
   // some objects don't need a context, e.g. AudioEffectMultiply
   if (nullptr != src && nullptr != dst)
+  {
+    Serial.printf("Copy context from %08X to %08X\n", (uint32_t) src, (uint32_t) dst); Serial.flush();
     ((ContextBase*) src)->copyParamsTo(*(ContextBase*) dst);
+  }
 }
 
 //===========================================================================================
@@ -2412,13 +2415,13 @@ FLASHMEM void ContextDexed::setParam(int i, AudioObjInstance* aoi)
   switch (i)
   {
     default: break;
-    // case 0: aoi->streamP.Dexed->reverbTime(s.reverbTime.value.f); break;
+    case 0: aoi->streamP.Dexed->setGain(s.gain.value.f); break;
   }
 }
 
 PROGMEM constexpr ParamEntry ContextDexed::_params[1] = 
 {
-  {"reverb time", 0.0f, 10.0f},
+  {"gain", 0.0f, 1.0f},
 };
 
 extern uint8_t fmpiano_sysex[];

@@ -393,8 +393,8 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
       break;
       
     case AudioEditMode::destructor:
-      delete myContext;
       aoi->context = nullptr;
+      delete myContext;
       break;
 
     //---------------------------------------------------------------------------------------------------
@@ -1091,9 +1091,9 @@ class ContextControlSGTL5000 : public ContextBase
 class ContextDexed : public ContextBase
 {
   public:
-  ContextDexed(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.reverbTime, _params) {}
+  ContextDexed(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.gain, _params) {}
     static const ParamEntry _params[1];
-    struct {ParamValue reverbTime;} s
+    struct {ParamValue gain;} s
                 {      {1.0f},       };
 
     void setParam(int i, AudioObjInstance* aoi);
