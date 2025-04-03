@@ -396,7 +396,6 @@ FLASHMEM void CopyContext(void* src, void* dst)
   // some objects don't need a context, e.g. AudioEffectMultiply
   if (nullptr != src && nullptr != dst)
   {
-    Serial.printf("Copy context from %08X to %08X\n", (uint32_t) src, (uint32_t) dst); Serial.flush();
     ((ContextBase*) src)->copyParamsTo(*(ContextBase*) dst);
   }
 }
@@ -2430,7 +2429,6 @@ template <>
 //                              VVVV
 void editCreateStream<AudioSynthDexed>(AudioObjInstance* aoi, AudioObjInstance* original)
 { 
-  Serial.printf("Created Dexed; is%s a copy; original at %08X\n",aoi->isAcopy?"":" not",(uint32_t) original); Serial.flush();
   if (!aoi->isAcopy)
   {
     aoi->streamP.Dexed = new AudioSynthDexed{AudioSynthDexed_CONSTRUCTOR_1};
@@ -2443,8 +2441,6 @@ void editCreateStream<AudioSynthDexed>(AudioObjInstance* aoi, AudioObjInstance* 
 
 FLASHMEM int editDexed(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
-  if (AudioEditMode::destructor == mode)
-    Serial.println("Destroying Dexed");
   return editObjType<AudioSynthDexed, ContextDexed>(aoi,mode,params);    
 }
 

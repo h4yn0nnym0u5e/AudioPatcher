@@ -13,7 +13,7 @@
 #include <vector>
 #include <algorithm>
 
-#include "TeensyDebug.h"
+//#include "TeensyDebug.h"
 
 #if !defined(SAFE_RELEASE_MANY) || !defined(DYNMIXER_H_)
 #error Make sure you have dynamic cores and Audio library!
@@ -103,11 +103,14 @@ void doReboot()
   SCB_AIRCR = 0x05FA0004;
 }
 
-void checkCords(void)
+void checkCords(void) // does nothing unless we have TeensyDebug
 {
   for (auto p : cordVec)
-    if (p < 0x2020000)
-      halt_cpu();
+    if ((int32_t) p < 0x20200000)
+#if defined(GDB_IS_ENABLED)
+      halt_cpu()
+#endif // defined(GDB_IS_ENABLED)
+    ;
 }
 /********************************************************************************************************/
 //
