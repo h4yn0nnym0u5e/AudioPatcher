@@ -2448,12 +2448,53 @@ FLASHMEM int editDexed(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 template <>
 void processMIDIevent<ContextDexed>(AudioObjInstance* aoi, MIDIevent* ev)
 {
-  if (midi::NoteOn == ev->type) // note on
+  switch (ev->type)
   {
-    aoi->streamP.Dexed->keydown(ev->note, ev->velocity);
+    case midi::NoteOn: // note on
+      aoi->streamP.Dexed->keydown(ev->note, ev->velocity);
+      break;
+  
+    case midi::NoteOff: // note off
+      aoi->streamP.Dexed->keyup(ev->note);
+      break;
+
+    case midi::SystemExclusive:
+    {
+      Serial.printf("SysEx @ %08X: length = %d; data %02X %02X %02X %02X ...", 
+        (uint32_t) ev->sysexArray,
+        ev->sysexLength,
+        ev->sysexArray[0],
+        ev->sysexArray[1],
+        ev->sysexArray[2],
+        ev->sysexArray[3]
+      );
+
+      if (ev->sysexLength >= 160)//sizeof hdr)
+      {
+        uint8_t hdr[] = {0xF0, 0x43, (uint8_t) (ev->sysexArray[2] & 0x0F), 0x00, 0x01, 0x1B};
+        bool hdrOK = 0 == memcmp(ev->sysexArray,hdr,sizeof hdr);
+        uint8_t sum = 0;
+        for (int i=0;i<155;i++)
+          sum -= ev->sysexArray[i+6];
+        sum &= 0x7F; // sysex can only have 0-127 values
+        Serial.printf("; sum %02X; check %02X; header %sOK", 
+            sum,
+            ev->sysexArray[161],
+            hdrOK?"":"not "
+          );
+
+        if (hdrOK && sum == ev->sysexArray[161])
+        {
+          char buf[11];
+          aoi->streamP.Dexed->loadVoiceParameters(ev->sysexArray + 6);
+          aoi->streamP.Dexed->getName(buf);
+          Serial.printf("; loaded %s", buf);
+        }
+      }
+      Serial.println();
+    }
+      break;
   }
-  if (midi::NoteOff  == ev->type) // note off
-    aoi->streamP.Dexed->keyup(ev->note);
 }
 
 // \return 0 for idle, 2 for active, 3 for sustain, should never be 3

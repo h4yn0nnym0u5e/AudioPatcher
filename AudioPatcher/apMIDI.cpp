@@ -137,7 +137,12 @@ void PatcherMIDI::processEvent(uint8_t cable, uint8_t channel, uint8_t type,
                typ = type,
                d1  = data1,
                d2  = data2;
+          uint16_t sysexLength = nullptr == sysexArray?0:((d2<<8)|(d1&0xFF));
 
+          
+          // for some messages we want to keep data in
+          // case another note is started which needs
+          // to make use of it
           switch (typ)
           {
             default:
@@ -155,7 +160,7 @@ void PatcherMIDI::processEvent(uint8_t cable, uint8_t channel, uint8_t type,
           }
 
           {
-            MIDIevent me {ch,typ,d1,d2,DummyVoice};
+            MIDIevent me {ch,typ,d1,d2,sysexLength,sysexArray,DummyVoice};
             PatcherVoice::sendMIDIevent(objVec,me); // send to whole design
           }
 
@@ -163,7 +168,7 @@ void PatcherMIDI::processEvent(uint8_t cable, uint8_t channel, uint8_t type,
           {           
             if (!obj->usesDesignObjects()) // except the one using the design objects
             {
-              MIDIevent me {ch,typ,d1,d2,*obj};
+              MIDIevent me {ch,typ,d1,d2,sysexLength,sysexArray,*obj};
               obj->sendMIDIevent(me);
             }
           }
@@ -352,7 +357,7 @@ void PatcherVoice::sendMIDIevent(std::vector<AudioObjInstancePtr> voiceVec, MIDI
 
 void PatcherVoice::noteOn(byte channel, byte note, byte velocity)
 {
-  MIDIevent me{channel,midi::NoteOn,{note},{velocity},*this};
+  MIDIevent me{channel,midi::NoteOn,{note},{velocity},0,nullptr,*this};
   sendMIDIevent(me);
   triggerNote = note;
   triggerVelocity = velocity;
@@ -360,7 +365,7 @@ void PatcherVoice::noteOn(byte channel, byte note, byte velocity)
   
 void PatcherVoice::noteOff(byte channel, byte note, byte velocity)
 {
-  MIDIevent me{channel,midi::NoteOff,{note},{velocity},*this};
+  MIDIevent me{channel,midi::NoteOff,{note},{velocity},0,nullptr,*this};
   sendMIDIevent(me);
 }
 

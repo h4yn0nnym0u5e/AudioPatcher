@@ -88,6 +88,8 @@ struct MIDIevent
   byte channel,type;
   union {byte data1; byte note;     byte CCnum; byte PBlsb;};
   union {byte data2; byte velocity; byte CCval; byte PBmsb;};
+  uint16_t sysexLength;
+  uint8_t* sysexArray;
   PatcherVoiceBase pvb;
 };
 
