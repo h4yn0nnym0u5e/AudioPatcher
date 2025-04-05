@@ -42,6 +42,7 @@ class PatcherMIDI
         DummyVoice(*this),
         objVec(o), cordVec(p)
       {}
+    bool outputMixersOK(void);
     std::vector<AudioObjInstancePtr>& objVec;
     std::vector<PatchcordInstance_t*>& cordVec;
     void init(void);

@@ -88,6 +88,29 @@ void PatcherMIDI::init(void)
   Serial.println("MIDI host enabled");
 }
 
+
+/*
+ * Check to see if there's an available input on all mixers
+ * used to mix outputs from pre-voice objects
+ */
+bool PatcherMIDI::outputMixersOK(void)
+{
+  bool ok = true;
+  for (auto cord : cordVec)
+  {
+    if (cord->src->perVoice // from a per-voice object...
+    && !cord->dst->perVoice // ...to a single-instance one...
+    && AudioCategory_mixer == cord->dst->objP->category // ... which is a mixer...
+    && 0 == cord->dst->inputAvailFlags) // ...but has no inputs left
+    {
+      ok = false;
+      break;
+    }
+  }
+
+  return ok;
+}
+
 /*
  * Process a MIDI event received on any of the configured ports,
  * be they USB Sevice, USB Host or Serial.
@@ -103,12 +126,35 @@ void PatcherMIDI::processEvent(uint8_t cable, uint8_t channel, uint8_t type,
     switch (type)
     {
       case midi::NoteOn:       
-        {         
+        {   
+          PatcherVoice* newVoice = nullptr;      
           //uint32_t t = micros();
-          PatcherVoice* newVoice = new PatcherVoice{objVec, cordVec, *this, designObjectsFree}; // create the voice
-          designObjectsFree &= !newVoice->usesDesignObjects(); // flag whether it used the design objects
-          sounding.push_back(newVoice);  // add it to the list
-          newVoice->noteOn(channel,data1,data2); // start it sounding
+          if (outputMixersOK()) // check for available output mixer port
+            newVoice = new PatcherVoice{objVec, cordVec, *this, designObjectsFree}; // create the voice
+          else
+          {
+Serial.print("Re-used ");
+            if (releasing.size() > 0) // there's a voice that's been released: use that
+            {
+              newVoice = releasing.at(0);         // the oldest one
+              releasing.erase(releasing.begin()); // is not releasing any more
+Serial.print("releasing");
+            }
+            else // all notes held: steal the oldest sounding one
+            {
+              newVoice = sounding.at(0);        // the oldest one
+              sounding.erase(sounding.begin()); // will be pushed at the back
+              newVoice->noteOff(0,newVoice->getNote(),0); // just in case
+Serial.print("sounding");
+            }
+Serial.println("voice");
+          }
+          if (nullptr != newVoice)
+          {
+            designObjectsFree &= !newVoice->usesDesignObjects(); // flag whether it used the design objects
+            sounding.push_back(newVoice);  // add it to the list
+            newVoice->noteOn(channel,data1,data2); // start it sounding
+          }
           //Serial.printf("Took %uus to instantiate note\n",micros() - t);
         }
         break;
@@ -294,6 +340,9 @@ PatcherVoice::PatcherVoice(std::vector<AudioObjInstancePtr>& objVec,
       // if we don't have an internal destination, we're 
       // looking for a mixer with an unused input: this
       // is the only legal option
+      //
+      // Belt-and-braces here, as more recent versions
+      // should have already done this check...
       if (nullptr == dst)
       {
         if (AudioCategory_mixer == cord->dst->objP->category

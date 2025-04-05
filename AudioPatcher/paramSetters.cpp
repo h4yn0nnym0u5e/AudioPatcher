@@ -2497,9 +2497,21 @@ void processMIDIevent<ContextDexed>(AudioObjInstance* aoi, MIDIevent* ev)
   }
 }
 
+static elapsedMillis dexT;
+static int numP;
 // \return 0 for idle, 2 for active, 3 for sustain, should never be 3
 template <>
 int isActive<ContextDexed>(AudioObjInstance* aoi)
 {
-  return (aoi->streamP.Dexed->getNumNotesPlaying() > 0);
+  int playCount = aoi->streamP.Dexed->getNumNotesPlaying();
+  if ((playCount && dexT >= 500) || playCount != numP)
+  {
+    dexT=0;
+    Serial.printf("Time %d: count %d; carriers %02X; ",millis(),playCount, aoi->streamP.Dexed->op_carrier);
+    for (int i=0;i<6;i++)
+      Serial.printf("op %d; amp %d; step %d;  ", 6-i, aoi->streamP.Dexed->voiceStatus.amp[i], aoi->streamP.Dexed->voiceStatus.ampStep[i]);
+    Serial.println();
+  }
+  numP = playCount;
+  return playCount>0;
 }
