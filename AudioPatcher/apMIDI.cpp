@@ -133,21 +133,20 @@ void PatcherMIDI::processEvent(uint8_t cable, uint8_t channel, uint8_t type,
             newVoice = new PatcherVoice{objVec, cordVec, *this, designObjectsFree}; // create the voice
           else
           {
-Serial.print("Re-used ");
             if (releasing.size() > 0) // there's a voice that's been released: use that
             {
               newVoice = releasing.at(0);         // the oldest one
               releasing.erase(releasing.begin()); // is not releasing any more
-Serial.print("releasing");
             }
             else // all notes held: steal the oldest sounding one
             {
-              newVoice = sounding.at(0);        // the oldest one
-              sounding.erase(sounding.begin()); // will be pushed at the back
-              newVoice->noteOff(0,newVoice->getNote(),0); // just in case
-Serial.print("sounding");
+              if (sounding.size() > 0) // surely ... ?
+              {
+                newVoice = sounding.at(0);        // the oldest one
+                sounding.erase(sounding.begin()); // will be pushed at the back
+                newVoice->noteOff(0,newVoice->getNote(),0); // just in case
+              }
             }
-Serial.println("voice");
           }
           if (nullptr != newVoice)
           {
@@ -155,6 +154,8 @@ Serial.println("voice");
             sounding.push_back(newVoice);  // add it to the list
             newVoice->noteOn(channel,data1,data2); // start it sounding
           }
+          else
+            Serial.println("Can't create voice?!");
           //Serial.printf("Took %uus to instantiate note\n",micros() - t);
         }
         break;

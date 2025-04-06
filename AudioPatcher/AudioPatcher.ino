@@ -349,20 +349,36 @@ void getHeap(int& usedHeap, int& freeHeap)
 void updateStatus(void)
 {
   static elapsedMillis next;
+  static bool showing = true;
+
   if (next > 999)
   {
     next = 0;
 
-    float cpu = AudioProcessorUsageMax();
-    char buffer[15];
-    AudioProcessorUsageMaxReset();
-    sprintf(buffer,cpu>9.99f?"CPU:%.1f%%":"CPU:%.2f%%",cpu);
-    display.ShowStatus(buffer,320-9*6,0,0xD01C);
+    if (encr.getSwitch()) // yay - use the switch, Luke!
+    {
+      float cpu = AudioProcessorUsageMax();
+      char buffer[15];
+      AudioProcessorUsageMaxReset();
+      sprintf(buffer,cpu>9.99f?"CPU:%.1f%%":"CPU:%.2f%%",cpu);
+      display.ShowStatus(buffer,320-9*6,0,0xD01C);
 
-    int usedHeap, freeHeap;
-    getHeap(usedHeap, freeHeap);
-    sprintf(buffer,"Free:%3dk",freeHeap / 1024);
-    display.ShowStatus(buffer,320-9*6,1,0xD01C);    
+      int usedHeap, freeHeap;
+      getHeap(usedHeap, freeHeap);
+      sprintf(buffer,"Free:%3dk",freeHeap / 1024);
+      display.ShowStatus(buffer,320-9*6,1,0xD01C); 
+      
+      showing = true;
+    }
+    else
+    {
+      if (showing)
+      {
+        showing = false;
+        display.ShowStatus("CPU:----%",320-9*6,0,0xD01C);
+        display.ShowStatus("Free:---k",320-9*6,1,0xD01C); 
+      }
+    }
   }
 }
 

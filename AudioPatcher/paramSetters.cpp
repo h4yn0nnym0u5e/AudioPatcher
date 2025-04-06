@@ -2454,64 +2454,90 @@ void processMIDIevent<ContextDexed>(AudioObjInstance* aoi, MIDIevent* ev)
       aoi->streamP.Dexed->keydown(ev->note, ev->velocity);
       break;
   
-    case midi::NoteOff: // note off
+      case midi::NoteOff: // note off
       aoi->streamP.Dexed->keyup(ev->note);
+      break;
+
+      case midi::PitchBend: // pitchbend
+      aoi->streamP.Dexed->setPitchbend(ev->PBlsb, ev->PBmsb);
       break;
 
     case midi::SystemExclusive:
     {
-      Serial.printf("SysEx @ %08X: length = %d; data %02X %02X %02X %02X ...", 
-        (uint32_t) ev->sysexArray,
-        ev->sysexLength,
-        ev->sysexArray[0],
-        ev->sysexArray[1],
-        ev->sysexArray[2],
-        ev->sysexArray[3]
-      );
-
-      if (ev->sysexLength >= 160)//sizeof hdr)
+/*
+Serial.printf("SysEx @ %08X: length = %d; data %02X %02X %02X %02X %02X %02X %02X ...", 
+  (uint32_t) ev->sysexArray,
+  ev->sysexLength,
+  ev->sysexArray[0],
+  ev->sysexArray[1],
+  ev->sysexArray[2],
+  ev->sysexArray[3],
+  ev->sysexArray[4],
+  ev->sysexArray[5],
+  ev->sysexArray[6]
+);
+//*/
+      switch (ev->sysexLength)
       {
-        uint8_t hdr[] = {0xF0, 0x43, (uint8_t) (ev->sysexArray[2] & 0x0F), 0x00, 0x01, 0x1B};
-        bool hdrOK = 0 == memcmp(ev->sysexArray,hdr,sizeof hdr);
-        uint8_t sum = 0;
-        for (int i=0;i<155;i++)
-          sum -= ev->sysexArray[i+6];
-        sum &= 0x7F; // sysex can only have 0-127 values
-        Serial.printf("; sum %02X; check %02X; header %sOK", 
-            sum,
-            ev->sysexArray[161],
-            hdrOK?"":"not "
-          );
+        default:
+          break; 
 
-        if (hdrOK && sum == ev->sysexArray[161])
+        case 163:
         {
-          char buf[11];
-          aoi->streamP.Dexed->loadVoiceParameters(ev->sysexArray + 6);
-          aoi->streamP.Dexed->getName(buf);
-          Serial.printf("; loaded %s", buf);
+          uint8_t hdr[] = {0xF0, 0x43, (uint8_t) (ev->sysexArray[2] & 0x0F), 0x00, 0x01, 0x1B};
+          bool hdrOK = 0 == memcmp(ev->sysexArray,hdr,sizeof hdr);
+          uint8_t sum = 0;
+          for (int i=0;i<155;i++)
+            sum -= ev->sysexArray[i+6];
+          sum &= 0x7F; // sysex can only have 0-127 values
+/*
+Serial.printf("; sum %02X; check %02X; header %sOK", 
+    sum,
+    ev->sysexArray[161],
+    hdrOK?"":"not "
+  );
+*/
+
+          if (hdrOK && sum == ev->sysexArray[161])
+          {
+//            char buf[11];
+            aoi->streamP.Dexed->loadVoiceParameters(ev->sysexArray + 6);
+//            aoi->streamP.Dexed->getName(buf);
+// Serial.printf("; loaded %s", buf);
+          }
         }
+          break;
+
+        case 7:
+        {
+          uint8_t hdr[] = {0xF0, 0x43, 
+                           (uint8_t) ((ev->sysexArray[2] & 0x0F) + 0x10),
+                           (uint8_t)  (ev->sysexArray[3] & 0x09)};
+          bool hdrOK = 0 == memcmp(ev->sysexArray,hdr,sizeof hdr);
+          if (hdrOK)
+          {
+            int idx = ((ev->sysexArray[3] & 0x03)?128:0) + ev->sysexArray[4];
+            aoi->streamP.Dexed->setVoiceDataElement(idx,ev->sysexArray[5]);
+//Serial.printf("element %d -> %d",idx,ev->sysexArray[5]);
+            aoi->streamP.Dexed->doRefreshVoice();
+            // for some reason Dexed doesn't honour the operator on/off switches
+            if (155 == idx) 
+              aoi->streamP.Dexed->setOPAll(ev->sysexArray[5]);
+          }
+        }
+          break;
       }
-      Serial.println();
+//Serial.println();
+      break;
     }
       break;
   }
 }
 
-static elapsedMillis dexT;
-static int numP;
-// \return 0 for idle, 2 for active, 3 for sustain, should never be 3
+// \return 1 if active, 0 otherwise
 template <>
 int isActive<ContextDexed>(AudioObjInstance* aoi)
 {
   int playCount = aoi->streamP.Dexed->getNumNotesPlaying();
-  if ((playCount && dexT >= 500) || playCount != numP)
-  {
-    dexT=0;
-    Serial.printf("Time %d: count %d; carriers %02X; ",millis(),playCount, aoi->streamP.Dexed->op_carrier);
-    for (int i=0;i<6;i++)
-      Serial.printf("op %d; amp %d; step %d;  ", 6-i, aoi->streamP.Dexed->voiceStatus.amp[i], aoi->streamP.Dexed->voiceStatus.ampStep[i]);
-    Serial.println();
-  }
-  numP = playCount;
   return playCount>0;
 }
