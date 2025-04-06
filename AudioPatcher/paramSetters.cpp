@@ -487,7 +487,7 @@ FLASHMEM void ContextChorus::enterEditMode(AudioObjInstance* aoi)
   allocMem(mem,milliseconds2bytes(params[0].max.f),aoi);
 }
 
-template <>
+template <> FLASHMEM
 void enterEditMode<ContextChorus>(ContextChorus* myContext, AudioObjInstance* aoi)
 {
   myContext->enterEditMode(aoi);
@@ -509,7 +509,7 @@ FLASHMEM void ContextChorus::exitEditMode(AudioObjInstance* aoi)
   }  
 }
 
-template <>
+template <> FLASHMEM
 void exitEditMode<ContextChorus>(ContextChorus* myContext, AudioObjInstance* aoi)
 {
   myContext->exitEditMode(aoi);
@@ -586,7 +586,7 @@ FLASHMEM void ContextFlange::enterEditMode(AudioObjInstance* aoi)
   allocMem(mem,milliseconds2bytes(params[0].max.f),aoi);
 }
 
-template <>
+template <> FLASHMEM
 void enterEditMode<ContextFlange>(ContextFlange* myContext, AudioObjInstance* aoi)
 {
   myContext->enterEditMode(aoi);
@@ -613,7 +613,7 @@ FLASHMEM void ContextFlange::exitEditMode(AudioObjInstance* aoi)
   }  
 }
 
-template <>
+template <> FLASHMEM
 void exitEditMode<ContextFlange>(ContextFlange* myContext, AudioObjInstance* aoi)
 {
   myContext->exitEditMode(aoi);
@@ -716,7 +716,7 @@ FLASHMEM int editMixer4(AudioObjInstance* aoi, AudioEditMode mode, void* params)
   return editObjType<AudioMixer4, ContextMixer4>(aoi,mode,params);    
 }
 
-template <>
+template <> FLASHMEM
 void processMIDIevent<ContextMixer4>(AudioObjInstance* aoi, MIDIevent* ev)
 {
   ContextMixer4* ctxt = (ContextMixer4*) aoi->context;
@@ -809,7 +809,7 @@ PROGMEM constexpr ParamEntry ContextMixerStereo::_params[20] =
   
 };
 
-template <>
+template <> FLASHMEM
 // Template specialization for creating a new 
 //                             VVVV
 void editCreateStream<AudioMixerStereo>(AudioObjInstance* aoi, AudioObjInstance* original){ aoi->streamP.MixerStereo = new AudioMixerStereo{AudioMixerStereo_CONSTRUCTOR}; }
@@ -863,7 +863,7 @@ PROGMEM constexpr ParamEntry ContextMixer::_params[10] =
 };
 
 
-template <>
+template <> FLASHMEM
 // Template specialization for creating a new 
 //                                 VVVV
 void editCreateStream<AudioMixer>(AudioObjInstance* aoi, AudioObjInstance* original){ aoi->streamP.Mixer = new AudioMixer{AudioMixer_CONSTRUCTOR}; }
@@ -889,12 +889,12 @@ FLASHMEM int editMixer(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 //  "Y888888 888     88888P"  888P     Y888 d88P     888     Y8P     
 //  
 //======================================================================
-template<> bool arbWAVrecord<int16_t>::isDefault(void) {return sampleData == arbWAV_sax; }
+template<> FLASHMEM bool arbWAVrecord<int16_t>::isDefault(void) {return sampleData == arbWAV_sax; }
 
 /*
  * Load arbitrary waveform using given complete path
  */
-template<>
+template<> FLASHMEM
 FLASHMEM bool arbWAVrecord<int16_t>::load(const char* buf)
 {
   bool result = false;
@@ -948,7 +948,7 @@ FLASHMEM bool arbWAVrecord<int16_t>::load(const char* buf)
   Reset arbitrary waveform to safe value, and 
   free the memory it's using.
 */
-template<>
+template<> FLASHMEM
 FLASHMEM void arbWAVrecord<int16_t>::reset(void)
 {
   int16_t* oldArbWAV = sampleData;
@@ -965,7 +965,7 @@ FLASHMEM void arbWAVrecord<int16_t>::reset(void)
   Prepare memory to store waveform and its source path
   \return pointer to memory; may be nullptr
 */
-template<>
+template<> FLASHMEM
 FLASHMEM char* arbWAVrecord<int16_t>::prepare(size_t pathLen)
 {
   // allocate space to store it
@@ -1269,7 +1269,7 @@ FLASHMEM void ContextWaveformModulated::setParam(int i, AudioObjInstance* aoi)
 }
 
 
-template <>
+template <> FLASHMEM
 void enterEditMode<ContextWaveformModulated>(ContextWaveformModulated* myContext, AudioObjInstance* aoi)
 {
   // fix up the pot and encoder values
@@ -1407,7 +1407,7 @@ bool pollInstSelect(ContextWavetable* myContext, LimitedEncoder& enc)
 
 // template specialization for setting WaveformModulated; needed for frequency setting
 // and arbitrary waveform load
-template <> 
+template <>  FLASHMEM
 bool updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myContext, AudioObjInstance* aoi)
 {
   bool result = false;
@@ -1448,7 +1448,7 @@ bool updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myCo
 }
 
 
-template <>
+template <> FLASHMEM
 void processMIDIevent<ContextWaveformModulated>(AudioObjInstance* aoi, MIDIevent* ev)
 {
   processMIDIforWaveform(aoi,ev,(ContextWaveformModulated*) aoi->context,aoi->streamP.WaveformModulated);
@@ -1497,7 +1497,7 @@ FLASHMEM void ContextKarplusStrong::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-template <>
+template <> FLASHMEM
 void enterEditMode<ContextKarplusStrong>(ContextKarplusStrong* myContext, AudioObjInstance* aoi)
 {
   // fix up the pot and encoder values
@@ -1547,7 +1547,7 @@ bool updateFromControls<ContextKarplusStrong>(ContextKarplusStrong* myContext, A
 }
 
 
-template <>
+template <> FLASHMEM
 void processMIDIevent<ContextKarplusStrong>(AudioObjInstance* aoi, MIDIevent* ev)
 {
   processMIDIforKarplusStrong(aoi,ev,(ContextKarplusStrong*) aoi->context,aoi->streamP.KarplusStrong);
@@ -1587,7 +1587,7 @@ FLASHMEM int editWaveformDc(AudioObjInstance* aoi, AudioEditMode mode, void* par
   return editObjType<AudioSynthWaveformDc, ContextWaveformDc>(aoi,mode,params);    
 }
 
-template <>
+template <> FLASHMEM
 void processMIDIevent<ContextWaveformDc>(AudioObjInstance* aoi, MIDIevent* ev)
 {
   ContextWaveformDc* ctxt = (ContextWaveformDc*) aoi->context;
@@ -1759,7 +1759,7 @@ FLASHMEM void ContextControlSGTL5000::setParam(int i, AudioObjInstance* aoi)
   }  
 }
 
-template <>
+template <> FLASHMEM
 // Template specialization for creating a new 
 //                                   VVVV
 void editCreateStream<AudioControlSGTL5000>(AudioObjInstance* aoi, AudioObjInstance* original)
@@ -1841,7 +1841,7 @@ PROGMEM constexpr ParamEntry ContextStateVariable::MIDIparams[]
 };
 
 
-template <>
+template <> FLASHMEM
 void processMIDIevent<ContextStateVariable>(AudioObjInstance* aoi, MIDIevent* ev)
 {
   ContextStateVariable* ctxt = (ContextStateVariable*) aoi->context;
@@ -1918,7 +1918,7 @@ FLASHMEM void ContextWaveform::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-template <>
+template <> FLASHMEM
 void enterEditMode<ContextWaveform>(ContextWaveform* myContext, AudioObjInstance* aoi)
 {
   // fix up the pot and encoder values
@@ -1979,7 +1979,7 @@ bool updateFromControls<ContextWaveform>(ContextWaveform* myContext, AudioObjIns
   return result;
 }
 
-template <>
+template <> FLASHMEM
 void processMIDIevent<ContextWaveform>(AudioObjInstance* aoi, MIDIevent* ev)
 {
   processMIDIforWaveform(aoi,ev,(ContextWaveform*) aoi->context,aoi->streamP.Waveform);
@@ -2044,7 +2044,7 @@ FLASHMEM void ContextWavetable::setParam(int i, AudioObjInstance* aoi)
 }
 
 
-template <> // template specialization for setting Wavetable; needed for frequency setting
+template <> FLASHMEM // template specialization for setting Wavetable; needed for frequency setting
 bool updateFromControls<ContextWavetable>(ContextWavetable* myContext, AudioObjInstance* aoi)
 {
   bool result = false;
@@ -2087,14 +2087,14 @@ bool updateFromControls<ContextWavetable>(ContextWavetable* myContext, AudioObjI
   return result;
 }
 
-template <>
+template <> FLASHMEM
 void processMIDIevent<ContextWavetable>(AudioObjInstance* aoi, MIDIevent* ev)
 {
   processMIDIforWavetable(aoi,ev,(ContextWavetable*) aoi->context,aoi->streamP.Wavetable);
 }
 
 // \return 0 for idle, 1 for active
-template <>
+template <> FLASHMEM
 int isActive<ContextWavetable>(AudioObjInstance* aoi)
 {
   return aoi->streamP.Wavetable->isPlaying()?1:0;
@@ -2292,7 +2292,7 @@ FLASHMEM int editEnvelope(AudioObjInstance* aoi, AudioEditMode mode, void* param
   return editObjType<AudioEffectEnvelope, ContextEnvelope>(aoi,mode,params);
 }
 
-template <>
+template <> FLASHMEM
 void processMIDIevent<ContextEnvelope>(AudioObjInstance* aoi, MIDIevent* ev)
 {
   if (midi::NoteOff == ev->type) // note off
@@ -2302,7 +2302,7 @@ void processMIDIevent<ContextEnvelope>(AudioObjInstance* aoi, MIDIevent* ev)
 }
 
 // \return 0 for idle, 2 for active, 3 for sustain; should never be 1
-template <>
+template <> FLASHMEM
 int isActive<ContextEnvelope>(AudioObjInstance* aoi)
 {
   return (aoi->streamP.Envelope->isSustain()?1:0)
@@ -2343,7 +2343,7 @@ FLASHMEM int editExpEnvelope(AudioObjInstance* aoi, AudioEditMode mode, void* pa
   return editObjType<AudioEffectExpEnvelope, ContextExpEnvelope>(aoi,mode,params);
 }
 
-template <>
+template <> FLASHMEM
 void processMIDIevent<ContextExpEnvelope>(AudioObjInstance* aoi, MIDIevent* ev)
 {
   if (midi::NoteOff == ev->type) // note off
@@ -2353,7 +2353,7 @@ void processMIDIevent<ContextExpEnvelope>(AudioObjInstance* aoi, MIDIevent* ev)
 }
 
 // \return 0 for idle, 2 for active, 3 for sustain, should never be 3
-template <>
+template <> FLASHMEM
 int isActive<ContextExpEnvelope>(AudioObjInstance* aoi)
 {
   return (aoi->streamP.ExpEnvelope->isSustain()?1:0)
@@ -2424,7 +2424,7 @@ PROGMEM constexpr ParamEntry ContextDexed::_params[1] =
 };
 
 extern uint8_t fmpiano_sysex[];
-template <>
+template <> FLASHMEM
 // Template specialization for creating a new 
 //                              VVVV
 void editCreateStream<AudioSynthDexed>(AudioObjInstance* aoi, AudioObjInstance* original)
@@ -2444,8 +2444,7 @@ FLASHMEM int editDexed(AudioObjInstance* aoi, AudioEditMode mode, void* params)
   return editObjType<AudioSynthDexed, ContextDexed>(aoi,mode,params);    
 }
 
-
-template <>
+template <> FLASHMEM
 void processMIDIevent<ContextDexed>(AudioObjInstance* aoi, MIDIevent* ev)
 {
   switch (ev->type)
@@ -2535,7 +2534,7 @@ Serial.printf("; sum %02X; check %02X; header %sOK",
 }
 
 // \return 1 if active, 0 otherwise
-template <>
+template <> FLASHMEM
 int isActive<ContextDexed>(AudioObjInstance* aoi)
 {
   int playCount = aoi->streamP.Dexed->getNumNotesPlaying();
