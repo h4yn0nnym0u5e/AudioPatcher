@@ -1,4 +1,4 @@
 Memory Usage on Teensy 4.1:
-  FLASH: code:394724, data:199584, headers:8824   free for files:7523332
-   RAM1: variables:95552, code:312276, padding:15404   free for local variables:101056
+  FLASH: code:395148, data:199584, headers:8400   free for files:7523332
+   RAM1: variables:95552, code:312164, padding:15516   free for local variables:101056
    RAM2: variables:72992  free for malloc/new:451296

@@ -1092,9 +1092,9 @@ class ContextDexed : public ContextBase
 {
   public:
   ContextDexed(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.gain, _params) {}
-    static const ParamEntry _params[1];
-    struct {ParamValue gain;} s
-                {      {1.0f},       };
+    static const ParamEntry _params[2];
+    struct {ParamValue gain,  bend;} s
+                {      {1.0f}, {3}      };
 
     void setParam(int i, AudioObjInstance* aoi);
     static constexpr AudioPatcherDisplay::Box box{BOX_DEF(220,COUNT_OF(_params))};

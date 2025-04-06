@@ -346,7 +346,7 @@ void getHeap(int& usedHeap, int& freeHeap)
   usedHeap = u; freeHeap = f;
 }
 
-void updateStatus(void)
+FLASHMEM void updateStatus(void)
 {
   static elapsedMillis next;
   static bool showing = true;
@@ -357,17 +357,37 @@ void updateStatus(void)
 
     if (encr.getSwitch()) // yay - use the switch, Luke!
     {
-      float cpu = AudioProcessorUsageMax();
+      int which = encr.getCount(7) / 2; // counts in twos
       char buffer[15];
-      AudioProcessorUsageMaxReset();
-      sprintf(buffer,cpu>9.99f?"CPU:%.1f%%":"CPU:%.2f%%",cpu);
-      display.ShowStatus(buffer,320-9*6,0,0xD01C);
 
-      int usedHeap, freeHeap;
-      getHeap(usedHeap, freeHeap);
-      sprintf(buffer,"Free:%3dk",freeHeap / 1024);
-      display.ShowStatus(buffer,320-9*6,1,0xD01C); 
-      
+      switch (which % 2)
+      {
+        case 0: // CPU and heap usage
+        {
+          float cpu = AudioProcessorUsageMax();
+          AudioProcessorUsageMaxReset();
+          sprintf(buffer,cpu>9.99f?"CPU:%.1f%%":"CPU:%.2f%%",cpu);
+          display.ShowStatus(buffer,320-9*6,0,0xD01C);
+
+          int usedHeap, freeHeap;
+          getHeap(usedHeap, freeHeap);
+          sprintf(buffer,"Free:%3dk",freeHeap / 1024);
+          display.ShowStatus(buffer,320-9*6,1,0xD01C); 
+        }
+          break;
+
+        case 1: // sounding and releasing voices
+        {
+          sprintf(buffer,"Snd: %hhu ",patcherMIDI.getSoundingCount());
+          display.ShowStatus(buffer,320-9*6,1,0xD01C);
+
+          sprintf(buffer,"Rel: %hhu ",patcherMIDI.getReleasingCount());
+          display.ShowStatus(buffer,320-9*6,0,0xD01C); 
+
+          next = 499; // faster updates!
+        }
+          break;
+      }      
       showing = true;
     }
     else

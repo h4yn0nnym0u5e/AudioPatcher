@@ -2415,12 +2415,14 @@ FLASHMEM void ContextDexed::setParam(int i, AudioObjInstance* aoi)
   {
     default: break;
     case 0: aoi->streamP.Dexed->setGain(s.gain.value.f); break;
+    case 1: aoi->streamP.Dexed->setPitchbendRange(s.bend.value.i); break;
   }
 }
 
-PROGMEM constexpr ParamEntry ContextDexed::_params[1] = 
+PROGMEM constexpr ParamEntry ContextDexed::_params[2] = 
 {
   {"gain", 0.0f, 1.0f},
+  {"bend", 0, 12}
 };
 
 extern uint8_t fmpiano_sysex[];
@@ -2433,6 +2435,7 @@ void editCreateStream<AudioSynthDexed>(AudioObjInstance* aoi, AudioObjInstance* 
   {
     aoi->streamP.Dexed = new AudioSynthDexed{AudioSynthDexed_CONSTRUCTOR_1};
     aoi->streamP.Dexed->loadVoiceParameters(&fmpiano_sysex[0]);
+    aoi->streamP.Dexed->setPitchbendRange(3); // default is no pitch bend, for some reason
   }
   else
     aoi->streamP.Dexed = new AudioSynthDexed{AudioSynthDexed_CONSTRUCTOR_2};

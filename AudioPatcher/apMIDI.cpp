@@ -10,8 +10,8 @@ static USBHub hub1{myUSB}; // allow for one hub...
 static PatcherMIDI* pm;
 static MIDIDevice midiHosts[2] = {{myUSB},{myUSB}}; // ... and two controllers
 
-static std::vector<PatcherVoice*> sounding;
-static std::vector<PatcherVoice*> releasing;
+//static std::vector<PatcherVoice*> sounding;
+//static std::vector<PatcherVoice*> releasing;
 
 //=================================================================
 PROGMEM const float velocity2amplitude[128] = {0.00000,
