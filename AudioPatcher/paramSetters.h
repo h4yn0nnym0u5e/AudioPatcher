@@ -610,6 +610,27 @@ class ContextChorus  : public ContextBase
 
 
 //-----------------------------------------------------------------------------------------
+#define EDIT_DELAY_EXTERNAL_PAN_OFF ((int) (9*12+20)) // x-offset of pan label
+class ContextDelayExternal : public ContextBase
+{
+    static const ParamPage _pages[2];
+  public:
+  ContextDelayExternal(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.taps[0], _params, _pages) {}
+    static const ParamEntry _params[10];
+    struct {ParamValue taps[8],
+      /* tap1, tap2, tap3, tap4, 
+                       tap5, tap6, tap7, tap8, */
+                       length,  memType;} s
+                {     {{0.001f}, {0.01f}, {0.1f},  {0.2f},
+                       {0.25f},  {0.5f},  {0.75f}, {1.0f}},
+                       {0.0f}, {0}      };
+
+    void setParam(int i, AudioObjInstance* aoi);
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(270,4)};
+};
+
+
+//-----------------------------------------------------------------------------------------
 class ContextFlange  : public ContextBase
 {
   public:
@@ -746,6 +767,15 @@ class ContextLadder : public ContextBase
     ~ContextLadder(){}
     void setParam(int i, AudioObjInstance* aoi);
     static constexpr AudioPatcherDisplay::Box box{BOX_DEF(270,COUNT_OF(_params))};
+};
+
+//-----------------------------------------------------------------------------------------
+class ContextMultiply : public ContextBase
+{
+  public:
+    ContextMultiply(AudioObjInstance& _aoi) : ContextBase(_aoi, 0, nullptr, nullptr) {}
+    ~ContextMultiply(){}
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(200,0)};
 };
 
 //-----------------------------------------------------------------------------------------

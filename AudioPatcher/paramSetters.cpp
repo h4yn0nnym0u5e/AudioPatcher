@@ -521,6 +521,59 @@ FLASHMEM int editChorus(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
+FLASHMEM void ContextDelayExternal::setParam(int i, AudioObjInstance* aoi)
+{
+  switch (i)
+  {
+    default: break;
+    case 0 ... 7: // tap positions
+    {
+      float secs = s.taps[i].value.f;
+
+      if (secs > 0.0f)
+        aoi->streamP.DelayExternal->delay(i, secs * 1000.0f); 
+      else        
+        aoi->streamP.DelayExternal->disable(i); 
+    } break;
+    //case 1: aoi->streamP.Bitcrusher->sampleRate(params[i].min.f / s.sampleRate.value.i); break;
+  }
+}
+
+const ParamChoice delayMemTypes[] 
+  {{"ExtMem", 0},
+  {"PSRAM", 1},
+  {"Heap", 2},
+};
+
+const ParamPage ContextDelayExternal::_pages[2] {{0,8},{8,2}};
+
+PROGMEM constexpr ParamEntry ContextDelayExternal::_params[10] = 
+{
+  {"tap1", -0.05f, 1.0f}, {"tap2", -0.05f, 1.0f, EDIT_DELAY_EXTERNAL_PAN_OFF},
+  {"tap3", -0.05f, 1.0f}, {"tap4", -0.05f, 1.0f, EDIT_DELAY_EXTERNAL_PAN_OFF},
+  {"tap5", -0.05f, 1.0f}, {"tap6", -0.05f, 1.0f, EDIT_DELAY_EXTERNAL_PAN_OFF},
+  {"tap7", -0.05f, 1.0f}, {"tap8", -0.05f, 1.0f, EDIT_DELAY_EXTERNAL_PAN_OFF},
+
+  {"max time", -4.0f, 5.0f, 'l'}, // max delay time
+  {"location", PARAM_ENTRY_CHOICES(delayMemTypes)} 
+};
+
+
+FLASHMEM int editDelayExternal(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  return editObjType<AudioEffectDelayExternal, ContextDelayExternal>(aoi,mode,params);    
+}
+
+template <>
+// Template specialization for creating a new 
+//                             VVVV
+void editCreateStream<AudioEffectDelayExternal>(AudioObjInstance* aoi, AudioObjInstance* original)
+{ 
+  aoi->streamP.DelayExternal = new AudioEffectDelayExternal{AudioEffectDelayExternal_CONSTRUCTOR}; 
+}
+
+
+//===========================================================================================
 /// TODO: see if we can make much of this code common with the Chorus effect
 FLASHMEM void ContextFlange::allocMem(memRecord& mem, size_t newsize, AudioObjInstance* aoi)
 {
@@ -1808,6 +1861,11 @@ FLASHMEM int editLadder(AudioObjInstance* aoi, AudioEditMode mode, void* params)
   return editObjType<AudioFilterLadder, ContextLadder>(aoi,mode,params);
 }
 
+//===========================================================================================
+FLASHMEM int editMultiply(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  return editObjType<AudioEffectMultiply, ContextMultiply>(aoi,mode,params);    
+}
 //===========================================================================================
 const ContextMIDInote filterNoteContext; // dummy context for filter tracking purposes
 //===========================================================================================
