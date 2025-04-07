@@ -27,12 +27,15 @@ class BaseEditor
     const int16_t CANVAS_STEP=50;
     const int16_t CORD_SELECT_MIN = 15;
     static const int32_t NO_FORCE=0xCAFEBABE;
+    static const int NUM_STASHES = 3;
+    LimitedEncoderStash* stashes[NUM_STASHES];
 
   public:
     BaseEditor(AudioPatcherDisplay& d,
             std::vector<AudioObjInstancePtr>& o,
             std::vector<PatchcordInstance_t*>& p)
-            : display(d.getInstance()), objVec(o), cordVec(p), epIdx(0), state(0)
+            : display(d.getInstance()), objVec(o), cordVec(p), 
+              epIdx(0), state(0), stashes{0}
             {}
     AudioObjInstance* highlightObjnum(int n, uint16_t colour);
     AudioObjInstance* highlightObj(AudioObjInstance* it, uint16_t colour); 
@@ -43,6 +46,44 @@ class BaseEditor
     int SelectByTouch(LimitedEncoder& enc0, bool onlySetEncoder=false);
     int SelectCordByTouch(LimitedEncoder& enc0, bool onlySetEncoder=false);
     void drawAll(bool drawCords = true);
+    
+    /*
+     * Stash an encoder status for later retrieval
+     */
+    void stash(LimitedEncoder& enc, int slot)
+    {
+      if (nullptr != stashes[slot]) delete stashes[slot];
+      stashes[slot] = new LimitedEncoderStash(enc);
+    }
+
+    /*
+     * Set up encoder that's intended to select an existing object.
+     */
+    void setObjectSelectEnc(LimitedEncoder& enc)
+    {
+      enc.setLimits(0, objVec.size() - 1); // limit to vector size
+      enc.setValue(epIdx);    // try to set current value
+      epIdx = enc.getValue(); // what actually happened
+    }
+
+    /*
+     * Restore stashed encoder statuses
+     * \return true if there was something to unstash
+     */
+    bool unstashAll(void)
+    {
+      bool result = false;
+      for (int i=0; i<NUM_STASHES;i++)
+      {
+        if (nullptr != stashes[i])
+        {
+          delete stashes[i];
+          stashes[i] = nullptr;
+          result = true;
+        }
+      }
+      return result;
+    }
 };
 
 class ObjEditor : public BaseEditor
@@ -68,7 +109,7 @@ class ObjEditor : public BaseEditor
             {}
     void edit(void);
     void enter(void);
-    void exit(void) {}
+    void exit(void);
 
     void create(int id, int x, int y);
 };
@@ -141,8 +182,7 @@ class ParamEditor : public BaseEditor
 {
     LimitedEncoder& enc0, &enc1, &enc2; // we only select objects to modify
     bool inTarget; // true if target object's editor is active
-    LimitedEncoderStash* enc0Stash, *enc1Stash, *enc2Stash,
-                         *enc0Stash2;
+    LimitedEncoderStash* enc0Stash2;
     
   public:    
     ParamEditor(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2,  
@@ -151,8 +191,7 @@ class ParamEditor : public BaseEditor
             std::vector<PatchcordInstance_t*>& p
             )
             : BaseEditor(d,o,p),
-            enc0(e0), enc1(e1), enc2(e2), inTarget(false), 
-            enc0Stash(nullptr), enc1Stash(nullptr), enc2Stash(nullptr)
+            enc0(e0), enc1(e1), enc2(e2), inTarget(false)
             {}
     void edit(void);
     void enter(void);

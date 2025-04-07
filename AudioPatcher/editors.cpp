@@ -279,14 +279,22 @@ FLASHMEM void ObjEditor::enter(void)
 {
   display.canvasGetLimits(xmax, ymax);
   ymax -= 20; // allow for status line (magic number...)
-  enc0.setLimits(-1, xmax + 1);
-  enc1.setLimits(-1, ymax + 1);
-  enc2.setLimits(1, COUNT_OF_objList);
-  enc2.setValue(lastType);
+  if (!unstashAll())
+  {
+    enc0.setLimits(-1, xmax + 1);
+    enc1.setLimits(-1, ymax + 1);
+    enc2.setLimits(1, COUNT_OF_objList);
+    enc2.setValue(lastType);
+  }
   ShowSelection(enc2.getValue());
 }
 
-
+FLASHMEM void ObjEditor::exit(void)
+{
+  stash(enc0,0);
+  stash(enc1,1);
+  stash(enc2,2);
+}
 
 //======================================================================
 //
@@ -791,11 +799,13 @@ FLASHMEM void CordEditor::enter(void)
 {
   AudioObjInstance* aoi;
 
-  enc0.setLimits(0, objVec.size() - 1);
-  enc0.setValue(epIdx);
+  if (!unstashAll())
+  {
+    setObjectSelectEnc(enc0);
 
-  enc2.setLimits(0, 1);
-  enc2.setValue(1);
+    enc2.setLimits(0, 1);
+    enc2.setValue(1);
+  }
 
   ShowSelection(0);
   aoi = highlightObjnum(epIdx, ILI9341_WHITE);
@@ -807,6 +817,8 @@ FLASHMEM void CordEditor::enter(void)
 
 FLASHMEM void CordEditor::exit(void)
 {
+  stash(enc0, 0);
+  stash(enc2, 2);
   highlightObjnum(epIdx, ILI9341_BLACK);
   greyOut(nothing);
   drawAll(false);
@@ -839,30 +851,27 @@ FLASHMEM void CordEditor::greyOut(srctype s)
 //======================================================================
 FLASHMEM void ParamEditor::enter(void)
 {
-  enc0Stash = new LimitedEncoderStash(enc0);
-  enc1Stash = new LimitedEncoderStash(enc1);
-  enc2Stash = new LimitedEncoderStash(enc2);
-
   display.ShowBottomText("", ILI9341_BLACK);
-  enc0.setLimits(0, objVec.size() - 1);
-  epIdx = enc0.getValue();
+  setObjectSelectEnc(enc0);
   highlightObjnum(epIdx, ILI9341_WHITE);
   inTarget = false;
 
-  enc1.setLimits(-1, 1);
-  enc2.setLimits(-1, 1);
+  if (!unstashAll())
+  {
+    enc1.setLimits(-1, 1);
+    enc2.setLimits(-1, 1);
 
-  enc1.setValue(0);
-  enc2.setValue(0);
+    enc1.setValue(0);
+    enc2.setValue(0);
+  }
 }
 
 
 FLASHMEM void ParamEditor::exit(void)
 {
+  stash(enc1, 1);
+  stash(enc2, 2);
   highlightObjnum(epIdx, ILI9341_BLACK);
-  delete enc0Stash; enc0Stash = nullptr;
-  delete enc1Stash; enc1Stash = nullptr;
-  delete enc2Stash; enc2Stash = nullptr;
 
   // might have moved - sort into correct order for saving
   std::stable_sort(objVec.begin(), objVec.end());
@@ -914,7 +923,7 @@ FLASHMEM void ParamEditor::edit(void)
     {
       aoi->objP->editFn(aoi, AudioEditMode::exit, nullptr); // tell editor to tidy up
       inTarget = false; // target has yielded UI control
-      if (nullptr != enc0Stash)
+      if (nullptr != enc0Stash2)
       {
         delete enc0Stash2;
         enc0Stash2 = nullptr;
@@ -939,8 +948,7 @@ FLASHMEM void ParamEditor::edit(void)
 FLASHMEM void MIDIEditor::enter(void)
 {
   display.ShowBottomText("", ILI9341_BLACK);
-  enc0.setLimits(0, objVec.size() - 1);
-  epIdx = enc0.getValue();
+  setObjectSelectEnc(enc0);
   highlightObjnum(epIdx, ILI9341_WHITE);
   inTarget = false;
 }
@@ -1034,17 +1042,20 @@ FLASHMEM void DeleteEditor::enter(void)
 {
   delType = delObj;
 
-  enc0.setValue(epIdx);
-  enc0.setLimits(0, objVec.size() - 1);
+  setObjectSelectEnc(enc0);
   highlight(-1, epIdx);
 
-  enc2.setLimits(0, 1);
-  enc2.setValue(delType);
+  if (!unstashAll())
+  {
+    enc2.setLimits(0, 1);
+    enc2.setValue(delType);
+  }
   ShowSelection(enc2.getValue());
 }
 
 FLASHMEM void DeleteEditor::exit(void)
 {
+  stash(enc2, 2);
   highlight(epIdx, -1);
 }
 
