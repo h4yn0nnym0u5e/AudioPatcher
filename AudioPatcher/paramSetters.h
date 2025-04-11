@@ -610,7 +610,7 @@ class ContextChorus  : public ContextBase
 
 
 //-----------------------------------------------------------------------------------------
-#define EDIT_DELAY_EXTERNAL_PAN_OFF ((int) (9*12+20)) // x-offset of pan label
+#define EDIT_DELAY_EXTERNAL_OFF ((int) (9*12+20)) // x-offset of pan label
 class ContextDelayExternal : public ContextBase
 {
     static const ParamPage _pages[2];
@@ -1091,8 +1091,9 @@ class ContextKarplusStrong : public ContextBase
   public:
     ContextKarplusStrong(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.frequency, _params, nullptr, 
                                          COUNT_OF(MIDIparams), &m.octave, MIDIparams) {}
-    static const ParamEntry _params[2];
-    struct {ParamValue frequency,amplitude;} s {{7.0f},{0.5f}};
+    static const ParamEntry _params[5];
+    struct {ParamValue frequency,amplitude, modulation, feedback, drive;} s 
+                        {{7.0f},  {0.5f},    {2.0f/12},  {0.98f}, {1.0f}};
     static constexpr AudioPatcherDisplay::Box box{BOX_DEF(260,COUNT_OF(_params))};
           
     void setParam(int i, AudioObjInstance* aoi);

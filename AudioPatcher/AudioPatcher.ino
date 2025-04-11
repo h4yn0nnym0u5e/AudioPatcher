@@ -135,7 +135,7 @@ void setup()
     ;
   Serial.println("Setup");
   systemState = 4;
-  AudioMemory(80);
+  AudioMemory(200); // plenty, for delays and Karplus-Strong synthesis
 
   printHL();
   display.Init();

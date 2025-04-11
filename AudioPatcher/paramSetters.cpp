@@ -549,10 +549,10 @@ const ParamPage ContextDelayExternal::_pages[2] {{0,8},{8,2}};
 
 PROGMEM constexpr ParamEntry ContextDelayExternal::_params[10] = 
 {
-  {"tap1", -0.05f, 1.0f}, {"tap2", -0.05f, 1.0f, EDIT_DELAY_EXTERNAL_PAN_OFF},
-  {"tap3", -0.05f, 1.0f}, {"tap4", -0.05f, 1.0f, EDIT_DELAY_EXTERNAL_PAN_OFF},
-  {"tap5", -0.05f, 1.0f}, {"tap6", -0.05f, 1.0f, EDIT_DELAY_EXTERNAL_PAN_OFF},
-  {"tap7", -0.05f, 1.0f}, {"tap8", -0.05f, 1.0f, EDIT_DELAY_EXTERNAL_PAN_OFF},
+  {"tap1", -0.05f, 1.0f}, {"tap2", -0.05f, 1.0f, EDIT_DELAY_EXTERNAL_OFF},
+  {"tap3", -0.05f, 1.0f}, {"tap4", -0.05f, 1.0f, EDIT_DELAY_EXTERNAL_OFF},
+  {"tap5", -0.05f, 1.0f}, {"tap6", -0.05f, 1.0f, EDIT_DELAY_EXTERNAL_OFF},
+  {"tap7", -0.05f, 1.0f}, {"tap8", -0.05f, 1.0f, EDIT_DELAY_EXTERNAL_OFF},
 
   {"max time", -4.0f, 5.0f, 'l'}, // max delay time
   {"location", PARAM_ENTRY_CHOICES(delayMemTypes)} 
@@ -1535,18 +1535,25 @@ PROGMEM constexpr ParamEntry ContextKarplusStrong::MIDIparams[]
 };
 
 
-PROGMEM constexpr ParamEntry ContextKarplusStrong::_params[2] = 
+PROGMEM constexpr ParamEntry ContextKarplusStrong::_params[5] = 
 {
-  {"frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
-  {"amplitude", 0.0f, 1.0f},
+  {" frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
+  {" amplitude", 0.0f, 1.0f},
+  {"modulation", 0.1f, 2.0f},
+  {"  feedback", 0.9f, 1.0f},
+  {"     drive", 0.0f, 1.0f},
 };
 
 FLASHMEM void ContextKarplusStrong::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
+    default: break;
     case 0: 
-    case 1: aoi->streamP.KarplusStrong->noteOn(pow(2,s.frequency.value.f),s.amplitude.value.f); break;
+    case 1: /* aoi->streamP.KarplusStrong->noteOn(pow(2,s.frequency.value.f),s.amplitude.value.f); */ break;
+    case 2: aoi->streamP.KarplusStrong->frequencyModulation(s.modulation.value.f); break;
+    case 3: aoi->streamP.KarplusStrong->setFeedbackLevel(s.feedback.value.f); break;
+    case 4: aoi->streamP.KarplusStrong->setDriveLevel(s.drive.value.f); break;
   }
 }
 
@@ -1605,10 +1612,18 @@ void processMIDIevent<ContextKarplusStrong>(AudioObjInstance* aoi, MIDIevent* ev
 {
   processMIDIforKarplusStrong(aoi,ev,(ContextKarplusStrong*) aoi->context,aoi->streamP.KarplusStrong);
 }
+
+// \return 0 for idle, 1 for active
+template <> FLASHMEM
+int isActive<ContextKarplusStrong>(AudioObjInstance* aoi)
+{
+  return aoi->streamP.KarplusStrong->isPlaying()?1:0;
+}
   
 FLASHMEM int editKarplusStrong(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
-  return editObjType<AudioSynthKarplusStrong, ContextKarplusStrong>(aoi,mode,params);  
+  int result = editObjType<AudioSynthKarplusStrong, ContextKarplusStrong>(aoi,mode,params);
+  return result;    
 }
 
 //===========================================================================================
