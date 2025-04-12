@@ -121,7 +121,7 @@ extern int testExit(uint32_t& exitAt);
 //=====================================================================================
 // Read controls and update object's settings accordingly
 // \return true if nested setting used "exit" press; don't exit next level up
-template <class Tctxt>
+template <class Tctxt> FLASHMEM
 bool updateFromControls(Tctxt* myContext, AudioObjInstance* aoi)
 {
   size_t pOff = 0, pCount = settingsEditor->paramCount;
@@ -218,7 +218,7 @@ template <class Tctxt>
 void processMIDIevent(AudioObjInstance* aoi, MIDIevent* ev){} // no special action for most AudioStream classes
 
 //=====================================================================================
-template <class TWaveformCtxt>
+template <class TWaveformCtxt> FLASHMEM
 void processMIDItoFreqAndAmp(const TWaveformCtxt* ctxt, const MIDIevent* ev, 
                              float& freq, float& ampl)
 {
@@ -260,7 +260,7 @@ void processMIDItoFreqAndAmp(const TWaveformCtxt* ctxt, const MIDIevent* ev,
 }
 
 //=====================================================================================
-template <class TWaveformCtxt, class TwaveformObject>
+template <class TWaveformCtxt, class TwaveformObject> FLASHMEM
 void processMIDIforWaveform(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt* ctxt, TwaveformObject* wav)
 {
   switch (ev->type)
@@ -289,7 +289,7 @@ void processMIDIforWaveform(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt*
 }
 
 
-template <class TWaveformCtxt, class TwaveformObject>
+template <class TWaveformCtxt, class TwaveformObject> FLASHMEM
 void processMIDIforKarplusStrong(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt* ctxt, TwaveformObject* wav)
 {
   switch (ev->type)
@@ -315,7 +315,7 @@ void processMIDIforKarplusStrong(AudioObjInstance* aoi, MIDIevent* ev, TWaveform
 }
 
 
-template <class TWaveformCtxt, class TwaveformObject>
+template <class TWaveformCtxt, class TwaveformObject> FLASHMEM
 void processMIDIforWavetable(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt* ctxt, TwaveformObject* wav)
 {
   switch (ev->type)
@@ -364,7 +364,7 @@ void editCreateStream(AudioObjInstance* aoi, AudioObjInstance* original = nullpt
   //Serial.printf("Constructed new %s for %08X at %08X\n", aoi->objP->name, (uint32_t) aoi, (uint32_t) aoi->streamP.streamObj);
 } 
 //=====================================================================================
-template <class Tstream, class Tctxt>
+template <class Tstream, class Tctxt> FLASHMEM
 int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   Tctxt* myContext = (Tctxt*) aoi->context;

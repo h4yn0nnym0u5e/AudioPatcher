@@ -1292,7 +1292,9 @@ FLASHMEM void ContextWaveformModulated::setParam(int i, AudioObjInstance* aoi)
   switch (i)
   {
     case 0: aoi->streamP.WaveformModulated->begin(waveShapes[s.waveform.value.i].value); break;
-    case 1: aoi->streamP.WaveformModulated->frequency(pow(2,s.frequency.value.f)); break;
+    case 1: 
+      noteFreq = pow(2,s.frequency.value.f);
+      aoi->streamP.WaveformModulated->frequency(noteFreq); break;
     case 2: aoi->streamP.WaveformModulated->amplitude(s.amplitude.value.f); break;
     case 3: aoi->streamP.WaveformModulated->offset(s.offset.value.f); break;
     
@@ -1635,8 +1637,8 @@ PROGMEM constexpr ParamEntry ContextWaveformDc::_params[] = {
 
 
 PROGMEM constexpr ParamEntry ContextWaveformDc::MIDIparams[]
-{                         // -3    -2     -1        0           1           2    ...
-  {"CC number", -3, 119}, // off, note, velocity, bank select, modulation, breath...
+{                         // -4   -3   -2     -1        0           1           2    ...
+  {"CC number", -4, 119}, // off, PB, note, velocity, bank select, modulation, breath...
   {"min", -1.00f, +1.00f},
   {"max", -1.00f, +1.00f},
 };
@@ -1670,39 +1672,48 @@ void processMIDIevent<ContextWaveformDc>(AudioObjInstance* aoi, MIDIevent* ev)
         aoi->streamP.WaveformDc->amplitude(ampl);
       }
     }
-    break;
+      break;
 
     case midi::NoteOn:
+    {
+      int CCval = 0;
+      PatcherVoice* pv = (PatcherVoice*) &(ev->pvb);
+      
+      switch (ctxt->m.CCnum.value.i)
       {
-        int CCval = 0;
-        PatcherVoice* pv = (PatcherVoice*) &(ev->pvb);
-        
-        switch (ctxt->m.CCnum.value.i)
-        {
-          case -3: // off
-            CCval = -1;
-            break;
-            
-          case -2: // set amplitude from note value
-            CCval = pv->getNote();
-            break;
-            
-          case -1: // set amplitude from note velocity
-            CCval = pv->getVelocity();
-            break;
+        case -4: // off
+          CCval = -1;
+          break;
+          
+        case -2: // set amplitude from note value
+          CCval = pv->getNote();
+          break;
+          
+        case -1: // set amplitude from note velocity
+          CCval = pv->getVelocity();
+          break;
 
-          default: // normal CC            
-            CCval = ev->pvb.pm.getCC(ctxt->m.CCnum.value.i);
-            break;
-        }
-
-        if (CCval >= 0) // valid CC value
-        {
-          float ampl = map((float) CCval,0.0f,127.0f,ctxt->m.CCmin.value.f,ctxt->m.CCmax.value.f);
-          aoi->streamP.WaveformDc->amplitude(ampl);          
-        }
+        default: // normal CC            
+          CCval = ev->pvb.pm.getCC(ctxt->m.CCnum.value.i);
+          break;
       }
+
+      if (CCval >= 0) // valid CC value
+      {
+        float ampl = map((float) CCval,0.0f,127.0f,ctxt->m.CCmin.value.f,ctxt->m.CCmax.value.f);
+        aoi->streamP.WaveformDc->amplitude(ampl);          
+      }
+    }
       break;
+
+    case midi::PitchBend:
+      if (-3 == ctxt->m.CCnum.value.i)
+      {
+        int16_t PBval = ev->pvb.pm.getPitchBend(); // ±8191
+        float ampl = map((float) PBval,-8191.0f,8191.0f,ctxt->m.CCmin.value.f,ctxt->m.CCmax.value.f);
+        aoi->streamP.WaveformDc->amplitude(ampl);          
+      }
+      break;      
   }
 }
 
@@ -1975,7 +1986,9 @@ FLASHMEM void ContextWaveform::setParam(int i, AudioObjInstance* aoi)
   switch (i)
   {
     case 0: aoi->streamP.Waveform->begin(waveShapes[s.waveform.value.i].value); break;
-    case 1: aoi->streamP.Waveform->frequency(pow(2,s.frequency.value.f)); break;
+    case 1: 
+      noteFreq = pow(2,s.frequency.value.f);
+      aoi->streamP.Waveform->frequency(noteFreq); break;
     case 2: aoi->streamP.Waveform->amplitude(s.amplitude.value.f); break;
     case 3: aoi->streamP.Waveform->pulseWidth(s.pulseWidth.value.f); break;
     case 4: aoi->streamP.Waveform->offset(s.offset.value.f); break;
@@ -2529,11 +2542,11 @@ void processMIDIevent<ContextDexed>(AudioObjInstance* aoi, MIDIevent* ev)
       aoi->streamP.Dexed->keydown(ev->note, ev->velocity);
       break;
   
-      case midi::NoteOff: // note off
+    case midi::NoteOff: // note off
       aoi->streamP.Dexed->keyup(ev->note);
       break;
 
-      case midi::PitchBend: // pitchbend
+    case midi::PitchBend: // pitchbend
       aoi->streamP.Dexed->setPitchbend(ev->PBlsb, ev->PBmsb);
       break;
 
