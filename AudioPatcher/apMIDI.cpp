@@ -203,6 +203,7 @@ void PatcherMIDI::processEvent(uint8_t cable, uint8_t channel, uint8_t type,
             case midi::PitchBend:
               pitchBend = ((int16_t) d2 << 7) | d1;
               pitchBend -= 0x2000; // make it signed
+              Serial.printf("PB = %d\n",pitchBend);
               break;
           }
 

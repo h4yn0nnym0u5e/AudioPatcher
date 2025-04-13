@@ -13,7 +13,7 @@
 #include <vector>
 #include <algorithm>
 
-// #include "TeensyDebug.h"
+//#include "TeensyDebug.h"
 
 #if !defined(SAFE_RELEASE_MANY) || !defined(DYNMIXER_H_)
 #error Make sure you have dynamic cores and Audio library!
@@ -135,7 +135,7 @@ void setup()
     ;
   Serial.println("Setup");
   systemState = 4;
-  AudioMemory(80);
+  AudioMemory(200); // plenty, for delays and Karplus-Strong synthesis
 
   printHL();
   display.Init();

@@ -121,7 +121,7 @@ extern int testExit(uint32_t& exitAt);
 //=====================================================================================
 // Read controls and update object's settings accordingly
 // \return true if nested setting used "exit" press; don't exit next level up
-template <class Tctxt>
+template <class Tctxt> FLASHMEM
 bool updateFromControls(Tctxt* myContext, AudioObjInstance* aoi)
 {
   size_t pOff = 0, pCount = settingsEditor->paramCount;
@@ -218,7 +218,7 @@ template <class Tctxt>
 void processMIDIevent(AudioObjInstance* aoi, MIDIevent* ev){} // no special action for most AudioStream classes
 
 //=====================================================================================
-template <class TWaveformCtxt>
+template <class TWaveformCtxt> FLASHMEM
 void processMIDItoFreqAndAmp(const TWaveformCtxt* ctxt, const MIDIevent* ev, 
                              float& freq, float& ampl)
 {
@@ -260,7 +260,7 @@ void processMIDItoFreqAndAmp(const TWaveformCtxt* ctxt, const MIDIevent* ev,
 }
 
 //=====================================================================================
-template <class TWaveformCtxt, class TwaveformObject>
+template <class TWaveformCtxt, class TwaveformObject> FLASHMEM
 void processMIDIforWaveform(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt* ctxt, TwaveformObject* wav)
 {
   switch (ev->type)
@@ -289,7 +289,7 @@ void processMIDIforWaveform(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt*
 }
 
 
-template <class TWaveformCtxt, class TwaveformObject>
+template <class TWaveformCtxt, class TwaveformObject> FLASHMEM
 void processMIDIforKarplusStrong(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt* ctxt, TwaveformObject* wav)
 {
   switch (ev->type)
@@ -315,7 +315,7 @@ void processMIDIforKarplusStrong(AudioObjInstance* aoi, MIDIevent* ev, TWaveform
 }
 
 
-template <class TWaveformCtxt, class TwaveformObject>
+template <class TWaveformCtxt, class TwaveformObject> FLASHMEM
 void processMIDIforWavetable(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt* ctxt, TwaveformObject* wav)
 {
   switch (ev->type)
@@ -364,7 +364,7 @@ void editCreateStream(AudioObjInstance* aoi, AudioObjInstance* original = nullpt
   //Serial.printf("Constructed new %s for %08X at %08X\n", aoi->objP->name, (uint32_t) aoi, (uint32_t) aoi->streamP.streamObj);
 } 
 //=====================================================================================
-template <class Tstream, class Tctxt>
+template <class Tstream, class Tctxt> FLASHMEM
 int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   Tctxt* myContext = (Tctxt*) aoi->context;
@@ -610,6 +610,27 @@ class ContextChorus  : public ContextBase
 
 
 //-----------------------------------------------------------------------------------------
+#define EDIT_DELAY_EXTERNAL_OFF ((int) (9*12+20)) // x-offset of pan label
+class ContextDelayExternal : public ContextBase
+{
+    static const ParamPage _pages[2];
+  public:
+  ContextDelayExternal(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.taps[0], _params, _pages) {}
+    static const ParamEntry _params[10];
+    struct {ParamValue taps[8],
+      /* tap1, tap2, tap3, tap4, 
+                       tap5, tap6, tap7, tap8, */
+                       length,  memType;} s
+                {     {{0.001f}, {0.01f}, {0.1f},  {0.2f},
+                       {0.25f},  {0.5f},  {0.75f}, {1.0f}},
+                       {0.0f}, {0}      };
+
+    void setParam(int i, AudioObjInstance* aoi);
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(270,4)};
+};
+
+
+//-----------------------------------------------------------------------------------------
 class ContextFlange  : public ContextBase
 {
   public:
@@ -746,6 +767,15 @@ class ContextLadder : public ContextBase
     ~ContextLadder(){}
     void setParam(int i, AudioObjInstance* aoi);
     static constexpr AudioPatcherDisplay::Box box{BOX_DEF(270,COUNT_OF(_params))};
+};
+
+//-----------------------------------------------------------------------------------------
+class ContextMultiply : public ContextBase
+{
+  public:
+    ContextMultiply(AudioObjInstance& _aoi) : ContextBase(_aoi, 0, nullptr, nullptr) {}
+    ~ContextMultiply(){}
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(200,0)};
 };
 
 //-----------------------------------------------------------------------------------------
@@ -1061,8 +1091,9 @@ class ContextKarplusStrong : public ContextBase
   public:
     ContextKarplusStrong(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.frequency, _params, nullptr, 
                                          COUNT_OF(MIDIparams), &m.octave, MIDIparams) {}
-    static const ParamEntry _params[2];
-    struct {ParamValue frequency,amplitude;} s {{7.0f},{0.5f}};
+    static const ParamEntry _params[5];
+    struct {ParamValue frequency,amplitude, modulation, feedback, drive;} s 
+                        {{7.0f},  {0.5f},    {2.0f/12},  {0.98f}, {1.0f}};
     static constexpr AudioPatcherDisplay::Box box{BOX_DEF(260,COUNT_OF(_params))};
           
     void setParam(int i, AudioObjInstance* aoi);

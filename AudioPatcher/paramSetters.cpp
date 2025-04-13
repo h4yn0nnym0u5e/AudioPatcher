@@ -521,6 +521,59 @@ FLASHMEM int editChorus(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
+FLASHMEM void ContextDelayExternal::setParam(int i, AudioObjInstance* aoi)
+{
+  switch (i)
+  {
+    default: break;
+    case 0 ... 7: // tap positions
+    {
+      float secs = s.taps[i].value.f;
+
+      if (secs > 0.0f)
+        aoi->streamP.DelayExternal->delay(i, secs * 1000.0f); 
+      else        
+        aoi->streamP.DelayExternal->disable(i); 
+    } break;
+    //case 1: aoi->streamP.Bitcrusher->sampleRate(params[i].min.f / s.sampleRate.value.i); break;
+  }
+}
+
+const ParamChoice delayMemTypes[] 
+  {{"ExtMem", 0},
+  {"PSRAM", 1},
+  {"Heap", 2},
+};
+
+const ParamPage ContextDelayExternal::_pages[2] {{0,8},{8,2}};
+
+PROGMEM constexpr ParamEntry ContextDelayExternal::_params[10] = 
+{
+  {"tap1", -0.05f, 1.0f}, {"tap2", -0.05f, 1.0f, EDIT_DELAY_EXTERNAL_OFF},
+  {"tap3", -0.05f, 1.0f}, {"tap4", -0.05f, 1.0f, EDIT_DELAY_EXTERNAL_OFF},
+  {"tap5", -0.05f, 1.0f}, {"tap6", -0.05f, 1.0f, EDIT_DELAY_EXTERNAL_OFF},
+  {"tap7", -0.05f, 1.0f}, {"tap8", -0.05f, 1.0f, EDIT_DELAY_EXTERNAL_OFF},
+
+  {"max time", -4.0f, 5.0f, 'l'}, // max delay time
+  {"location", PARAM_ENTRY_CHOICES(delayMemTypes)} 
+};
+
+
+FLASHMEM int editDelayExternal(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  return editObjType<AudioEffectDelayExternal, ContextDelayExternal>(aoi,mode,params);    
+}
+
+template <>
+// Template specialization for creating a new 
+//                             VVVV
+void editCreateStream<AudioEffectDelayExternal>(AudioObjInstance* aoi, AudioObjInstance* original)
+{ 
+  aoi->streamP.DelayExternal = new AudioEffectDelayExternal{AudioEffectDelayExternal_CONSTRUCTOR}; 
+}
+
+
+//===========================================================================================
 /// TODO: see if we can make much of this code common with the Chorus effect
 FLASHMEM void ContextFlange::allocMem(memRecord& mem, size_t newsize, AudioObjInstance* aoi)
 {
@@ -1239,7 +1292,9 @@ FLASHMEM void ContextWaveformModulated::setParam(int i, AudioObjInstance* aoi)
   switch (i)
   {
     case 0: aoi->streamP.WaveformModulated->begin(waveShapes[s.waveform.value.i].value); break;
-    case 1: aoi->streamP.WaveformModulated->frequency(pow(2,s.frequency.value.f)); break;
+    case 1: 
+      noteFreq = pow(2,s.frequency.value.f);
+      aoi->streamP.WaveformModulated->frequency(noteFreq); break;
     case 2: aoi->streamP.WaveformModulated->amplitude(s.amplitude.value.f); break;
     case 3: aoi->streamP.WaveformModulated->offset(s.offset.value.f); break;
     
@@ -1482,18 +1537,25 @@ PROGMEM constexpr ParamEntry ContextKarplusStrong::MIDIparams[]
 };
 
 
-PROGMEM constexpr ParamEntry ContextKarplusStrong::_params[2] = 
+PROGMEM constexpr ParamEntry ContextKarplusStrong::_params[5] = 
 {
-  {"frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
-  {"amplitude", 0.0f, 1.0f},
+  {" frequency", -4.0f, 14.0f, 'l'}, // log2(freq) is what we actually store
+  {" amplitude", 0.0f, 1.0f},
+  {"modulation", 0.1f, 2.0f},
+  {"  feedback", 0.9f, 1.0f},
+  {"     drive", 0.0f, 1.0f},
 };
 
 FLASHMEM void ContextKarplusStrong::setParam(int i, AudioObjInstance* aoi)
 {
   switch (i)
   {
+    default: break;
     case 0: 
-    case 1: aoi->streamP.KarplusStrong->noteOn(pow(2,s.frequency.value.f),s.amplitude.value.f); break;
+    case 1: /* aoi->streamP.KarplusStrong->noteOn(pow(2,s.frequency.value.f),s.amplitude.value.f); */ break;
+    case 2: aoi->streamP.KarplusStrong->frequencyModulation(s.modulation.value.f); break;
+    case 3: aoi->streamP.KarplusStrong->setFeedbackLevel(s.feedback.value.f); break;
+    case 4: aoi->streamP.KarplusStrong->setDriveLevel(s.drive.value.f); break;
   }
 }
 
@@ -1552,10 +1614,18 @@ void processMIDIevent<ContextKarplusStrong>(AudioObjInstance* aoi, MIDIevent* ev
 {
   processMIDIforKarplusStrong(aoi,ev,(ContextKarplusStrong*) aoi->context,aoi->streamP.KarplusStrong);
 }
+
+// \return 0 for idle, 1 for active
+template <> FLASHMEM
+int isActive<ContextKarplusStrong>(AudioObjInstance* aoi)
+{
+  return aoi->streamP.KarplusStrong->isPlaying()?1:0;
+}
   
 FLASHMEM int editKarplusStrong(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
-  return editObjType<AudioSynthKarplusStrong, ContextKarplusStrong>(aoi,mode,params);  
+  int result = editObjType<AudioSynthKarplusStrong, ContextKarplusStrong>(aoi,mode,params);
+  return result;    
 }
 
 //===========================================================================================
@@ -1567,8 +1637,8 @@ PROGMEM constexpr ParamEntry ContextWaveformDc::_params[] = {
 
 
 PROGMEM constexpr ParamEntry ContextWaveformDc::MIDIparams[]
-{                         // -3    -2     -1        0           1           2    ...
-  {"CC number", -3, 119}, // off, note, velocity, bank select, modulation, breath...
+{                         // -4   -3   -2     -1        0           1           2    ...
+  {"CC number", -4, 119}, // off, PB, note, velocity, bank select, modulation, breath...
   {"min", -1.00f, +1.00f},
   {"max", -1.00f, +1.00f},
 };
@@ -1602,39 +1672,48 @@ void processMIDIevent<ContextWaveformDc>(AudioObjInstance* aoi, MIDIevent* ev)
         aoi->streamP.WaveformDc->amplitude(ampl);
       }
     }
-    break;
+      break;
 
     case midi::NoteOn:
+    {
+      int CCval = 0;
+      PatcherVoice* pv = (PatcherVoice*) &(ev->pvb);
+      
+      switch (ctxt->m.CCnum.value.i)
       {
-        int CCval = 0;
-        PatcherVoice* pv = (PatcherVoice*) &(ev->pvb);
-        
-        switch (ctxt->m.CCnum.value.i)
-        {
-          case -3: // off
-            CCval = -1;
-            break;
-            
-          case -2: // set amplitude from note value
-            CCval = pv->getNote();
-            break;
-            
-          case -1: // set amplitude from note velocity
-            CCval = pv->getVelocity();
-            break;
+        case -4: // off
+          CCval = -1;
+          break;
+          
+        case -2: // set amplitude from note value
+          CCval = pv->getNote();
+          break;
+          
+        case -1: // set amplitude from note velocity
+          CCval = pv->getVelocity();
+          break;
 
-          default: // normal CC            
-            CCval = ev->pvb.pm.getCC(ctxt->m.CCnum.value.i);
-            break;
-        }
-
-        if (CCval >= 0) // valid CC value
-        {
-          float ampl = map((float) CCval,0.0f,127.0f,ctxt->m.CCmin.value.f,ctxt->m.CCmax.value.f);
-          aoi->streamP.WaveformDc->amplitude(ampl);          
-        }
+        default: // normal CC            
+          CCval = ev->pvb.pm.getCC(ctxt->m.CCnum.value.i);
+          break;
       }
+
+      if (CCval >= 0) // valid CC value
+      {
+        float ampl = map((float) CCval,0.0f,127.0f,ctxt->m.CCmin.value.f,ctxt->m.CCmax.value.f);
+        aoi->streamP.WaveformDc->amplitude(ampl);          
+      }
+    }
       break;
+
+    case midi::PitchBend:
+      if (-3 == ctxt->m.CCnum.value.i)
+      {
+        int16_t PBval = ev->pvb.pm.getPitchBend(); // ±8191
+        float ampl = map((float) PBval,-8191.0f,8191.0f,ctxt->m.CCmin.value.f,ctxt->m.CCmax.value.f);
+        aoi->streamP.WaveformDc->amplitude(ampl);          
+      }
+      break;      
   }
 }
 
@@ -1809,6 +1888,11 @@ FLASHMEM int editLadder(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 }
 
 //===========================================================================================
+FLASHMEM int editMultiply(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  return editObjType<AudioEffectMultiply, ContextMultiply>(aoi,mode,params);    
+}
+//===========================================================================================
 const ContextMIDInote filterNoteContext; // dummy context for filter tracking purposes
 //===========================================================================================
 FLASHMEM void ContextStateVariable::setParam(int i, AudioObjInstance* aoi)
@@ -1902,7 +1986,9 @@ FLASHMEM void ContextWaveform::setParam(int i, AudioObjInstance* aoi)
   switch (i)
   {
     case 0: aoi->streamP.Waveform->begin(waveShapes[s.waveform.value.i].value); break;
-    case 1: aoi->streamP.Waveform->frequency(pow(2,s.frequency.value.f)); break;
+    case 1: 
+      noteFreq = pow(2,s.frequency.value.f);
+      aoi->streamP.Waveform->frequency(noteFreq); break;
     case 2: aoi->streamP.Waveform->amplitude(s.amplitude.value.f); break;
     case 3: aoi->streamP.Waveform->pulseWidth(s.pulseWidth.value.f); break;
     case 4: aoi->streamP.Waveform->offset(s.offset.value.f); break;
@@ -2456,11 +2542,11 @@ void processMIDIevent<ContextDexed>(AudioObjInstance* aoi, MIDIevent* ev)
       aoi->streamP.Dexed->keydown(ev->note, ev->velocity);
       break;
   
-      case midi::NoteOff: // note off
+    case midi::NoteOff: // note off
       aoi->streamP.Dexed->keyup(ev->note);
       break;
 
-      case midi::PitchBend: // pitchbend
+    case midi::PitchBend: // pitchbend
       aoi->streamP.Dexed->setPitchbend(ev->PBlsb, ev->PBmsb);
       break;
 
