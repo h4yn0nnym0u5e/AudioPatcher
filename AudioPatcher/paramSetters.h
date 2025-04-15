@@ -11,7 +11,6 @@
 
 extern LimitedEncoder encM,enc0,enc1,enc2;
 extern const ParamChoice velocityShapes[];
-extern const int16_t arbWAV_sax[];
 extern AudioObjStatic_t objList[];
 
 
@@ -1122,13 +1121,34 @@ class ContextControlSGTL5000 : public ContextBase
 class ContextDexed : public ContextBase
 {
   public:
-  ContextDexed(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.gain, _params) {}
-    static const ParamEntry _params[2];
-    struct {ParamValue gain,  bend;} s
-                {      {1.0f}, {3}      };
+    ContextDexed(AudioObjInstance& _aoi) : 
+      ContextBase(_aoi, COUNT_OF(_params), &s.bankfile, _params)
+    {
+      display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h); // edit box is file selector sized
+      arbWAV.reset();
+    }
+    static const ParamEntry _params[3];
+    struct {ParamValue  bankfile,  gain,  bend;} s
+                {      {&arbWAV}, {1.0f},  {3}      };
 
     void setParam(int i, AudioObjInstance* aoi);
-    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(220,COUNT_OF(_params))};
+    AudioPatcherDisplay::Box box;
+
+    // File loader
+    const char* const root = "/dexed";
+    const char* const extn = ".syx";
+    FileLoader<ContextDexed>* fileSelector;
+    InstrumentPicker* instSelector;
+    // Provide FileSelector with a load() method
+    void load(const char*b, const char*p, const char*l, const char*e)
+    {
+      arbWAVloaded = arbWAV.load(b,p,l,e); 
+    }
+
+    //------ Stuff to remember ----------
+    arbWAVrecord<DEXED_ARBWAV_SIG> arbWAV; // record of patch bank
+    bool arbWAVloaded; // temporary flag while user is seeking a waveform to load
+    
 };
 
 

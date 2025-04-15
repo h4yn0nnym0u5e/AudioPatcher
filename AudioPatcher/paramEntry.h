@@ -9,9 +9,12 @@
 #define COUNT_OF(a) (sizeof a / sizeof a[0])
 #endif // !defined(COUNT_OF)
 
+#define DEXED_ARBWAV_SIG int16_t, 4104/2
+
 extern void makeFFP(char* buf, const char* base, const char* path, const char* leaf, const char* ext);
 
 extern const int16_t arbWAV_sax[];
+extern const uint8_t fmpiano_sysex[];
 
 class arbWAVrecordBase
 {
@@ -19,8 +22,8 @@ class arbWAVrecordBase
     arbWAVrecordBase() 
       : path{nullptr}, recSize{0}, loaded{false} 
       {}
-    char* path;        // where it was loaded from
-    size_t recSize;
+    char* path;     // where it was loaded from
+    size_t recSize; // space allocated
     bool loaded;
 
     // Load arbitrary waveform using separate path elements
@@ -32,6 +35,9 @@ class arbWAVrecordBase
       return load(buf);
     }
 
+    bool loadData(const char* fname, size_t space,int16_t*& mem, char*& path, size_t& spaceNeeded, const int16_t* theDefault);
+    void resetData(int16_t* theDefault, void* sampleData);
+
     // Load arbitrary waveform using complete file path
     virtual bool load(const char* buf) = 0;
     virtual char* prepare(size_t pathLen) = 0;
@@ -39,22 +45,39 @@ class arbWAVrecordBase
     virtual bool isDefault(void) = 0;
 };
 
-template<typename Tdata>
+template<typename Tdata, size_t _count = 256>
 class arbWAVrecord : public arbWAVrecordBase
 {
-    static const int ARB_WAV_SAMPLES = 256;
+    static const int ARB_WAV_SAMPLES = _count;
+    void* defaultSample;
   public:
     arbWAVrecord() 
       : sampleData{nullptr}
-      {}
+      {
+        switch (ARB_WAV_SAMPLES)
+        {
+          default:
+            defaultSample = nullptr;
+            break;
+          
+          case 256: // arbitrary waveform
+            defaultSample = (void*) arbWAV_sax;
+            break;
+
+          case 4104/2: // FM patch
+            defaultSample = (void*) (&fmpiano_sysex[0]);
+            break;
+        }
+        
+      }
 
     Tdata* sampleData; // actual 256-sample data block or wavetable instrument
 
     using arbWAVrecordBase::load;
     bool load(const char* buf) override;
-    char* prepare(size_t pathLen) override;
+    //char* prepare(size_t pathLen) override;
     void reset(void) override; // reset to default waveform
-    bool isDefault(void) override;
+    bool isDefault(void) override {return (void*) sampleData == defaultSample; };
     void setAll(Tdata* s, char* p, size_t sz, bool l)
     {
       sampleData = s; 
@@ -67,19 +90,56 @@ class arbWAVrecord : public arbWAVrecordBase
     * Load arbitrary waveform if it's not already been done
     * \returns true if it's available for use
     */
-   bool loadIfNeeded(void)
-   {
-     if (!loaded
-       && path != nullptr) // file hasn't been loaded
-     {
-       if (load(path))
-         Serial.printf("Set arbWAV from %s to %08X -> %08X; fingerprint %04.4X,%04.4X\n",
+    bool loadIfNeeded(void)
+    {
+      if (!loaded
+        && path != nullptr) // file hasn't been loaded
+      {
+        if (load(path))
+          Serial.printf("Set arbWAV from %s to %08X -> %08X; fingerprint %04.4X,%04.4X\n",
                        path, this, sampleData,
                        ((uint32_t) sampleData[0]) & 0xFFFF, 
                        ((uint32_t) sampleData[1]) & 0xFFFF);
-     }
-     return loaded && nullptr != sampleData;
-   }
+      }
+      return loaded && nullptr != sampleData;
+    }
+
+    /*
+     * Prepare memory to store waveform and its source path
+     * \return pointer to memory; may be nullptr
+     */
+    char* prepare(size_t pathLen)
+    {
+      // allocate space to store it
+      char* mem = (char*) sampleData; // assume we can use what we have
+      size_t spaceNeeded = ARB_WAV_SAMPLES*sizeof *sampleData + pathLen + 1;
+      spaceNeeded = (spaceNeeded + 16 ) & ~16;
+
+      if (isDefault() || spaceNeeded > recSize)
+      {
+        mem = (char*) malloc(spaceNeeded); // just enough space
+        if (!isDefault())   // old space was allocated...
+          free(sampleData); // ...so free it
+
+        // update to show new allocation size
+        if (nullptr != mem)
+        {
+          sampleData = (int16_t*) mem;
+          path = (char*) (sampleData+ARB_WAV_SAMPLES);
+          *path = 0;
+          recSize = spaceNeeded;
+        }
+        else
+        {
+          sampleData = nullptr;
+          path = nullptr;
+          recSize = 0;      
+        }
+        loaded = false;
+      }
+
+      return mem;
+    }
 };
 
 
@@ -179,8 +239,7 @@ class arbWAVrecord<AudioSynthWavetable::instrument_data>
 
 
 template<> void arbWAVrecord<int16_t>::reset(void);
-template<> char* arbWAVrecord<int16_t>::prepare(size_t);
-
+template<> void arbWAVrecord<DEXED_ARBWAV_SIG>::reset(void);
 
 class ParamChoice
 {
@@ -191,6 +250,7 @@ class ParamChoice
 
 union ValUnion {int i; float f; char* s; 
                 arbWAVrecord<int16_t>* w;
+                arbWAVrecord<DEXED_ARBWAV_SIG>* dx;
                 arbWAVrecord<AudioSynthWavetable::instrument_data>* t;
               };
 
@@ -230,6 +290,7 @@ class ParamValue
     ParamValue(float v) : value{.f = v},valueEndX(-1) {}
     ParamValue(char* v) : value{.s = v},valueEndX(-1) {}
     ParamValue(arbWAVrecord<int16_t>* v) : value{.w = v},valueEndX(-1) {}
+    ParamValue(arbWAVrecord<DEXED_ARBWAV_SIG>* v) : value{.dx = v},valueEndX(-1) {}
     ParamValue(arbWAVrecord<AudioSynthWavetable::instrument_data>* v) : value{.t = v},valueEndX(-1) {}
     ValUnion value{0};
     int16_t labelEndX, labelEndY, valueEndX;

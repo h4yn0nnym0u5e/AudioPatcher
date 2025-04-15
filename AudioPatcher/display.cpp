@@ -170,7 +170,9 @@ void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t 
       case 'w':
         stringValue = p.ValType == 's'
                         ?v.value.s
-                        :v.value.w->path;
+                        :(nullptr == v.value.w
+                            ?nullptr
+                            :v.value.w->path);
         if (nullptr != stringValue)
         {
           char* st,*nd;

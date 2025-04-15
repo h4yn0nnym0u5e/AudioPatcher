@@ -942,27 +942,28 @@ FLASHMEM int editMixer(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 //  "Y888888 888     88888P"  888P     Y888 d88P     888     Y8P     
 //  
 //======================================================================
-template<> FLASHMEM bool arbWAVrecord<int16_t>::isDefault(void) {return sampleData == arbWAV_sax; }
+
+//template<> FLASHMEM bool arbWAVrecord<int16_t>::isDefault(void) {return sampleData == arbWAV_sax; }
+//template<> FLASHMEM bool arbWAVrecord<DEXED_ARBWAV_SIG>::isDefault(void) {return sampleData == (int16_t*) fmpiano_sysex; }
+
 
 /*
  * Load arbitrary waveform using given complete path
  */
-template<> FLASHMEM
-FLASHMEM bool arbWAVrecord<int16_t>::load(const char* buf)
+FLASHMEM bool arbWAVrecordBase::loadData(const char* buf, size_t space,
+                        int16_t*& mem, char*& path, size_t& spaceNeeded,
+                        const int16_t* theDefault)
 {
   bool result = false;
-  int16_t tmp[256]; // temporary space for the waveform
-  size_t spaceNeeded = sizeof tmp + strlen(buf) + 1;
+  int8_t tmp[space]; // temporary space for the waveform
   File f;
 
   //Serial.printf("Load %s\n",buf); Serial.flush();
 
+  spaceNeeded = sizeof tmp + strlen(buf) + 1;
   spaceNeeded = (spaceNeeded + 16) & ~16; // round up a bit
   do
   {
-    int16_t* mem = sampleData;
-    char* path;
-
     // open the file
     f = SD.open(buf,FILE_READ);
     if (!f) break;
@@ -972,9 +973,12 @@ FLASHMEM bool arbWAVrecord<int16_t>::load(const char* buf)
       break;
 
     // allocate storage if necessary
-    if (arbWAV_sax == sampleData // using default...
+    if (theDefault == mem // using default...
       || recSize < spaceNeeded)  // ...or not enough space
-    {        
+    {
+      // return previously allocated memory
+      if (recSize > 0 && nullptr != mem)
+        free(mem);
       mem = (int16_t*) malloc(spaceNeeded);
       if (nullptr == mem)
         break;
@@ -985,7 +989,7 @@ FLASHMEM bool arbWAVrecord<int16_t>::load(const char* buf)
     // copy the data and point to it
     memcpy(mem,tmp,sizeof tmp); // get sample data
     strcpy(path, buf);          // and where it was loaded from
-    setAll(mem, path, spaceNeeded, true);
+    // setAll(mem, path, spaceNeeded, true);
     result = true;
     
   } while (0);
@@ -996,6 +1000,50 @@ FLASHMEM bool arbWAVrecord<int16_t>::load(const char* buf)
   return result;
 }
 
+template<> FLASHMEM
+FLASHMEM bool arbWAVrecord<int16_t>::load(const char* buf)
+{
+  int16_t* mem = sampleData; 
+  char* path; 
+  size_t spaceNeeded;
+  bool result = loadData(buf, ARB_WAV_SAMPLES*2, mem, path, spaceNeeded, arbWAV_sax);
+
+  if (result)
+    setAll(mem, path, spaceNeeded, true);
+
+  return result;
+}
+
+
+template<> FLASHMEM
+FLASHMEM bool arbWAVrecord<DEXED_ARBWAV_SIG>::load(const char* buf)
+{
+  int16_t* mem = sampleData; 
+  char* path; 
+  size_t spaceNeeded;
+  bool result = loadData(buf, ARB_WAV_SAMPLES*2, mem, path, spaceNeeded, (int16_t*) fmpiano_sysex);
+
+  if (result)
+    setAll(mem, path, spaceNeeded, true);
+
+  return result;
+}
+
+
+/*
+  Reset arbitrary waveform to safe value, and 
+  free the memory it's using.
+*/
+FLASHMEM void arbWAVrecordBase::resetData(int16_t* theDefault, void* sampleData)
+{
+  void* oldArbWAV = sampleData;
+
+  if (theDefault != (int16_t*) oldArbWAV)
+  {
+    free(oldArbWAV);  // free the memory
+  }
+}
+
 
 /*
   Reset arbitrary waveform to safe value, and 
@@ -1004,53 +1052,22 @@ FLASHMEM bool arbWAVrecord<int16_t>::load(const char* buf)
 template<> FLASHMEM
 FLASHMEM void arbWAVrecord<int16_t>::reset(void)
 {
-  int16_t* oldArbWAV = sampleData;
-
-  if (arbWAV_sax != oldArbWAV)
-  {
-    setAll((int16_t*) arbWAV_sax,(char*) "/<sax>.",0,true); // reset to safe default
-    free((void*) oldArbWAV);  // free the memory
-  }
+  resetData((int16_t*) arbWAV_sax, sampleData);
+  setAll((int16_t*) arbWAV_sax,(char*) "/<sax>.",0,true); // reset to safe default
 }
 
 
 /*
-  Prepare memory to store waveform and its source path
-  \return pointer to memory; may be nullptr
+  Reset FM patch to safe value, and 
+  free the memory it's using.
 */
 template<> FLASHMEM
-FLASHMEM char* arbWAVrecord<int16_t>::prepare(size_t pathLen)
+FLASHMEM void arbWAVrecord<DEXED_ARBWAV_SIG>::reset(void)
 {
-  // allocate space to store it
-  char* mem = (char*) sampleData; // assume we can use what we have
-  size_t spaceNeeded = ARB_WAV_SAMPLES*sizeof *sampleData + pathLen + 1;
-  spaceNeeded = (spaceNeeded + 16 ) & ~16;
-
-  if (isDefault() || spaceNeeded > recSize)
-  {
-    mem = (char*) malloc(spaceNeeded); // just enough space
-    if (!isDefault())   // old space was allocated...
-      free(sampleData); // ...so free it
-
-    // update to show new allocation size
-    if (nullptr != mem)
-    {
-      sampleData = (int16_t*) mem;
-      path = (char*) (sampleData+ARB_WAV_SAMPLES);
-      *path = 0;
-      recSize = spaceNeeded;
-    }
-    else
-    {
-      sampleData = nullptr;
-      path = nullptr;
-      recSize = 0;      
-    }
-    loaded = false;
-  }
-
-  return mem;
+  resetData((int16_t*) fmpiano_sysex, sampleData);
+  setAll((int16_t*) fmpiano_sysex,(char*) "FM Piano",0,true); // reset to safe default
 }
+
 
 //======================================================================
 /*
@@ -2505,13 +2522,13 @@ FLASHMEM void ContextDexed::setParam(int i, AudioObjInstance* aoi)
   }
 }
 
-PROGMEM constexpr ParamEntry ContextDexed::_params[2] = 
+PROGMEM constexpr ParamEntry ContextDexed::_params[3] = 
 {
+  {"patch", 't'},
   {"gain", 0.0f, 1.0f},
   {"bend", 0, 12}
 };
 
-extern uint8_t fmpiano_sysex[];
 template <> FLASHMEM
 // Template specialization for creating a new 
 //                              VVVV
