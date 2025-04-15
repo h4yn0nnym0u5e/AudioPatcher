@@ -125,7 +125,9 @@ enum AudioCategory_e { AudioCategory_none, AudioCategory_patchcord, AudioCategor
 #define MY_AUDIO_IO \
   AUDIO_ENTRY(AudioControlSGTL5000,ControlSGTL5000,AUDIO_CONTROL_SGTL5000,0,0,control,ctrl,) \
   AUDIO_ENTRY(AudioInputI2S,InputI2S,AUDIO_INPUT_I2S,0,2,input,I2Si,) \
+/*  AUDIO_ENTRY(AudioInputUSB,InputUSB,AUDIO_INPUT_USB,0,2,input,USBi,) */ \
   AUDIO_ENTRY(AudioOutputI2S,OutputI2S,AUDIO_OUTPUT_I2S,2,0,output,I2So,) \
+/*  AUDIO_ENTRY(AudioOutputUSB,OutputUSB,AUDIO_OUTPUT_USB,2,0,output,USBo,) */ \
 
 
 // macro to force expansion of parameter list, if needed

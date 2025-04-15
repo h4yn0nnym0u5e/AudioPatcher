@@ -1122,7 +1122,8 @@ class ContextDexed : public ContextBase
 {
   public:
     ContextDexed(AudioObjInstance& _aoi) : 
-      ContextBase(_aoi, COUNT_OF(_params), &s.bankfile, _params)
+      ContextBase(_aoi, COUNT_OF(_params), &s.bankfile, _params),
+      fileSelector{nullptr}, instSelector{nullptr}
     {
       display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h); // edit box is file selector sized
       arbWAV.reset();

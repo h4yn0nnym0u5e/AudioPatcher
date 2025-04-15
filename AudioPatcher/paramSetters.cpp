@@ -418,6 +418,20 @@ FLASHMEM int editOutputI2S(AudioObjInstance* aoi, AudioEditMode mode, void* para
   return 0;    
 }
 
+FLASHMEM int editInputUSB(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  if (AudioEditMode::constructor == mode)
+    editCreateStream<AudioInputUSB>(aoi,nullptr); 
+  return 0;    
+}
+
+FLASHMEM int editOutputUSB(AudioObjInstance* aoi, AudioEditMode mode, void* params)
+{
+  if (AudioEditMode::constructor == mode)
+    editCreateStream<AudioOutputUSB>(aoi,nullptr); 
+  return 0;    
+}
+
 
 //===========================================================================================
 FLASHMEM void ContextBitcrusher::setParam(int i, AudioObjInstance* aoi)
@@ -1001,7 +1015,7 @@ FLASHMEM bool arbWAVrecordBase::loadData(const char* buf, size_t space,
 }
 
 template<> FLASHMEM
-FLASHMEM bool arbWAVrecord<int16_t>::load(const char* buf)
+bool arbWAVrecord<int16_t>::load(const char* buf)
 {
   int16_t* mem = sampleData; 
   char* path; 
@@ -1015,8 +1029,8 @@ FLASHMEM bool arbWAVrecord<int16_t>::load(const char* buf)
 }
 
 
-template<> FLASHMEM
-FLASHMEM bool arbWAVrecord<DEXED_ARBWAV_SIG>::load(const char* buf)
+template<> // FLASHMEM
+bool arbWAVrecord<DEXED_ARBWAV_SIG>::load(const char* buf)
 {
   int16_t* mem = sampleData; 
   char* path; 
@@ -1050,7 +1064,7 @@ FLASHMEM void arbWAVrecordBase::resetData(int16_t* theDefault, void* sampleData)
   free the memory it's using.
 */
 template<> FLASHMEM
-FLASHMEM void arbWAVrecord<int16_t>::reset(void)
+void arbWAVrecord<int16_t>::reset(void)
 {
   resetData((int16_t*) arbWAV_sax, sampleData);
   setAll((int16_t*) arbWAV_sax,(char*) "/<sax>.",0,true); // reset to safe default
@@ -1062,7 +1076,7 @@ FLASHMEM void arbWAVrecord<int16_t>::reset(void)
   free the memory it's using.
 */
 template<> FLASHMEM
-FLASHMEM void arbWAVrecord<DEXED_ARBWAV_SIG>::reset(void)
+void arbWAVrecord<DEXED_ARBWAV_SIG>::reset(void)
 {
   resetData((int16_t*) fmpiano_sysex, sampleData);
   setAll((int16_t*) fmpiano_sysex,(char*) "FM Piano",0,true); // reset to safe default
@@ -1459,7 +1473,8 @@ bool pollFileSelect(Tctxt* myContext, LimitedEncoder& enc)
  * Poll encoder button used to enter arbitrary waveform file
  * selection dialogue
  */
-bool pollInstSelect(ContextWavetable* myContext, LimitedEncoder& enc)
+template<class Tctxt>
+bool pollInstSelect(Tctxt* myContext, LimitedEncoder& enc)
 {
   bool result = false;
 
@@ -2545,9 +2560,42 @@ void editCreateStream<AudioSynthDexed>(AudioObjInstance* aoi, AudioObjInstance* 
 
 }
 
+AudioObjInstance* lastDexed;
 FLASHMEM int editDexed(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
-  return editObjType<AudioSynthDexed, ContextDexed>(aoi,mode,params);    
+  int result = editObjType<AudioSynthDexed, ContextDexed>(aoi,mode,params);
+  if (AudioEditMode::constructor == mode)
+    lastDexed = aoi;
+  return result;
+}
+
+
+// template specialization for setting Dexed; needed for 
+// FM patch load
+template <>  FLASHMEM
+bool updateFromControls<ContextDexed>(ContextDexed* myContext, AudioObjInstance* aoi)
+{
+  bool result = false;
+
+  if (selectArbWAVfile(myContext, aoi))
+  {
+    result = true; // don't exit parent settings page
+  }
+  else
+  {
+    for (size_t i=0; i < myContext->paramCount; i++)
+    {
+      if (Scale(myContext->params[i],myContext->aray[i],ctrl.getPot16(i),0.999f))
+      {
+        settingsEditor->ShowValue(i);
+        myContext->setParam(i,aoi);
+      }
+    }
+
+    pollFileSelect(myContext, enc0);
+  }
+  
+  return result;
 }
 
 template <> FLASHMEM

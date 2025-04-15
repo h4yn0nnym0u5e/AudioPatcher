@@ -13,7 +13,7 @@
 #include <vector>
 #include <algorithm>
 
-#include "TeensyDebug.h"
+//#include "TeensyDebug.h"
 
 #if !defined(SAFE_RELEASE_MANY) || !defined(DYNMIXER_H_)
 #error Make sure you have dynamic cores and Audio library!
@@ -189,8 +189,12 @@ void setup()
   
   theInputI2S.x = -40;
   theInputI2S.y = 100;
+  // theInputUSB.x = -40;
+  // theInputUSB.y = 170;
   theOutputI2S.x = 320 - 8;
   theOutputI2S.y = 100;
+  // theOutputUSB.x = 320 - 8;
+  // theOutputUSB.y = 170;
   theControlSGTL5000.x = 1;
   theControlSGTL5000.y = 240 - 48 - 20 - 2;
   

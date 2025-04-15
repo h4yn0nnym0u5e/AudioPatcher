@@ -75,7 +75,6 @@ class arbWAVrecord : public arbWAVrecordBase
 
     using arbWAVrecordBase::load;
     bool load(const char* buf) override;
-    //char* prepare(size_t pathLen) override;
     void reset(void) override; // reset to default waveform
     bool isDefault(void) override {return (void*) sampleData == defaultSample; };
     void setAll(Tdata* s, char* p, size_t sz, bool l)
