@@ -16,7 +16,7 @@ static void getOutputPositions(AudioObjStatic_t& o, int16_t x, int16_t y,
     int16_t* ppx, int16_t* ppy, int16_t* pys);
   
 
-void AudioPatcherDisplay::Init(void)
+FLASHMEM void AudioPatcherDisplay::Init(void)
 {
   pinMode(TCH_CS,OUTPUT);
   digitalWriteFast(TCH_CS,HIGH);
@@ -30,7 +30,7 @@ void AudioPatcherDisplay::Init(void)
   screenReadOK();
 }
 
-bool AudioPatcherDisplay::screenReadOK(void)
+FLASHMEM bool AudioPatcherDisplay::screenReadOK(void)
 {
   bool result = false;
   uint16_t testValues[] = {0x1234, 0x0811};
@@ -166,6 +166,7 @@ void AudioPatcherDisplay::ShowValue(const ParamEntry& p, ParamValue& v, int16_t 
       case 'l': tft.printf("%.2f",pow(2.0f,v.value.f)); break;
       case 'r': tft.printf("%.2f",p.min.f / v.value.i); break;
       case 's':
+      case 't':
       case 'w':
         stringValue = p.ValType == 's'
                         ?v.value.s
@@ -522,7 +523,7 @@ void AudioPatcherDisplay::DrawConnection(AudioObjStatic_t& o, int16_t x, int16_t
 {
   x -= canvas_x; y -= canvas_y;
   
-#define BAD -999  
+#define BAD -32100  
   if (n >= 0 && objIsOnScreen(x,y))
   {
     int16_t cx = BAD,cb,cs;

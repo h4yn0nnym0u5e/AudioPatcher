@@ -19,15 +19,7 @@ extern AudioObjStatic_t objList[];
 #define COUNT_OF(a) (sizeof a / sizeof a[0])
 #endif // !defined(COUNT_OF)
 
-/*
-extern bool ScaleF(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filter);
-extern bool ScaleFreq(const ParamEntry& pe, ParamValue& pv, int16_t raw, int16_t pow2, float filter);
-extern ;
-extern ;
-extern ;
-extern ;
-extern ;
-*/
+
 extern void HookControl(M5w_8angle& ctrl, int ch, const ParamEntry& pe, ParamValue& pv);
 extern bool Scale(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filter);
 
@@ -35,21 +27,45 @@ extern bool Scale(const ParamEntry& pe, ParamValue& pv, int16_t raw, float filte
 template<class Tctxt>
 class FileLoader : public FileBase
 {
-  public:    
-    FileLoader(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2, 
+  public:
+    FileLoader(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2,
             AudioPatcherDisplay& d,
-            const char* bp, const char* fe, 
+            const char* bp, const char* fe,
             mode_e m,
             Tctxt& c
             )
             : FileBase(e0,e1,e2,d,bp,fe,m),
             context(c)
             {}
-    virtual ~FileLoader() {};            
-    Tctxt& context;            
-    void load(const char* nme) 
+    virtual ~FileLoader() {};
+    Tctxt& context;
+    void load(const char* nme)
     { 
-      context.arbWAVloaded = context.arbWAV.load(basePath,filePath,nme,".snd"); 
+      //context.arbWAVloaded = context.arbWAV.load(basePath,filePath,nme,".snd"); 
+      context.load(basePath,filePath,nme,fileExtn);
+    };
+};
+
+class ContextWavetable;
+class InstrumentPicker : public FileBase
+{
+  public:
+    InstrumentPicker(LimitedEncoder& e0, LimitedEncoder& e1, LimitedEncoder& e2,
+            AudioPatcherDisplay& d,
+            ContextWavetable& c
+            )
+            : FileBase(e0,e1,e2,d,"","",FileBase::mode_e::load),
+            context(c)
+            {}
+    virtual ~InstrumentPicker() {};
+    void createFileList(const char* path, mode_e mode);
+    void clearFileList(void);
+    void loadInstrument(const char* nme);
+    
+    ContextWavetable& context;
+    void load(const char* nme)
+    { 
+      loadInstrument(nme);
     };
 };
 
@@ -105,7 +121,7 @@ extern int testExit(uint32_t& exitAt);
 //=====================================================================================
 // Read controls and update object's settings accordingly
 // \return true if nested setting used "exit" press; don't exit next level up
-template <class Tctxt>
+template <class Tctxt> FLASHMEM
 bool updateFromControls(Tctxt* myContext, AudioObjInstance* aoi)
 {
   size_t pOff = 0, pCount = settingsEditor->paramCount;
@@ -202,7 +218,7 @@ template <class Tctxt>
 void processMIDIevent(AudioObjInstance* aoi, MIDIevent* ev){} // no special action for most AudioStream classes
 
 //=====================================================================================
-template <class TWaveformCtxt>
+template <class TWaveformCtxt> FLASHMEM
 void processMIDItoFreqAndAmp(const TWaveformCtxt* ctxt, const MIDIevent* ev, 
                              float& freq, float& ampl)
 {
@@ -244,7 +260,7 @@ void processMIDItoFreqAndAmp(const TWaveformCtxt* ctxt, const MIDIevent* ev,
 }
 
 //=====================================================================================
-template <class TWaveformCtxt, class TwaveformObject>
+template <class TWaveformCtxt, class TwaveformObject> FLASHMEM
 void processMIDIforWaveform(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt* ctxt, TwaveformObject* wav)
 {
   switch (ev->type)
@@ -273,7 +289,7 @@ void processMIDIforWaveform(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt*
 }
 
 
-template <class TWaveformCtxt, class TwaveformObject>
+template <class TWaveformCtxt, class TwaveformObject> FLASHMEM
 void processMIDIforKarplusStrong(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt* ctxt, TwaveformObject* wav)
 {
   switch (ev->type)
@@ -299,7 +315,7 @@ void processMIDIforKarplusStrong(AudioObjInstance* aoi, MIDIevent* ev, TWaveform
 }
 
 
-template <class TWaveformCtxt, class TwaveformObject>
+template <class TWaveformCtxt, class TwaveformObject> FLASHMEM
 void processMIDIforWavetable(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt* ctxt, TwaveformObject* wav)
 {
   switch (ev->type)
@@ -319,6 +335,15 @@ void processMIDIforWavetable(AudioObjInstance* aoi, MIDIevent* ev, TWaveformCtxt
       wav->stop();
     }
       break;
+
+    case midi::PitchBend:
+      if (0 == ctxt->m.tuning.value.i) // magic: equal temperament
+      {
+        float freq = ctxt->noteFreq;
+        freq *= ev->pvb.pm.getPitchBend(ctxt->m.PBamount.value.f);
+        wav->setFrequency(freq);
+      }
+      break;
   }
 }
 //=====================================================================================
@@ -331,7 +356,15 @@ void enterEditMode(Tctxt* myContext, AudioObjInstance* aoi){} // no special acti
 template <class Tctxt>
 void exitEditMode(Tctxt* myContext, AudioObjInstance* aoi){} // no special action for most AudioStream classes
 //=====================================================================================
-template <class Tstream, class Tctxt>
+template <class Tstream> // no special action for most AudioStream classes
+void editCreateStream(AudioObjInstance* aoi, AudioObjInstance* original = nullptr)
+{ 
+  Tstream* o = new Tstream; 
+  aoi->streamP.streamObj = o;
+  //Serial.printf("Constructed new %s for %08X at %08X\n", aoi->objP->name, (uint32_t) aoi, (uint32_t) aoi->streamP.streamObj);
+} 
+//=====================================================================================
+template <class Tstream, class Tctxt> FLASHMEM
 int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
   Tctxt* myContext = (Tctxt*) aoi->context;
@@ -344,6 +377,12 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
   {
     case AudioEditMode::constructor: // construction
       { 
+        AudioObjInstance* original = (AudioObjInstance*) params;
+        // if instance hasn't yet been constructed, do so
+        if (nullptr == aoi->streamP.streamObj)
+          editCreateStream<Tstream>(aoi, original);
+
+        // construct the context
         myContext = new Tctxt(*aoi);
         aoi->context = myContext;
         if (!aoi->isAcopy) // making a real object
@@ -354,8 +393,8 @@ int editObjType(AudioObjInstance* aoi, AudioEditMode mode, void* params)
       break;
       
     case AudioEditMode::destructor:
-      delete myContext;
       aoi->context = nullptr;
+      delete myContext;
       break;
 
     //---------------------------------------------------------------------------------------------------
@@ -507,7 +546,6 @@ class ContextBase
                 int nParam, ParamValue* ppv, const ParamEntry* ppe, const ParamPage* ppg = nullptr,
                 int nMIDI = 0, ParamValue* pmv = nullptr, const ParamEntry* pme = nullptr) 
       : aoi(_aoi),
-        encPressed{-1},
         paramCount(nParam),    params(ppe),     aray(ppv),      pages(ppg),
         MIDIparamCount(nMIDI), MIDIparams(pme), MIDIvalues(pmv)
       {}
@@ -516,8 +554,8 @@ class ContextBase
     virtual void copyParamsTo(ContextBase& dst);
 
     AudioObjInstance& aoi;
-    int encPressed;
     static constexpr int ARBWAV_PARAM = 0xCAFED00D;
+    static constexpr int WTINST_PARAM = ARBWAV_PARAM+1;
     // ------ stream object settings ----------
     const size_t paramCount;
     const ParamEntry* params;
@@ -568,6 +606,27 @@ class ContextChorus  : public ContextBase
 
     void enterEditMode(AudioObjInstance* aoi);
     void exitEditMode(AudioObjInstance* aoi);
+};
+
+
+//-----------------------------------------------------------------------------------------
+#define EDIT_DELAY_EXTERNAL_OFF ((int) (9*12+20)) // x-offset of pan label
+class ContextDelayExternal : public ContextBase
+{
+    static const ParamPage _pages[2];
+  public:
+  ContextDelayExternal(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.taps[0], _params, _pages) {}
+    static const ParamEntry _params[10];
+    struct {ParamValue taps[8],
+      /* tap1, tap2, tap3, tap4, 
+                       tap5, tap6, tap7, tap8, */
+                       length,  memType;} s
+                {     {{0.001f}, {0.01f}, {0.1f},  {0.2f},
+                       {0.25f},  {0.5f},  {0.75f}, {1.0f}},
+                       {0.0f}, {0}      };
+
+    void setParam(int i, AudioObjInstance* aoi);
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(270,4)};
 };
 
 
@@ -711,6 +770,15 @@ class ContextLadder : public ContextBase
 };
 
 //-----------------------------------------------------------------------------------------
+class ContextMultiply : public ContextBase
+{
+  public:
+    ContextMultiply(AudioObjInstance& _aoi) : ContextBase(_aoi, 0, nullptr, nullptr) {}
+    ~ContextMultiply(){}
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(200,0)};
+};
+
+//-----------------------------------------------------------------------------------------
 class ContextStateVariable : public ContextBase 
 {
   public:
@@ -850,13 +918,19 @@ class ContextWaveformBase
       }
     }
 
-    //bool loadArbWAV(const char* base, const char* path, const char* nme, const char* extn);
-    //bool loadArbWAV(const char* fullPath);
+    // Provide FileSelector with a load() method
+    void load(const char*b, const char*p, const char*l, const char*e)
+    {
+      arbWAVloaded = arbWAV.load(b,p,l,e); 
+    }
+
+    //------ File selection stuff ----------
+    const char* const root = "/arbWavs";
+    const char* const extn = ".snd";
 
     //------ Stuff to remember ----------
     float noteFreq; // basic note frequency before modification with pitch bend
-    struct arbWAVrecord arbWAV // record of arbitrary waveform
-        {nullptr,nullptr,0,false}; 
+    arbWAVrecord<int16_t> arbWAV; // record of arbitrary waveform
     bool arbWAVloaded; // temporary flag while user is seeking a waveform to load
 };
 
@@ -865,7 +939,7 @@ class ContextWaveformBase
 // Waveform-like context for use by filter keyboard tracking etc.
 class ContextMIDInote : public ContextBase 
 {
-    AudioObjInstance dummyAOI{objList[0]}; // dummy object: do not use!
+    AudioObjInstance dummyAOI{objList[0],0xB16,0xA55}; // dummy object: do not use!
   public:
     struct {ParamValue amplitude;} s
                  {       {1.0f}    };
@@ -885,7 +959,7 @@ class ContextWaveform : public ContextBase, public ContextWaveformBase<AudioSynt
     ContextWaveform(AudioObjInstance& _aoi) : ContextBase(
               _aoi, COUNT_OF(_params), &s.waveform, _params, nullptr,
               COUNT_OF(MIDIparams), &m.octave, MIDIparams),
-            fileSelector{nullptr} 
+            fileSelector{nullptr}
     {
       display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h);
     }
@@ -932,7 +1006,7 @@ class ContextWaveformModulated
   public:
     ContextWaveformModulated(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.waveform, _params, nullptr, 
                                             COUNT_OF(MIDIparams), &m.octave, MIDIparams),
-                                 fileSelector{nullptr} 
+                                 fileSelector{nullptr}
     {
       display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h);
     }
@@ -960,13 +1034,28 @@ class ContextWaveformModulated
 class ContextWavetable : public ContextBase
 { 
   public:
-    ContextWavetable(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.waveform, _params, nullptr, 
-                                     COUNT_OF(MIDIparams), &m.octave, MIDIparams) 
+    ContextWavetable(AudioObjInstance& _aoi) : ContextBase(_aoi, 
+                  COUNT_OF(_params), &s.sf2file, _params, nullptr, 
+                  COUNT_OF(MIDIparams), &m.octave, MIDIparams),
+                sf2path{nullptr}, sf2file{nullptr}, instName{nullptr},
+                instrument{&Harp}, 
+                fileSelector{nullptr}, instSelector{nullptr},
+                arbWAV{s.index.value.i}
     {
-      display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h);
+      display.GetDefaultKeyboardArea(box.x, box.y, box.w, box.h); // edit box is file selector sized
+      arbWAV.reset();
+      aoi.streamP.Wavetable->setInstrument(*arbWAV.sampleData); // set default instrument
     }
-    static const ParamEntry _params[5];
-    struct {ParamValue waveform,frequency,amplitude,offset,modType;} s {{0},{7.0f},{0.5f},{0.0f},{0}};
+
+    ~ContextWavetable() 
+    {
+      arbWAV.reset();
+      aoi.streamP.Wavetable->setInstrument(*arbWAV.sampleData);
+    }
+
+    static const ParamEntry _params[3];
+    struct {ParamValue sf2file,  index,amplitude;} s 
+                     {{&arbWAV},  {0},   {1.0f} };
     AudioPatcherDisplay::Box box;
           
     void setParam(int i, AudioObjInstance* aoi);
@@ -975,32 +1064,25 @@ class ContextWavetable : public ContextBase
     static const ParamEntry MIDIparams[WAVEFORM_MIDI_COUNT];
     WaveformMIDI m {{4},{0.00f},{0},{0},{0.0f}};
 
-    /*
-      Fix up arbitrary waveform pointer at construction and
-      destruction time, so we don't crash or leak memory.
-     */
-    void fixInstrument(AudioSynthWavetable* stream, AudioEditMode mode)
+    //------ Stuff to remember ----------
+    float noteFreq; // basic note frequency before modification with pitch bend
+    char* sf2path, *sf2file, *instName;
+    const AudioSynthWavetable::instrument_data* instrument; // record of aritrary waveform
+
+    // File loader
+    const char* const root = "/soundfonts";
+    const char* const extn = ".sf2";
+    FileLoader<ContextWavetable>* fileSelector;
+    InstrumentPicker* instSelector;
+    // Provide FileSelector with a load() method
+    void load(const char*b, const char*p, const char*l, const char*e)
     {
-      switch (mode)
-      {
-        default: break;
-    
-        case AudioEditMode::constructor:
-          stream->setInstrument(*instrument);
-        break;
-    
-        case AudioEditMode::destructor:
-        {
-          if (&Harp != instrument)
-            free((void*) instrument);
-        }
-        break;
-      }
+      arbWAVloaded = arbWAV.load(b,p,l,e); 
     }
 
     //------ Stuff to remember ----------
-    float noteFreq; // basic note frequency before modification with pitch bend
-    const AudioSynthWavetable::instrument_data* instrument{&Harp}; // record of aritrary waveform
+    arbWAVrecord<AudioSynthWavetable::instrument_data> arbWAV; // record of wavetable
+    bool arbWAVloaded; // temporary flag while user is seeking a waveform to load
 };
 
 //-----------------------------------------------------------------------------------------
@@ -1009,8 +1091,9 @@ class ContextKarplusStrong : public ContextBase
   public:
     ContextKarplusStrong(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.frequency, _params, nullptr, 
                                          COUNT_OF(MIDIparams), &m.octave, MIDIparams) {}
-    static const ParamEntry _params[2];
-    struct {ParamValue frequency,amplitude;} s {{7.0f},{0.5f}};
+    static const ParamEntry _params[5];
+    struct {ParamValue frequency,amplitude, modulation, feedback, drive;} s 
+                        {{7.0f},  {0.5f},    {2.0f/12},  {0.98f}, {1.0f}};
     static constexpr AudioPatcherDisplay::Box box{BOX_DEF(260,COUNT_OF(_params))};
           
     void setParam(int i, AudioObjInstance* aoi);
@@ -1034,5 +1117,19 @@ class ContextControlSGTL5000 : public ContextBase
     static constexpr AudioPatcherDisplay::Box box{BOX_DEF(260,COUNT_OF(_params))};
 };
      
+
+//-----------------------------------------------------------------------------------------
+class ContextDexed : public ContextBase
+{
+  public:
+  ContextDexed(AudioObjInstance& _aoi) : ContextBase(_aoi, COUNT_OF(_params), &s.gain, _params) {}
+    static const ParamEntry _params[2];
+    struct {ParamValue gain,  bend;} s
+                {      {1.0f}, {3}      };
+
+    void setParam(int i, AudioObjInstance* aoi);
+    static constexpr AudioPatcherDisplay::Box box{BOX_DEF(220,COUNT_OF(_params))};
+};
+
 
 #endif // !defined(_PARAMSETTERS_H_)

@@ -20,10 +20,13 @@ class PatcherVoiceBase
     PatcherMIDI& pm;  
 };
 
+class PatcherVoice;
 // Each instance of this will serve a single MIDI channel. For
 // now, there's just the one.
 class PatcherMIDI
 {
+    std::vector<PatcherVoice*> sounding;
+    std::vector<PatcherVoice*> releasing;
     byte CCvalues[128]{0}; // actually should be 0-119, but this is safer
     int16_t pitchBend{0}; // 0x2000 is zero: we'll subtract this on reception
     bool designObjectsFree; // true if design objects can be used by PatcherVoice
@@ -42,6 +45,7 @@ class PatcherMIDI
         DummyVoice(*this),
         objVec(o), cordVec(p)
       {}
+    bool outputMixersOK(void);
     std::vector<AudioObjInstancePtr>& objVec;
     std::vector<PatchcordInstance_t*>& cordVec;
     void init(void);
@@ -49,6 +53,8 @@ class PatcherMIDI
     byte getCC(byte CCnum) { return CCvalues[CCnum & 0x7F]; }
     int16_t getPitchBend(void) { return pitchBend; }
     float getPitchBend(float sensitivity) { return pow(2,sensitivity*pitchBend/8192/12); }
+    int getSoundingCount(void) {return sounding.size(); }
+    int getReleasingCount(void) {return releasing.size(); }
 };
 
 class PatcherVoice : public PatcherVoiceBase
@@ -88,6 +94,8 @@ struct MIDIevent
   byte channel,type;
   union {byte data1; byte note;     byte CCnum; byte PBlsb;};
   union {byte data2; byte velocity; byte CCval; byte PBmsb;};
+  uint16_t sysexLength;
+  uint8_t* sysexArray;
   PatcherVoiceBase pvb;
 };
 

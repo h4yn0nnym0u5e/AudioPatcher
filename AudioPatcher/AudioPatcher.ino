@@ -13,13 +13,22 @@
 #include <vector>
 #include <algorithm>
 
-// #include "TeensyDebug.h"
+//#include "TeensyDebug.h"
 
 #if !defined(SAFE_RELEASE_MANY) || !defined(DYNMIXER_H_)
 #error Make sure you have dynamic cores and Audio library!
 #endif // !defined(SAFE_RELEASE_MANY) || !defined(DYNMIXER_H_)
 
 /********************************************************************************************************/
+//           888             888    d8b          
+//           888             888    Y8P          
+//           888             888                 
+//  .d8888b  888888  8888b.  888888 888  .d8888b 
+//  88K      888        "88b 888    888 d88P"    
+//  "Y8888b. 888    .d888888 888    888 888      
+//       X88 Y88b.  888  888 Y88b.  888 Y88b.    
+//   88888P'  "Y888 "Y888888  "Y888 888  "Y8888P 
+//  
 M5w_8angle    ctrl{0x43, Wire1};
 M5w_8encoder  encr{0x41, Wire1};
 uint32_t next;
@@ -43,10 +52,26 @@ std::vector<AudioObjInstancePtr> objVec = {
 std::vector<PatchcordInstance_t*> cordVec; 
 
 /********************************************************************************************************/
+//       888          888                        
+//       888          888                        
+//       888          888                        
+//   .d88888  .d88b.  88888b.  888  888  .d88b.  
+//  d88" 888 d8P  Y8b 888 "88b 888  888 d88P"88b 
+//  888  888 88888888 888  888 888  888 888  888 
+//  Y88b 888 Y8b.     888 d88P Y88b 888 Y88b 888 
+//   "Y88888  "Y8888  88888P"   "Y88888  "Y88888 
+//                                           888 
+//                                      Y8b d88P 
+//                                       "Y88P"  
+//                                               
 void dumpObjVec(void)
 {
   for (size_t i=0;i<objVec.size();i++)
-    Serial.printf("%d: %s @ %08X\n",i,objVec.at(i).p->objP->name,(uint32_t) objVec.at(i).p);
+  {
+    AudioObjInstance* p = objVec.at(i).p;
+    Serial.printf("%d: %s @ %08X -> %08X\n",
+        i,p->objP->name,(uint32_t) p, (uint32_t) p->streamP.streamObj);
+  }
 }
 /********************************************************************************************************/
 void printFlashID(void)
@@ -77,6 +102,16 @@ void doReboot()
 {
   SCB_AIRCR = 0x05FA0004;
 }
+
+void checkCords(void) // does nothing unless we have TeensyDebug
+{
+  for (auto p : cordVec)
+    if ((int32_t) p < 0x20200000)
+#if defined(GDB_IS_ENABLED)
+      halt_cpu()
+#endif // defined(GDB_IS_ENABLED)
+    ;
+}
 /********************************************************************************************************/
 //
 //                    888                      
@@ -100,7 +135,7 @@ void setup()
     ;
   Serial.println("Setup");
   systemState = 4;
-  AudioMemory(80);
+  AudioMemory(200); // plenty, for delays and Karplus-Strong synthesis
 
   printHL();
   display.Init();
@@ -143,7 +178,7 @@ void setup()
   
   printHL();
   Serial.printf("%d audio object types available\n",AUDIO_MAX_ID - 2);
-  for (int i=1;i<COUNT_OF_objList;i++)
+  for (int i=1;i<=COUNT_OF_objTypes;i++)
   {
     Serial.printf("%22.22s: ID=%d, %d inputs, %d outputs\n",
                   objList[i].name, i, objList[i].inputs, objList[i].outputs);
@@ -311,23 +346,59 @@ void getHeap(int& usedHeap, int& freeHeap)
   usedHeap = u; freeHeap = f;
 }
 
-void updateStatus(void)
+FLASHMEM void updateStatus(void)
 {
   static elapsedMillis next;
+  static bool showing = true;
+
   if (next > 999)
   {
     next = 0;
 
-    float cpu = AudioProcessorUsageMax();
-    char buffer[15];
-    AudioProcessorUsageMaxReset();
-    sprintf(buffer,cpu>9.99f?"CPU:%.1f%%":"CPU:%.2f%%",cpu);
-    display.ShowStatus(buffer,320-9*6,0,0xD01C);
+    if (encr.getSwitch()) // yay - use the switch, Luke!
+    {
+      int which = encr.getCount(7) / 2; // counts in twos
+      char buffer[15];
 
-    int usedHeap, freeHeap;
-    getHeap(usedHeap, freeHeap);
-    sprintf(buffer,"Free:%3dk",freeHeap / 1024);
-    display.ShowStatus(buffer,320-9*6,1,0xD01C);    
+      switch (which % 2)
+      {
+        case 0: // CPU and heap usage
+        {
+          float cpu = AudioProcessorUsageMax();
+          AudioProcessorUsageMaxReset();
+          sprintf(buffer,cpu>9.99f?"CPU:%.1f%%":"CPU:%.2f%%",cpu);
+          display.ShowStatus(buffer,320-9*6,0,0xD01C);
+
+          int usedHeap, freeHeap;
+          getHeap(usedHeap, freeHeap);
+          sprintf(buffer,"Free:%3dk",freeHeap / 1024);
+          display.ShowStatus(buffer,320-9*6,1,0xD01C); 
+        }
+          break;
+
+        case 1: // sounding and releasing voices
+        {
+          sprintf(buffer,"Snd: %hhu ",patcherMIDI.getSoundingCount());
+          display.ShowStatus(buffer,320-9*6,1,0xD01C);
+
+          sprintf(buffer,"Rel: %hhu ",patcherMIDI.getReleasingCount());
+          display.ShowStatus(buffer,320-9*6,0,0xD01C); 
+
+          next = 499; // faster updates!
+        }
+          break;
+      }      
+      showing = true;
+    }
+    else
+    {
+      if (showing)
+      {
+        showing = false;
+        display.ShowStatus("CPU:----%",320-9*6,0,0xD01C);
+        display.ShowStatus("Free:---k",320-9*6,1,0xD01C); 
+      }
+    }
   }
 }
 

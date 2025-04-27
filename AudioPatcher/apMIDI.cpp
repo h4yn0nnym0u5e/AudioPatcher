@@ -10,11 +10,11 @@ static USBHub hub1{myUSB}; // allow for one hub...
 static PatcherMIDI* pm;
 static MIDIDevice midiHosts[2] = {{myUSB},{myUSB}}; // ... and two controllers
 
-static std::vector<PatcherVoice*> sounding;
-static std::vector<PatcherVoice*> releasing;
+//static std::vector<PatcherVoice*> sounding;
+//static std::vector<PatcherVoice*> releasing;
 
 //=================================================================
-const float velocity2amplitude[128] = {0.00000,
+PROGMEM const float velocity2amplitude[128] = {0.00000,
 0.01778,0.01966,0.02164,0.02371,0.02588,0.02814,0.03049,0.03294,0.03549,0.03812,
 0.04086,0.04369,0.04661,0.04963,0.05274,0.05594,0.05924,0.06264,0.06613,0.06972,
 0.07340,0.07717,0.08104,0.08500,0.08906,0.09321,0.09746,0.10180,0.10624,0.11077,
@@ -30,7 +30,7 @@ const float velocity2amplitude[128] = {0.00000,
 0.91917,0.93240,0.94573,0.95916,0.97268,0.98629,1.00000
 };
 //=================================================================
-const float PatcherVoice::notesFromC0orMIDI_12[] 
+PROGMEM const float PatcherVoice::notesFromC0orMIDI_12[] 
   {
     16.3515978312875f, // C
     17.3239144360545f, // C#
@@ -48,7 +48,7 @@ const float PatcherVoice::notesFromC0orMIDI_12[]
 
 // Reproduce most of the Hammond tonewheel ratios
 static const float HAMMOND_BASE = 1200.0f / 60.0f * 2.0f;
-const float notesHammond[] 
+PROGMEM const float notesHammond[] 
   {
     85.0f /104.0f * HAMMOND_BASE, // C
     71.0f /82.0f * HAMMOND_BASE, // C#
@@ -88,18 +88,74 @@ void PatcherMIDI::init(void)
   Serial.println("MIDI host enabled");
 }
 
+
+/*
+ * Check to see if there's an available input on all mixers
+ * used to mix outputs from pre-voice objects
+ */
+bool PatcherMIDI::outputMixersOK(void)
+{
+  bool ok = true;
+  for (auto cord : cordVec)
+  {
+    if (cord->src->perVoice // from a per-voice object...
+    && !cord->dst->perVoice // ...to a single-instance one...
+    && AudioCategory_mixer == cord->dst->objP->category // ... which is a mixer...
+    && 0 == cord->dst->inputAvailFlags) // ...but has no inputs left
+    {
+      ok = false;
+      break;
+    }
+  }
+
+  return ok;
+}
+
+/*
+ * Process a MIDI event received on any of the configured ports,
+ * be they USB Sevice, USB Host or Serial.
+ * 
+ * For note on or off we may create a new instance of all the per-voice
+ * objects, and send those the "note on/off" event. Everything else
+ * just gets passed to every instantiated object, which may or may
+ * not make use of it.
+ */
 void PatcherMIDI::processEvent(uint8_t cable, uint8_t channel, uint8_t type, 
                                uint8_t data1, uint8_t data2, uint8_t* sysexArray) 
 {
     switch (type)
     {
       case midi::NoteOn:       
-        {         
+        {   
+          PatcherVoice* newVoice = nullptr;      
           //uint32_t t = micros();
-          PatcherVoice* newVoice = new PatcherVoice{objVec, cordVec, *this, designObjectsFree}; // create the voice
-          designObjectsFree &= !newVoice->usesDesignObjects(); // flag whether it used the design objects
-          sounding.push_back(newVoice);  // add it to the list
-          newVoice->noteOn(channel,data1,data2); // start it sounding
+          if (outputMixersOK()) // check for available output mixer port
+            newVoice = new PatcherVoice{objVec, cordVec, *this, designObjectsFree}; // create the voice
+          else
+          {
+            if (releasing.size() > 0) // there's a voice that's been released: use that
+            {
+              newVoice = releasing.at(0);         // the oldest one
+              releasing.erase(releasing.begin()); // is not releasing any more
+            }
+            else // all notes held: steal the oldest sounding one
+            {
+              if (sounding.size() > 0) // surely ... ?
+              {
+                newVoice = sounding.at(0);        // the oldest one
+                sounding.erase(sounding.begin()); // will be pushed at the back
+                newVoice->noteOff(0,newVoice->getNote(),0); // just in case
+              }
+            }
+          }
+          if (nullptr != newVoice)
+          {
+            designObjectsFree &= !newVoice->usesDesignObjects(); // flag whether it used the design objects
+            sounding.push_back(newVoice);  // add it to the list
+            newVoice->noteOn(channel,data1,data2); // start it sounding
+          }
+          else
+            Serial.println("Can't create voice?!");
           //Serial.printf("Took %uus to instantiate note\n",micros() - t);
         }
         break;
@@ -128,7 +184,12 @@ void PatcherMIDI::processEvent(uint8_t cable, uint8_t channel, uint8_t type,
                typ = type,
                d1  = data1,
                d2  = data2;
+          uint16_t sysexLength = nullptr == sysexArray?0:((d2<<8)|(d1&0xFF));
 
+          
+          // for some messages we want to keep data in
+          // case another note is started which needs
+          // to make use of it
           switch (typ)
           {
             default:
@@ -142,11 +203,12 @@ void PatcherMIDI::processEvent(uint8_t cable, uint8_t channel, uint8_t type,
             case midi::PitchBend:
               pitchBend = ((int16_t) d2 << 7) | d1;
               pitchBend -= 0x2000; // make it signed
+              Serial.printf("PB = %d\n",pitchBend);
               break;
           }
 
           {
-            MIDIevent me {ch,typ,d1,d2,DummyVoice};
+            MIDIevent me {ch,typ,d1,d2,sysexLength,sysexArray,DummyVoice};
             PatcherVoice::sendMIDIevent(objVec,me); // send to whole design
           }
 
@@ -154,7 +216,7 @@ void PatcherMIDI::processEvent(uint8_t cable, uint8_t channel, uint8_t type,
           {           
             if (!obj->usesDesignObjects()) // except the one using the design objects
             {
-              MIDIevent me {ch,typ,d1,d2,*obj};
+              MIDIevent me {ch,typ,d1,d2,sysexLength,sysexArray,*obj};
               obj->sendMIDIevent(me);
             }
           }
@@ -231,7 +293,7 @@ PatcherVoice::PatcherVoice(std::vector<AudioObjInstancePtr>& objVec,
         aoi = obj.p;
       else
       {
-        aoi = new AudioObjInstance(*obj.p->objP); 
+        aoi = new AudioObjInstance(*obj.p); 
         obj.p->copySettingsTo(*aoi);
       }
       voiceVec.push_back({aoi});
@@ -280,6 +342,9 @@ PatcherVoice::PatcherVoice(std::vector<AudioObjInstancePtr>& objVec,
       // if we don't have an internal destination, we're 
       // looking for a mixer with an unused input: this
       // is the only legal option
+      //
+      // Belt-and-braces here, as more recent versions
+      // should have already done this check...
       if (nullptr == dst)
       {
         if (AudioCategory_mixer == cord->dst->objP->category
@@ -343,7 +408,7 @@ void PatcherVoice::sendMIDIevent(std::vector<AudioObjInstancePtr> voiceVec, MIDI
 
 void PatcherVoice::noteOn(byte channel, byte note, byte velocity)
 {
-  MIDIevent me{channel,midi::NoteOn,{note},{velocity},*this};
+  MIDIevent me{channel,midi::NoteOn,{note},{velocity},0,nullptr,*this};
   sendMIDIevent(me);
   triggerNote = note;
   triggerVelocity = velocity;
@@ -351,7 +416,7 @@ void PatcherVoice::noteOn(byte channel, byte note, byte velocity)
   
 void PatcherVoice::noteOff(byte channel, byte note, byte velocity)
 {
-  MIDIevent me{channel,midi::NoteOff,{note},{velocity},*this};
+  MIDIevent me{channel,midi::NoteOff,{note},{velocity},0,nullptr,*this};
   sendMIDIevent(me);
 }
 

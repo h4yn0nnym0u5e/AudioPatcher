@@ -3,6 +3,7 @@
 
 #include <Audio.h>
 #include <effect_hammond_vibrato.h>
+#include <synth_dexed.h>
 extern int systemState;
 
 /*
@@ -42,10 +43,10 @@ extern int systemState;
   AUDIO_ENTRY(AudioFilterLadder,Ladder,AUDIO_FILTER_LADDER,3,1,filter,ladr,) \
   AUDIO_ENTRY(AudioFilterStateVariable,StateVariable,AUDIO_FILTER_STATE_VARIABLE,2,3,filter,svf,) \
   AUDIO_ENTRY(AudioAmplifier,Amplifier,AUDIO_AMPLIFIER,1,1,mixer,amp,) \
-  AUDIO_ENTRY(AudioMixer,Mixer,AUDIO_MIXER,8,1,mixer,mixN,8) \
+  AUDIO_ENTRY(AudioMixer,Mixer,AUDIO_MIXER,8,1,mixer,mixN,/***/) \
   AUDIO_ENTRY(AudioMixer4,Mixer4,AUDIO_MIXER4,4,1,mixer,mix4,) \
-  AUDIO_ENTRY(AudioMixerStereo,MixerStereo,AUDIO_MIXER_STEREO,8,2,mixer,mixS,8) \
-  AUDIO_ENTRY(AudioSynthKarplusStrong,KarplusStrong,AUDIO_SYNTH_KARPLUS_STRONG,0,1,synth,kpst,) \
+  AUDIO_ENTRY(AudioMixerStereo,MixerStereo,AUDIO_MIXER_STEREO,8,2,mixer,mixS,/***/) \
+  AUDIO_ENTRY(AudioSynthKarplusStrong,KarplusStrong,AUDIO_SYNTH_KARPLUS_STRONG,2,1,synth,kpst,) \
   AUDIO_ENTRY(AudioSynthNoisePink,NoisePink,AUDIO_SYNTH_NOISE_PINK,0,1,synth,npnk,) \
   AUDIO_ENTRY(AudioSynthNoiseWhite,NoiseWhite,AUDIO_SYNTH_NOISE_WHITE,0,1,synth,nwht,) \
   AUDIO_ENTRY(AudioSynthSimpleDrum,SimpleDrum,AUDIO_SYNTH_SIMPLE_DRUM,0,1,synth,drum,) \
@@ -54,11 +55,26 @@ extern int systemState;
   AUDIO_ENTRY(AudioSynthWaveformDc,WaveformDc,AUDIO_SYNTH_WAVEFORM_DC,0,1,synth,dc,) \
   AUDIO_ENTRY(AudioSynthWaveformModulated,WaveformModulated,AUDIO_SYNTH_WAVEFORM_MODULATED,2,1,synth,wvmd,) \
   AUDIO_ENTRY(AudioSynthWaveformPWM,WaveformPWM,AUDIO_SYNTH_WAVEFORM_PWM,1,1,synth,wpwm,) \
-  AUDIO_ENTRY(AudioSynthWaveformSine,WaveformSine,AUDIO_SYNTH_WAVEFORM_SINE,0,1,synth,wsin,) \
+  AUDIO_ENTRY(AudioSynthDexed,Dexed,AUDIO_SYNTH_DEXED,0,1,synth,dexd,/***/) \
   AUDIO_ENTRY(AudioSynthWaveformSineHires,WaveformSineHires,AUDIO_SYNTH_WAVEFORM_SINE_HIRES,0,2,synth,wshr,) \
   AUDIO_ENTRY(AudioSynthWaveformSineModulated,WaveformSineModulated,AUDIO_SYNTH_WAVEFORM_SINE_MODULATED,1,1,synth,wsmd,) \
   AUDIO_ENTRY(AudioSynthWavetable,Wavetable,AUDIO_SYNTH_WAVETABLE,0,1,synth,wtab,) \
 
+
+  // Special cases of constructors with parameters
+  #define AudioEffectDelayExternal_CONSTRUCTOR AUDIO_MEMORY_EXTMEM,1000.0f
+  #define AudioMixer_CONSTRUCTOR 8  
+  #define AudioMixerStereo_CONSTRUCTOR 8
+  #define AudioSynthDexed_CONSTRUCTOR_1 1,(uint32_t) AUDIO_SAMPLE_RATE
+  #define AudioSynthDexed_CONSTRUCTOR_2 original->streamP.Dexed->common
+  /*
+  #define Audio_CONSTRUCTOR 
+  #define Audio_CONSTRUCTOR 
+  #define Audio_CONSTRUCTOR 
+  #define Audio_CONSTRUCTOR 
+  #define Audio_CONSTRUCTOR 
+  #define Audio_CONSTRUCTOR 
+  */
 
 /*
   AUDIO_ENTRY(AudioControlAK4558,ControlAK4558,AUDIO_CONTROL_AK4558,0,0,control,ctrl,) \
@@ -102,8 +118,6 @@ extern int systemState;
   AUDIO_ENTRY(AudioOutputTDM2,OutputTDM2,AUDIO_OUTPUT_TDM2,16,0,output,TDM2o,) \
   AUDIO_ENTRY(AudioOutputUSB,OutputUSB,AUDIO_OUTPUT_USB,2,0,output,USBo,) \
 */
-
-#define AEDE_CONSTRUCTOR AUDIO_MEMORY_EXTMEM,1000.0f
 
 enum AudioCategory_e { AudioCategory_none, AudioCategory_patchcord, AudioCategory_analyze, AudioCategory_effect, AudioCategory_filter, AudioCategory_mixer, AudioCategory_synth, AudioCategory_control, AudioCategory_input, AudioCategory_output };
 
@@ -167,9 +181,9 @@ struct AudioObjStatic_t
 class AudioObjInstance
 {
   public:
-    AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, bool _noD, bool _isAcopy = false);
-    AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y) : AudioObjInstance(o,_x,_y,false,false) {}
-    AudioObjInstance(AudioObjStatic_t& o) : AudioObjInstance(o,-9999,-9999,false,true) {}
+    AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y, bool _noD, AudioObjInstance* original = nullptr);
+    AudioObjInstance(AudioObjStatic_t& o, int16_t _x, int16_t _y) : AudioObjInstance(o,_x,_y,false) {}
+    AudioObjInstance(AudioObjInstance& aoi) : AudioObjInstance(*aoi.objP,-9999,-9999,false,&aoi) {}
     ~AudioObjInstance();
     AudioObjStatic_t* objP;
     AudioObjPtr_u streamP;
