@@ -1656,7 +1656,7 @@ int isActive<ContextKarplusStrong>(AudioObjInstance* aoi)
   
 FLASHMEM int editKarplusStrong(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
-  int result = editObjType<AudioSynthKarplusStrong, ContextKarplusStrong>(aoi,mode,params);
+  int result = editObjType<AudioSynthKarplusStrongModulated, ContextKarplusStrong>(aoi,mode,params);
   return result;    
 }
 
