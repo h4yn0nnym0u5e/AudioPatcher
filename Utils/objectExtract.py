@@ -43,7 +43,7 @@ objmap = {
 	"AudioMixer": {"label": "mixN", "new": "(8)", "inputs": 8},
 	"AudioMixer4": {"label": "mix4" },
 	"AudioMixerStereo": {"label": "mixS" , "new": "(8)", "inputs": 8},
-	"AudioSynthKarplusStrong": {"label": "kpst" },
+	"AudioSynthKarplusStrongModulated": {"label": "kpst" },
 	"AudioSynthNoisePink": {"label": "npnk" },
 	"AudioSynthNoiseWhite": {"label": "nwht" },
 	"AudioSynthSimpleDrum": {"label": "drum" },

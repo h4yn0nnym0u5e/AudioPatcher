@@ -126,13 +126,19 @@ void AudioPatcherDisplay::ShowVoiceFlag(bool flag)
   tft.fillCircle(savedArea.x + savedArea.w - 5 - cr,savedArea.y + 5 + cr, cr, colour); // assume we're operating in the area we saved
 }
 
-void AudioPatcherDisplay::ShowLabel(const ParamEntry& p, ParamValue& v, int16_t n, int16_t xoff, int16_t yoff)
+void AudioPatcherDisplay::ShowLabel(const ParamEntry& p, ParamValue& v, int16_t n, int16_t xoff, int16_t yoff, uint16_t LEDbar)
 {
   if (nullptr != p.label)
   {
     int xxoff = xoff + p.xoff;
     tft.setTextSize(2);
     tft.setTextColor(ILI9341_LIGHTGREY,EDIT_BKGND);
+    // option label bar to show matching LED colour
+    if (0 != LEDbar) // black is not useful!
+    {
+      tft.fillRect(savedArea.x + xxoff -1,savedArea.y + n*16 + yoff +3, 4, 8, LEDbar);
+      xxoff += 5;
+    }
     tft.setCursor(savedArea.x + xxoff,savedArea.y + n*16 + yoff); // assume we're operating in the area we saved
     tft.print(p.label);
     tft.print(":");

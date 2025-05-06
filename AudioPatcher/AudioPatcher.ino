@@ -159,15 +159,12 @@ void setup()
   Serial.printf("8Angle says %d\n",ctrl?1:0);
   Serial.printf("8Angle at address 0x%02X; version %d\n",ctrl.getAddress(),ctrl.getVersion());
   
-  ctrl.writeLED(0,0x2F00'0080);
-  ctrl.writeLED(1,0x2F00'2070);
-  ctrl.writeLED(2,0x2F00'3040);
-  ctrl.writeLED(3,0x2F00'8000);
-  ctrl.writeLED(4,0x2F40'6000);
-  ctrl.writeLED(5,0x2F80'0000);
-  ctrl.writeLED(6,0x2F60'0040);
-  ctrl.writeLED(7,0x2F40'4040);
-  ctrl.writeLED(8,0x2F10'1010);
+  for (int i=0;i<9;i++)
+  {
+    ctrl.writeLED(i,LimitedEncoder::colour(i));
+    encr.writeLED(i,0);
+  }
+
   /*
   for (int i=0;i<9;i++)
     ctrl.writeLED(i,0);
@@ -285,6 +282,12 @@ LimitedEncoder encM{encr,0,0,(int32_t) strlen(modes)-1}; // mode
 LimitedEncoder enc0{encr,1,0,31}; // x position in steps of 10
 LimitedEncoder enc1{encr,2,0,23}; // y position in steps of 10
 LimitedEncoder enc2{encr,3,1,COUNT_OF_objList}; // object selector
+// extra encoders
+LimitedEncoder enc3{encr,4,-1,1};
+LimitedEncoder enc4{encr,5,-1,1};
+LimitedEncoder enc5{encr,6,-1,1};
+LimitedEncoder enc6{encr,7,-1,1};
+
 int state = 0;
 bool initialised = false;
 char editMode[2] = {0};
@@ -460,20 +463,10 @@ FLASHMEM void updateStatus(void)
 void loop() 
 {
   //-------------------------------------------------
-  static bool b6state = false;
-  if (encr.getButton(6))
+  if (0 == enc5.getColour() && enc5.wasClicked())
   {
-    b6state = true;
-  }
-  else
-  {
-    if (b6state)
-    {
-      Serial.printf("Current screen dump");
-      b6state = false;
-
-      screenDump();
-    }
+    Serial.printf("Current screen dump");
+    screenDump();
   }
 
   //-------------------------------------------------
