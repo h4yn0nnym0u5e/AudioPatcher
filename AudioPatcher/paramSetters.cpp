@@ -142,7 +142,10 @@ FLASHMEM bool updateFromControls(AudioObjInstance* aoi)
   {
     for (size_t i=0; i < settingsEditor->paramCount; i++)
     {
-      if (Scale(settingsEditor->params[i],settingsEditor->aray[i],ctrl.getPot16(i),0.999f))
+      uint16_t pv = ctrl.getPot16(i);
+      //if (7==i) // hardware issue with pot 7 :(
+      //  Serial.println(pv);
+      if (Scale(settingsEditor->params[i],settingsEditor->aray[i],pv,0.999f))
       {
         settingsEditor->ShowValue(i);
       }
@@ -159,7 +162,17 @@ FLASHMEM void SettingsEditor::Init(const char* title)
   ShowPage();
 }
 
-
+PROGMEM uint16_t LEDbars[] =
+  {
+    CL(255,  0,  0),
+    CL(224, 80,  0),
+    CL(192,128,  0),
+    CL(  0,192,  0),
+    CL(  0, 96,128),
+    CL( 32, 32,255),
+    CL(192, 32,255),
+    CL(255,255,255)  
+  };
 FLASHMEM void SettingsEditor::ShowPage(void)
 {
   int row = 0, tmpLast = lastRowShown;
@@ -174,11 +187,13 @@ FLASHMEM void SettingsEditor::ShowPage(void)
   // Show the parameter rows / columns
   for (size_t i = 0; i < nCtrl; i++)
   {
+    uint16_t LEDbar = i<8?LEDbars[i]:0;
+
     if (0 != params[i+first].xoff) /// if we have an X offset
       row--; // we're on the same row as before
     else
       BlankRow(row,27);      
-    ShowLabel(i+first,row,5,27);
+    ShowLabel(i+first,row,5,27, LEDbar);
     ShowValue(i+first);
     if (!ctrl.isHooking(i) // specialized enterEditMode() may have hooked already - don't re-do
      && nullptr != params[i+first].label) // don't do for null parameter
@@ -1344,7 +1359,17 @@ void enterEditMode<ContextWaveformModulated>(ContextWaveformModulated* myContext
   ParamValue pv{frac};    
   HookControl(ctrl,1,freqLimits,pv); // frequency pot is #1: set hook
 
+  enc0.setLED(LimitedEncoder::colour(1));
+  enc5.setLED(LimitedEncoder::colour(6));
+
   // Serial.printf("Hook set to %f; encoder to %d\n",pv.value.f,iprt);
+}
+
+template <> FLASHMEM
+void exitEditMode<ContextWaveformModulated>(ContextWaveformModulated* myContext, AudioObjInstance* aoi)
+{
+  enc0.setLED(0);
+  enc5.setLED(0);
 }
 
 template<class Tctxt>
@@ -1496,7 +1521,7 @@ bool updateFromControls<ContextWaveformModulated>(ContextWaveformModulated* myCo
       }
     }
 
-    pollFileSelect(myContext, enc0);
+    pollFileSelect(myContext, enc5);
   }
   
   return result;
@@ -1624,7 +1649,7 @@ int isActive<ContextKarplusStrong>(AudioObjInstance* aoi)
   
 FLASHMEM int editKarplusStrong(AudioObjInstance* aoi, AudioEditMode mode, void* params)
 {
-  int result = editObjType<AudioSynthKarplusStrong, ContextKarplusStrong>(aoi,mode,params);
+  int result = editObjType<AudioSynthKarplusStrongModulated, ContextKarplusStrong>(aoi,mode,params);
   return result;    
 }
 
@@ -2025,8 +2050,17 @@ void enterEditMode<ContextWaveform>(ContextWaveform* myContext, AudioObjInstance
   HookControl(ctrl,1,freqLimits,pv); // frequency pot is #1: set hook
 
   Serial.printf("Hook set to %f; encoder to %d\n",pv.value.f,iprt);
+
+  enc0.setLED(LimitedEncoder::colour(1));
+  enc4.setLED(LimitedEncoder::colour(5));
 }
-  
+
+template <> FLASHMEM
+void exitEditMode<ContextWaveform>(ContextWaveform* myContext, AudioObjInstance* aoi)
+{
+  enc0.setLED(0);
+  enc4.setLED(0);
+}
 
 template <> // template specialization for setting Waveform; needed for frequency setting
 bool updateFromControls<ContextWaveform>(ContextWaveform* myContext, AudioObjInstance* aoi)
@@ -2060,7 +2094,7 @@ bool updateFromControls<ContextWaveform>(ContextWaveform* myContext, AudioObjIns
       }
     }
 
-    pollFileSelect(myContext, enc0);
+    pollFileSelect(myContext, enc4);
   }
   return result;
 }

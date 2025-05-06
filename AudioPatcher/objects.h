@@ -46,7 +46,7 @@ extern int systemState;
   AUDIO_ENTRY(AudioMixer,Mixer,AUDIO_MIXER,8,1,mixer,mixN,/***/) \
   AUDIO_ENTRY(AudioMixer4,Mixer4,AUDIO_MIXER4,4,1,mixer,mix4,) \
   AUDIO_ENTRY(AudioMixerStereo,MixerStereo,AUDIO_MIXER_STEREO,8,2,mixer,mixS,/***/) \
-  AUDIO_ENTRY(AudioSynthKarplusStrong,KarplusStrong,AUDIO_SYNTH_KARPLUS_STRONG,2,1,synth,kpst,) \
+  AUDIO_ENTRY(AudioSynthKarplusStrongModulated,KarplusStrong,AUDIO_SYNTH_KARPLUS_STRONG,2,1,synth,kpst,) \
   AUDIO_ENTRY(AudioSynthNoisePink,NoisePink,AUDIO_SYNTH_NOISE_PINK,0,1,synth,npnk,) \
   AUDIO_ENTRY(AudioSynthNoiseWhite,NoiseWhite,AUDIO_SYNTH_NOISE_WHITE,0,1,synth,nwht,) \
   AUDIO_ENTRY(AudioSynthSimpleDrum,SimpleDrum,AUDIO_SYNTH_SIMPLE_DRUM,0,1,synth,drum,) \

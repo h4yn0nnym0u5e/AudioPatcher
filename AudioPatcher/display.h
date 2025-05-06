@@ -26,7 +26,8 @@
 #define CONNECTION_COLOUR    0x9492 // ILI9341_DARKGREY
 #define PATCHCORD_COLOUR     0xFA02 // orange
 #define PATCHCORD_HIGHLIGHT  0xFC04 // orange
-#define EDIT_BKGND           0x528A // darker grey
+//#define EDIT_BKGND           0x528A // darker grey 
+#define EDIT_BKGND           0x3186 // even darker grey 
 #define KEY_CAP_COLOUR       ILI9341_LIGHTGREY
 #define DIR_NAME_COLOUR      0x27E4 // pale green
 #define KEY_ACTIVE_BKGND     0x1042 // very dark grey
@@ -131,7 +132,7 @@ class AudioPatcherDisplay
     void ShowTitle(const char* t, int16_t xoff, int16_t yoff);
     void ShowVoiceFlag(bool flag);
     void FillRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t colour);
-    void ShowLabel(const ParamEntry& p, ParamValue& v, int16_t n, int16_t xoff, int16_t yoff);
+    void ShowLabel(const ParamEntry& p, ParamValue& v, int16_t n, int16_t xoff, int16_t yoff, uint16_t LEDbar = 0);
     void ShowValue(const ParamEntry& p, ParamValue& v, int16_t n);
 
     // keyboard
