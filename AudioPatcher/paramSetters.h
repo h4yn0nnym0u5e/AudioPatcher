@@ -9,7 +9,7 @@
 #include "editors.h"
 #include "Harp_samples.h"
 
-extern LimitedEncoder encM,enc0,enc1,enc2;
+extern LimitedEncoder encM,enc0,enc1,enc2,enc3,enc4,enc5,enc6;
 extern const ParamChoice velocityShapes[];
 extern const int16_t arbWAV_sax[];
 extern AudioObjStatic_t objList[];
@@ -100,7 +100,7 @@ class SettingsEditor
     void InitArea(void) { display.InitArea(workArea.x,workArea.y,workArea.w,workArea.h); }
     void Init(const char* title);
     void BlankRow(int row, int16_t yoff) { display.FillRect(workArea.x+1, workArea.y+yoff+row*16, workArea.w-2, 16, EDIT_BKGND); }
-    void ShowLabel(int i, int row, int xoff, int yoff) { display.ShowLabel(params[i],aray[i],row,xoff,yoff); }
+    void ShowLabel(int i, int row, int xoff, int yoff, uint16_t LEDbar) { display.ShowLabel(params[i],aray[i],row,xoff,yoff,LEDbar); }
     void ShowValue(int i) { display.ShowValue(params[i],aray[i],i); }
     void ShowPage(void);
     bool ChangePage(int newPage);

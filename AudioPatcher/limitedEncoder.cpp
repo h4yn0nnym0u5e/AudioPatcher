@@ -1,5 +1,29 @@
 #include"limitedEncoder.h"
 
+PROGMEM uint32_t LimitedEncoder::colours[9] =
+{ // L B  G R
+  0x6400'002A, // red
+  0x6400'0A2A, // orange
+  0x6400'1515, // yellow
+  0x6400'2A00, // green
+  0x6415'2000, // cyan
+  0x642A'0000, // blue
+  0x6460'0015, // purple
+  0x6415'1515, // white
+  0x6405'0505  // dim white
+  /*
+  0x2100'0080, // red
+  0x2100'2080, // orange
+  0x2100'4040, // yellow
+  0x2100'8000, // green
+  0x2140'6000, // cyan
+  0x2180'0000, // blue
+  0x2160'0040, // purple
+  0x2140'4040, // white
+  0x2110'1010  // dim white
+  */
+};
+
 bool LimitedEncoder::available(int stepBy)
 {
   bool result = false;
